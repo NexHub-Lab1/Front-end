@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@heroui/react": "^2.8.10",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@tailwindcss/postcss": "^4.2.2",
+    "class-variance-authority": "^0.7.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.577.0",
     "motion": "^12.38.0",
