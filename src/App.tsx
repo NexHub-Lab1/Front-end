@@ -423,13 +423,13 @@ function AuthPage({ mode }: { mode: AuthMode }) {
           eyebrow: 'Welcome back',
           title: 'Sign in to keep building on NexHub',
           description: 'Use your email and password to access your builder account and project workflow.',
-          endpoint: 'http://localhost:8081/api/auth/login',
+          endpoint: '/api/auth/login',
         }
       : {
           eyebrow: 'Create account',
           title: 'Join NexHub and start shipping with teams',
           description: 'Create a simple account to explore projects, claim bounties, and grow your reputation.',
-          endpoint: 'http://localhost:8081/api/auth/signup',
+          endpoint: '/api/auth/signup',
         }
   }, [mode])
 
@@ -461,6 +461,10 @@ function AuthPage({ mode }: { mode: AuthMode }) {
       } else {
         setLoginForm(initialLogin)
       }
+
+      window.setTimeout(() => {
+        navigateTo('/')
+      }, 700)
     } catch (error) {
       setCurrentUser(null)
       setFeedback({
