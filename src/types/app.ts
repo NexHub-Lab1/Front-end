@@ -1,0 +1,39 @@
+export type AuthMode = 'login' | 'signup'
+
+export type AuthUser = {
+  id: number
+  username: string
+  email: string
+}
+
+export type ApiResponse<T> = {
+  status: 'success' | 'error'
+  message: string
+  data: T | null
+  timestamp: string
+}
+
+export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile'
+
+export type ProjectCard = {
+  name: string
+  description: string
+  tags: string[]
+  stars: number
+  followers: number
+}
+
+export type BountyCard = {
+  title: string
+  project: string
+  reward: string
+  meta: string
+}
+
+export type DeveloperCard = {
+  name: string
+  handle: string
+  followers: number
+  score: string
+  rank: string
+}
