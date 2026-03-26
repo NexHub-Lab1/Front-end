@@ -14,6 +14,7 @@ RUN npm run build
 FROM nginx:stable-alpine
 # Copiamos el resultado del build de Vite a la carpeta de Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Exponemos el puerto 80 (estándar de Nginx)
 EXPOSE 80
