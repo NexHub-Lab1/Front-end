@@ -144,17 +144,6 @@ export function ProfilePage({
                 <CardDescription>{user.email}</CardDescription>
               </div>
             </div>
-
-            <div className="grid gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Access</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">Builder account</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Status</p>
-                <p className="mt-1 text-base font-semibold text-emerald-600">Active</p>
-              </div>
-            </div>
           </CardBody>
         </Card>
 
