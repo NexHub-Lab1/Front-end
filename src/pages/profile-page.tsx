@@ -147,10 +147,6 @@ export function ProfilePage({
 
             <div className="grid gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">User ID</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">#{user.id}</p>
-              </div>
-              <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Access</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">Builder account</p>
               </div>
