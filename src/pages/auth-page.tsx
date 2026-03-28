@@ -11,6 +11,8 @@ import { Card, CardBody, CardHeader } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
+import { AUTH_LOG_IN_ENDPOINT, AUTH_SIGN_UP_ENDPOINT } from '../lib/auth-storage'
+
 const initialLogin = {
   email: '',
   password: '',
@@ -41,13 +43,13 @@ export function AuthPage({
           eyebrow: 'Welcome back',
           title: 'Sign in to keep building on NexHub',
           description: 'Use your email and password to access your builder account and project workflow.',
-          endpoint: '/api/auth/login',
+          endpoint: AUTH_LOG_IN_ENDPOINT,
         }
       : {
           eyebrow: 'Create account',
           title: 'Join NexHub and start shipping with teams',
           description: 'Create a simple account to explore projects, claim bounties, and grow your reputation.',
-          endpoint: '/api/auth/signup',
+          endpoint: AUTH_SIGN_UP_ENDPOINT,
         }
   }, [mode])
 

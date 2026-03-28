@@ -52,6 +52,7 @@ export function ProfilePage({
     return null
   }
 
+  // TODO: WIP - needs to be tested
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSaving(true)
@@ -159,7 +160,7 @@ export function ProfilePage({
               </CardDescription>
             </div>
 
-            <form className="space-y-4" onSubmit={handleUpdate}>
+            <form className="space-y-4" onSubmit={() => console.log("WIP")}>
               <Input
                 type="email"
                 label="Current email"
