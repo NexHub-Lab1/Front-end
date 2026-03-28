@@ -4,6 +4,8 @@ const AUTH_STORAGE_KEY = 'nexhub-auth-user'
 export const AUTH_ROOT_ENDPOINT = 'http://localhost:8080/api/auth'
 export const AUTH_SIGN_UP_ENDPOINT = AUTH_ROOT_ENDPOINT + '/signup'
 export const AUTH_LOG_IN_ENDPOINT = AUTH_ROOT_ENDPOINT + '/login'
+export const AUTH_UPDATE_ENDPOINT = AUTH_ROOT_ENDPOINT + '/updateaccount'
+export const AUTH_DELETE_ENDPOINT = AUTH_ROOT_ENDPOINT + '/deleteaccount'
 
 export function readStoredUser(): AuthUser | null {
   const stored = window.localStorage.getItem(AUTH_STORAGE_KEY)

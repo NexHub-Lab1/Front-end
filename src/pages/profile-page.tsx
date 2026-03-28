@@ -10,6 +10,7 @@ import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/car
 import { Input } from '../components/ui/input'
 import { navigateTo } from '../lib/navigation'
 import type { ApiResponse, AuthUser } from '../types/app'
+import { AUTH_DELETE_ENDPOINT, AUTH_UPDATE_ENDPOINT } from '../lib/auth-storage'
 
 export function ProfilePage({
   user,
@@ -59,7 +60,7 @@ export function ProfilePage({
     setFeedback(null)
 
     try {
-      const response = await fetch('/api/auth/updateaccount', {
+      const response = await fetch(AUTH_UPDATE_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -105,7 +106,7 @@ export function ProfilePage({
     setFeedback(null)
 
     try {
-      const response = await fetch('/api/auth/deleteaccount', {
+      const response = await fetch(AUTH_DELETE_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -160,7 +161,7 @@ export function ProfilePage({
               </CardDescription>
             </div>
 
-            <form className="space-y-4" onSubmit={() => console.log("WIP")}>
+            <form className="space-y-4" onSubmit={handleUpdate}>
               <Input
                 type="email"
                 label="Current email"
