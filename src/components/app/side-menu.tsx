@@ -1,6 +1,6 @@
 import { FolderKanban, Settings, Trophy, User, WalletCards, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-import { navigateTo } from '../../lib/navigation'
 import type { AuthUser } from '../../types/app'
 import { Button } from '../ui/button'
 
@@ -15,6 +15,8 @@ export function SideMenu({
   user: AuthUser | null
   onSignOut: () => void
 }) {
+  const navigate = useNavigate()
+
   return (
     <>
       <div
@@ -48,7 +50,7 @@ export function SideMenu({
             className="menu-item"
             type="button"
             onClick={() => {
-              navigateTo('/profile')
+              navigate('/profile')
               onClose()
             }}
           >
@@ -70,7 +72,7 @@ export function SideMenu({
             className="menu-item"
             type="button"
             onClick={() => {
-              navigateTo('/profile')
+              navigate('/profile')
               onClose()
             }}
           >

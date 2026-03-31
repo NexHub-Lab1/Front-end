@@ -1,27 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 
 import './App.css'
 import { SideMenu } from './components/app/side-menu'
 import { persistUser, readStoredUser } from './lib/auth-storage'
-import { normalizeRoute, navigateTo } from './lib/navigation'
 import { AuthPage } from './pages/auth-page'
 import { LandingPage } from './pages/landing-page'
 import { ProfilePage } from './pages/profile-page'
-import type { AppRoute, AuthUser } from './types/app'
+import type { AuthUser } from './types/app'
 
 function App() {
-  const [route, setRoute] = useState<AppRoute>(() => normalizeRoute(window.location.pathname))
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => readStoredUser())
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-
-  useEffect(() => {
-    function handleRouteChange() {
-      setRoute(normalizeRoute(window.location.pathname))
-    }
-
-    window.addEventListener('popstate', handleRouteChange)
-    return () => window.removeEventListener('popstate', handleRouteChange)
-  }, [])
+  const navigate = useNavigate()
 
   function handleAuthSuccess(user: AuthUser) {
     setCurrentUser(user)
@@ -38,7 +29,7 @@ function App() {
     setCurrentUser(null)
     persistUser(null)
     setIsMenuOpen(false)
-    navigateTo('/')
+    navigate('/')
   }
 
   function handleUserUpdate(user: AuthUser) {
@@ -55,24 +46,42 @@ function App() {
         onSignOut={handleSignOut}
       />
 
-      {route === '/auth/login' ? (
-        <AuthPage mode="login" onAuthSuccess={handleAuthSuccess} />
-      ) : route === '/auth/signup' ? (
-        <AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} />
-      ) : route === '/profile' ? (
-        <ProfilePage
-          user={currentUser}
-          onUserUpdate={handleUserUpdate}
-          onSignOut={handleSignOut}
-          onOpenMenu={() => setIsMenuOpen(true)}
+      <Routes>
+        <Route
+          path="/auth/login"
+          element={<AuthPage mode="login" onAuthSuccess={handleAuthSuccess} />}
         />
-      ) : (
-        <LandingPage
-          user={currentUser}
-          onSignOut={handleSignOut}
-          onOpenMenu={() => setIsMenuOpen(true)}
+        <Route
+          path="/auth/signup"
+          element={<AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} />}
         />
-      )}
+        <Route
+          path="/profile"
+          element={
+            currentUser ? (
+              <ProfilePage
+                user={currentUser}
+                onUserUpdate={handleUserUpdate}
+                onSignOut={handleSignOut}
+                onOpenMenu={() => setIsMenuOpen(true)}
+              />
+            ) : (
+              <Navigate to="/auth/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <LandingPage
+              user={currentUser}
+              onSignOut={handleSignOut}
+              onOpenMenu={() => setIsMenuOpen(true)}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   )
 }
