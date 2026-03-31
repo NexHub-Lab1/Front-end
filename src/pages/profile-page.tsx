@@ -54,7 +54,6 @@ export function ProfilePage({
     return null
   }
 
-  // TODO: WIP - needs to be tested
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSaving(true)

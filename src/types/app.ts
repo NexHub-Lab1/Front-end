@@ -13,7 +13,7 @@ export type ApiResponse<T> = {
   timestamp: string
 }
 
-export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile'
+export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile' | '/projects'
 
 export type ProjectCard = {
   name: string

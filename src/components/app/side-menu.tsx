@@ -58,7 +58,14 @@ export function SideMenu({
             <span>My profile</span>
           </button>
 
-          <button className="menu-item" type="button" onClick={onClose}>
+          <button
+            className="menu-item"
+            type="button"
+            onClick={() => {
+              navigate('/projects')
+              onClose()
+            }}
+          >
             <FolderKanban size={34} />
             <span>Projects</span>
           </button>
