@@ -1,6 +1,7 @@
 import { ArrowRight, CheckCircle2, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import { DeveloperAvatar } from '../components/app/developer-avatar'
@@ -8,7 +9,6 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
-import { navigateTo } from '../lib/navigation'
 import type { ApiResponse, AuthUser } from '../types/app'
 import { AUTH_DELETE_ENDPOINT, AUTH_UPDATE_ENDPOINT } from '../lib/auth-storage'
 
@@ -23,6 +23,7 @@ export function ProfilePage({
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     currentEmail: user?.email ?? '',
     currentPassword: '',
@@ -36,7 +37,7 @@ export function ProfilePage({
 
   useEffect(() => {
     if (!user) {
-      navigateTo('/auth/login')
+      navigate('/auth/login')
       return
     }
 
@@ -47,7 +48,7 @@ export function ProfilePage({
       newEmail: user.email,
       newPassword: '',
     })
-  }, [user])
+  }, [navigate, user])
 
   if (!user) {
     return null
@@ -121,7 +122,7 @@ export function ProfilePage({
       }
 
       onSignOut()
-      navigateTo('/')
+      navigate('/')
     } catch (error) {
       setFeedback({
         type: 'error',

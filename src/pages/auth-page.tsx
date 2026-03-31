@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowRight, CheckCircle2, LoaderCircle, LogIn, Sparkles, UserPlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-import { navigateTo } from '../lib/navigation'
 import type { ApiResponse, AuthMode, AuthUser } from '../types/app'
 import { BrandMark } from '../components/app/brand-mark'
 import { Badge } from '../components/ui/badge'
@@ -31,6 +31,7 @@ export function AuthPage({
   mode: AuthMode
   onAuthSuccess: (user: AuthUser) => void
 }) {
+  const navigate = useNavigate()
   const [loginForm, setLoginForm] = useState(initialLogin)
   const [signupForm, setSignupForm] = useState(initialSignup)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -84,7 +85,7 @@ export function AuthPage({
       }
 
       window.setTimeout(() => {
-        navigateTo('/')
+        navigate('/')
       }, 600)
     } catch (error) {
       setCurrentUser(null)
@@ -101,7 +102,7 @@ export function AuthPage({
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="grid min-h-[calc(100vh-3rem)] gap-8 lg:grid-cols-[minmax(320px,1.15fr)_minmax(340px,440px)] lg:items-center">
         <section className="space-y-7">
-          <button type="button" onClick={() => navigateTo('/')} className="text-left">
+          <button type="button" onClick={() => navigate('/')} className="text-left">
             <BrandMark />
           </button>
 
@@ -132,7 +133,7 @@ export function AuthPage({
 
         <Card className="border-slate-200/90 bg-white/95 shadow-[0_22px_60px_rgba(33,70,144,0.12)]">
           <CardBody className="p-6 sm:p-7">
-            <Tabs value={mode} onValueChange={(value) => navigateTo(value === 'signup' ? '/auth/signup' : '/auth/login')}>
+            <Tabs value={mode} onValueChange={(value) => navigate(value === 'signup' ? '/auth/signup' : '/auth/login')}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">
                   <LogIn size={16} />
