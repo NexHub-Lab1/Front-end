@@ -7,6 +7,7 @@ import { persistUser, readStoredUser } from './lib/auth-storage'
 import { AuthPage } from './pages/auth-page'
 import { LandingPage } from './pages/landing-page'
 import { ProfilePage } from './pages/profile-page'
+import { ProjectsPage } from './pages/projects-page'
 import type { AuthUser } from './types/app'
 
 function App() {
@@ -68,6 +69,16 @@ function App() {
             ) : (
               <Navigate to="/auth/login" replace />
             )
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <ProjectsPage
+              user={currentUser}
+              onSignOut={handleSignOut}
+              onOpenMenu={() => setIsMenuOpen(true)}
+            />
           }
         />
         <Route

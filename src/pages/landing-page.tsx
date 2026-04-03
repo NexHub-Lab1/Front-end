@@ -1,4 +1,5 @@
 import { ArrowRight, BellRing, Star, Trophy, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 import { activityItems, topBounties, topDevelopers, topProjects } from '../data/mock-content'
 import type { AuthUser } from '../types/app'
@@ -19,6 +20,8 @@ export function LandingPage({
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
+  const navigate = useNavigate()
+
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader user={user} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
@@ -52,7 +55,7 @@ export function LandingPage({
                 ))}
               </div>
               <div className="flex justify-center">
-                <Button variant="primary" size="lg">
+                <Button variant="primary" size="lg" onClick={() => navigate('/projects')}>
                   See all
                   <ArrowRight size={16} />
                 </Button>
