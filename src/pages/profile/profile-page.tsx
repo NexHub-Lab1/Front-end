@@ -42,12 +42,12 @@ export function ProfilePage({
   function changeActiveTab(param: String) {
     setActiveTab({
       key: param,
-      component: Object.entries(tabs).filter( ([k, v], idx) => k == param)[0][1]
+      component: Object.entries(tabs).filter( ([k, _]) => k == param)[0][1]
     })
   }
 
   function showTabs() {
-    return Object.entries(tabs).map(([key, value], idx) => {
+    return Object.entries(tabs).map(([key, _], idx) => {
       return (
         <div key={idx} className={
           "transition-all text-black hover:shadow-indigo-400 shadow-lg rounded-xl border-2  flex items-center h-12 "

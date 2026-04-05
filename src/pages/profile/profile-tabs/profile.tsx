@@ -165,7 +165,7 @@ export function ProfileTab ({user, onUserUpdate, onSignOut}:{user:AuthUser | nul
                 />
 
                 <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-                <Button type="submit" variant="primary" size="lg" className="sm:min-w-[180px]">
+                <Button type="submit" variant="primary" size="lg" className="sm:min-w-45">
                     Save changes
                     {isSaving ? <LoaderCircle size={18} className="animate-spin" /> : <ArrowRight size={18} />}
                 </Button>

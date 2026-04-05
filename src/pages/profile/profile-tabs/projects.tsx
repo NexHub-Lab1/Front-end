@@ -10,6 +10,7 @@ export function ProjectsTab({user}:{user: AuthUser}) {
                 <CardDescription className="mt-2 text-base">
                 Here you can see all of your projects and manage their status or 
                 </CardDescription>
+                
             </div>
             </CardBody>
         </Card>
