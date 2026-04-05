@@ -6,7 +6,7 @@ import { SideMenu } from './components/app/side-menu'
 import { persistUser, readStoredUser } from './lib/auth-storage'
 import { AuthPage } from './pages/auth-page'
 import { LandingPage } from './pages/landing-page'
-import { ProfilePage } from './pages/profile-page'
+import { ProfilePage } from './pages/profile/profile-page'
 import { ProjectsPage } from './pages/projects-page'
 import type { AuthUser } from './types/app'
 
