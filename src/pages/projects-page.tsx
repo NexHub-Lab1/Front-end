@@ -4,24 +4,23 @@ import { AppHeader } from '../components/app/app-header'
 import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
 import { topProjects } from '../data/mock-content'
-import type { AuthUser } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { readStoredUser } from '../lib/auth-storage'
 
 export function ProjectsPage({
-  user,
   onSignOut,
   onOpenMenu,
 }: {
-  user: AuthUser | null
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
+  const user = readStoredUser()
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-      <AppHeader user={user} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
+      <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mt-6 space-y-6">
         <Card>

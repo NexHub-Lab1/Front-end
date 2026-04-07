@@ -9,21 +9,21 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
-import type { ApiResponse, AuthUser } from '../types/app'
-import { AUTH_DELETE_ENDPOINT, AUTH_UPDATE_ENDPOINT } from '../lib/auth-storage'
+import type { ApiResponse, AuthUser, User } from '../types/app'
+import { AUTH_DELETE_ENDPOINT, AUTH_UPDATE_ENDPOINT, readStoredUser } from '../lib/auth-storage'
 
 export function ProfilePage({
-  user,
   onUserUpdate,
   onSignOut,
   onOpenMenu,
 }: {
-  user: AuthUser | null
   onUserUpdate: (user: AuthUser) => void
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
   const navigate = useNavigate()
+
+  const [user, _] = useState<User | null>(readStoredUser()) //tuve que ponerlo adentro de un useState porque se rompe en el useEffect si no lo pongo asi
   const [form, setForm] = useState({
     currentEmail: user?.email ?? '',
     currentPassword: '',
@@ -67,19 +67,19 @@ export function ProfilePage({
       })
 
       const result = (await response.json()) as ApiResponse<AuthUser>
-      const updatedUser = result.data
+      const data = result.data
 
-      if (!response.ok || result.status === 'error' || !updatedUser) {
+      if (!response.ok || result.status === 'error' || !data) {
         throw new Error(result.message || 'Unable to update account')
       }
 
-      onUserUpdate(updatedUser)
+      onUserUpdate(data)
       setForm((current) => ({
         ...current,
-        currentEmail: updatedUser.email,
+        currentEmail: data.user.email,
         currentPassword: '',
-        newUsername: updatedUser.username,
-        newEmail: updatedUser.email,
+        newUsername: data.user.username,
+        newEmail: data.user.email,
         newPassword: '',
       }))
       setFeedback({ type: 'success', message: result.message })
@@ -134,7 +134,7 @@ export function ProfilePage({
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-      <AppHeader user={user} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
+      <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card>
