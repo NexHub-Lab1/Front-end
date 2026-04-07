@@ -15,6 +15,23 @@ export type ApiResponse<T> = {
 
 export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile' | '/projects'
 
+export type ProjectResponse = {
+  id: number,
+  ownerId: number,
+  ownerUsername: String,
+  name: String,
+  description: String,
+  githubRepo: String,
+  status: String,
+  createdAt: Date,
+  updatedAt: Date,
+  lastActiveAt: Date,
+  completedTasksCount: number,
+  starsCount: number,
+  contributorCount: number,
+  tags: String[]
+}
+
 export type ProjectCard = {
   name: string
   description: string
