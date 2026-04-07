@@ -9,7 +9,6 @@ import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/car
 import { DeveloperAvatar } from '../components/app/developer-avatar'
 import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
-import { readStoredUser } from '../lib/auth-storage'
 
 export function LandingPage({
   onSignOut,
@@ -19,7 +18,6 @@ export function LandingPage({
   onOpenMenu: () => void
 }) {
   const navigate = useNavigate()
-  const user = readStoredUser()
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">

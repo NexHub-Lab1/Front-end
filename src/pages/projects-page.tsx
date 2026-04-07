@@ -8,7 +8,6 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
-import { readStoredUser } from '../lib/auth-storage'
 
 export function ProjectsPage({
   onSignOut,
@@ -17,7 +16,6 @@ export function ProjectsPage({
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
-  const user = readStoredUser()
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
