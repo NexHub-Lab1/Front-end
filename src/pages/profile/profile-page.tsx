@@ -22,7 +22,7 @@ export function ProfilePage({
   )
 
   const tabs = {
-    profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} onOpenMenu={onOpenMenu} />,
+    profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
     projects: <ProjectsTab />
   }
 

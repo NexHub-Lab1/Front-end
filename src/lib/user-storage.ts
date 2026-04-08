@@ -1,4 +1,4 @@
-import type { ApiResponse, ProjectCard, ProjectResponse } from "../types/app";
+import type { ApiResponse, ProjectResponse } from "../types/app";
 import { readStoredUser } from "./auth-storage";
 
 export const PROJECT_ROOT_ENDPOINT = '/api/projects'

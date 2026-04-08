@@ -22,11 +22,9 @@ import {
 export function ProfileTab({
   onUserUpdate,
   onSignOut,
-  onOpenMenu,
 }: {
   onUserUpdate: (user: AuthUser) => void;
   onSignOut: () => void;
-  onOpenMenu: () => void;
 }) {
   const navigate = useNavigate();
 

@@ -6,7 +6,6 @@ import { BrandMark } from './brand-mark'
 import { readStoredUser } from '../../lib/auth-storage'
 
 export function AppHeader({
-  onSignOut,
   onOpenMenu,
 }: {
   onSignOut: () => void
