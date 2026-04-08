@@ -1,21 +1,20 @@
 import { FolderKanban, Settings, Trophy, User, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-import type { AuthUser } from '../../types/app'
 import { Button } from '../ui/button'
+import { readStoredUser } from '../../lib/auth-storage'
 
 export function SideMenu({
   isOpen,
   onClose,
-  user,
   onSignOut,
 }: {
   isOpen: boolean
   onClose: () => void
-  user: AuthUser | null
   onSignOut: () => void
 }) {
   const navigate = useNavigate()
+  const user = readStoredUser()
 
   return (
     <>

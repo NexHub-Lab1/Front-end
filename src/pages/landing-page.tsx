@@ -2,7 +2,6 @@ import { ArrowRight, BellRing, Star, Trophy, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { activityItems, topBounties, topDevelopers, topProjects } from '../data/mock-content'
-import type { AuthUser } from '../types/app'
 import { AppHeader } from '../components/app/app-header'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -12,11 +11,9 @@ import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
 
 export function LandingPage({
-  user,
   onSignOut,
   onOpenMenu,
 }: {
-  user: AuthUser | null
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
@@ -24,7 +21,7 @@ export function LandingPage({
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-      <AppHeader user={user} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
+      <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
