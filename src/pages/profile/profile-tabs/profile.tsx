@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { AppHeader } from '../components/app/app-header'
-import { DeveloperAvatar } from '../components/app/developer-avatar'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
-import { Input } from '../components/ui/input'
-import type { ApiResponse, AuthUser, User } from '../types/app'
-import { AUTH_DELETE_ENDPOINT, AUTH_UPDATE_ENDPOINT, readStoredUser } from '../lib/auth-storage'
+import { AppHeader } from '../../../components/app/app-header'
+import { DeveloperAvatar } from '../../../components/app/developer-avatar'
+import { Badge } from '../../../components/ui/badge'
+import { Button } from '../../../components/ui/button'
+import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
+import { Input } from '../../../components/ui/input'
+import type { ApiResponse, AuthUser, User } from '../../../types/app'
+import { AUTH_DELETE_ENDPOINT, AUTH_UPDATE_ENDPOINT, readStoredUser } from '../../../lib/auth-storage'
 
 export function ProfilePage({
   onUserUpdate,
@@ -37,34 +37,34 @@ export function ProfilePage({
 
   useEffect(() => {
     if (!user) {
-      navigate('/auth/login')
-      return
+      navigate("/auth/login");
+      return;
     }
 
     setForm({
       currentEmail: user.email,
-      currentPassword: '',
+      currentPassword: "",
       newUsername: user.username,
       newEmail: user.email,
-      newPassword: '',
-    })
-  }, [navigate, user])
+      newPassword: "",
+    });
+  }, [navigate, user]);
 
   if (!user) {
     return null
   }
 
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsSaving(true)
-    setFeedback(null)
+    event.preventDefault();
+    setIsSaving(true);
+    setFeedback(null);
 
     try {
       const response = await fetch(AUTH_UPDATE_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      })
+      });
 
       const result = (await response.json()) as ApiResponse<AuthUser>
       const data = result.data
@@ -85,50 +85,50 @@ export function ProfilePage({
       setFeedback({ type: 'success', message: result.message })
     } catch (error) {
       setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unexpected error',
-      })
+        type: "error",
+        message: error instanceof Error ? error.message : "Unexpected error",
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
   }
 
   async function handleDeleteAccount() {
     if (!form.currentPassword) {
       setFeedback({
-        type: 'error',
-        message: 'Enter your current password before deleting the account.',
-      })
-      return
+        type: "error",
+        message: "Enter your current password before deleting the account.",
+      });
+      return;
     }
 
-    setIsDeleting(true)
-    setFeedback(null)
+    setIsDeleting(true);
+    setFeedback(null);
 
     try {
       const response = await fetch(AUTH_DELETE_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: form.currentEmail,
           password: form.currentPassword,
         }),
-      })
+      });
 
-      const result = (await response.json()) as ApiResponse<null>
-      if (!response.ok || result.status === 'error') {
-        throw new Error(result.message || 'Unable to delete account')
+      const result = (await response.json()) as ApiResponse<null>;
+      if (!response.ok || result.status === "error") {
+        throw new Error(result.message || "Unable to delete account");
       }
 
-      onSignOut()
-      navigate('/')
+      onSignOut();
+      navigate("/");
     } catch (error) {
       setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unexpected error',
-      })
+        type: "error",
+        message: error instanceof Error ? error.message : "Unexpected error",
+      });
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
   }
 
