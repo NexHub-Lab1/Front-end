@@ -7,21 +7,15 @@ import {
 import { Badge, PlusIcon, Search, Star, Users } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 
-import { useNavigate } from "react-router-dom";
-
 import type {
-  ApiResponse,
-  AuthUser,
   ProjectResponse,
 } from "../../../types/app";
 
 import { getProjectsFromCurrentUser } from "../../../lib/user-storage";
 import { useEffect, useState } from "react";
-import { SectionTitle } from "../../../components/app/section-title";
 import { StatLine } from "../../../components/app/stat-line";
 
-export function ProjectsTab({ user }: { user: AuthUser }) {
-  const navigate = useNavigate();
+export function ProjectsTab() {
   const [projects, setProjects] = useState<ProjectResponse[] | null>();
 
   useEffect(() => {
@@ -75,7 +69,7 @@ export function ProjectsTab({ user }: { user: AuthUser }) {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {project.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
+                      <Badge key={tag[0]}>
                         {tag}
                       </Badge>
                     ))}
