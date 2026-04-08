@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { ArrowRight, CheckCircle2, LoaderCircle, LogIn, Sparkles, UserPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-import type { ApiResponse, AuthMode, AuthUser } from '../types/app'
+import type { ApiResponse, AuthMode, AuthUser, User } from '../types/app'
 import { BrandMark } from '../components/app/brand-mark'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -36,7 +36,7 @@ export function AuthPage({
   const [signupForm, setSignupForm] = useState(initialSignup)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   const activeHeading = useMemo(() => {
     return mode === 'login'
@@ -74,7 +74,7 @@ export function AuthPage({
         throw new Error(result.message || 'Request failed')
       }
 
-      setCurrentUser(result.data)
+      setCurrentUser(result.data.user)
       setFeedback({ type: 'success', message: result.message })
       onAuthSuccess(result.data)
 
