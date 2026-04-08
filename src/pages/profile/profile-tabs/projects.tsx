@@ -4,21 +4,21 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { ArrowRight, Badge, LoaderCircle, PlusIcon, Search, Star, Users } from "lucide-react";
+import { ArrowRight, Badge, Check, Cross, LoaderCircle, PlusIcon, Search, Star, Users } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 
 import type { ProjectForm, ProjectResponse } from "../../../types/app";
 
-import { getProjectsFromCurrentUser, PROJECT_ROOT_ENDPOINT } from "../../../lib/user-storage";
+import { createProject, getProjectsFromCurrentUser } from "../../../lib/user-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
-import { readStoredAuthUser } from "../../../lib/auth-storage";
+import { useNavigate } from "react-router-dom";
 
 export function ProjectsTab() {
-  const data = readStoredAuthUser();
-  if (!data) return null
+
+  const navigate = useNavigate()
   const [projects, setProjects] = useState<ProjectResponse[] | null>();
   const [showModal, setShowModal] = useState<boolean>(false);
 
@@ -29,11 +29,11 @@ export function ProjectsTab() {
   } | null>(null);
   const [projectForm, setProjectForm] = useState<ProjectForm>({
     name: "",
-    ownerId: data.user.id,
+    ownerId: 0,
     description: "",
     githubRepo: "",
     status: "",
-    tags: new Set(),
+    tags: []
   });
 
   useEffect(() => {
@@ -48,19 +48,30 @@ export function ProjectsTab() {
     event.preventDefault();
     setIsSubmitting(true);
     setFeedback(null);
-    if(!data) return null
 
-    const response = await fetch(PROJECT_ROOT_ENDPOINT, {
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${data.token}`
-      },
-      body: JSON.stringify(projectForm)
-    })
+    await createProject(projectForm)
+      .then((res) => {
+        setIsSubmitting(false)
+        if (res == null) {
+          setFeedback({message:"Error", type:"error"})
+          return
+        }
+        
+        console.log(res)
+        setInterval(() => {window.location.reload();}, 1500)
+        setFeedback({message: "Project created correctly", type:"success"});
+      })
+      .catch((res) => console.log(res))
+  }
 
-    const result = (await response.json())
-    console.log(result)
+  const displayFeedback = () => {
+    if(!feedback) return (<>Create Project<ArrowRight size={18} /></>)
+  
+    if (isSubmitting) return (<>Loading<LoaderCircle size={18}/></>)
+
+    if (feedback?.type == 'success') return (<>Success<Check size={18}/></>)
+    
+    return (<>Error<Cross size={18}/></>)
   }
 
   const displayModal = () => {
@@ -119,12 +130,7 @@ export function ProjectsTab() {
           />
           <div className="flex w-full pt-5">
             <Button type="submit" variant="primary" size="lg" className="w-full">
-              Create Project
-              {isSubmitting ? (
-                <LoaderCircle size={18} className="animate-spin" />
-              ) : (
-                <ArrowRight size={18} />
-              )}
+              {displayFeedback()}
             </Button>
           </div>
         </form>
@@ -167,7 +173,7 @@ export function ProjectsTab() {
           <div className="grid gap-4 lg:grid-cols-3">
             {projects &&
               projects.map((project) => (
-                <Card key={project.id} className="shadow-none">
+                <Card key={project.id} className="hover:translate-x-0.5 hover:shadow-md hover:shadow-indigo-400 transition-all">
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-2xl font-medium">

@@ -41,7 +41,7 @@ export type ProjectForm = {
   description: string,
   githubRepo: string,
   status: string,
-  tags: Set<string>
+  tags: []
 }
 
 export type ProjectCard = {
