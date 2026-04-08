@@ -35,6 +35,15 @@ export type ProjectResponse = {
   tags: String[]
 }
 
+export type ProjectForm = {
+  ownerId: number,
+  name: string,
+  description: string,
+  githubRepo: string,
+  status: string,
+  tags: Set<string>
+}
+
 export type ProjectCard = {
   name: string
   description: string
