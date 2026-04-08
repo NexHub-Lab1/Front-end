@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { AppHeader } from "../../../components/app/app-header";
-import { DeveloperAvatar } from "../../../components/app/developer-avatar";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {

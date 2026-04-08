@@ -40,9 +40,6 @@ export function AppHeader({
                 <User size={16} />
                 {user.username}
               </Button>
-              <Button variant="outline" className="hidden sm:inline-flex" onClick={onSignOut}>
-                Sign out
-              </Button>
             </>
           ) : (
             <>
