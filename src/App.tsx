@@ -8,16 +8,16 @@ import { AuthPage } from './pages/auth-page'
 import { LandingPage } from './pages/landing-page'
 import { ProfilePage } from './pages/profile/profile-page'
 import { ProjectsPage } from './pages/projects-page'
-import type { AuthUser } from './types/app'
+import type { AuthUser, User } from './types/app'
 
 function App() {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => readStoredUser())
+  const [currentUser, setCurrentUser] = useState<User | null>(() => readStoredUser())
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
 
-  function handleAuthSuccess(user: AuthUser) {
-    setCurrentUser(user)
-    persistUser(user)
+  function handleAuthSuccess(data: AuthUser) {
+    setCurrentUser(data.user)
+    persistUser(data)
   }
 
   async function handleSignOut() {
@@ -33,9 +33,9 @@ function App() {
     navigate('/')
   }
 
-  function handleUserUpdate(user: AuthUser) {
-    setCurrentUser(user)
-    persistUser(user)
+  function handleUserUpdate(data: AuthUser) {
+    setCurrentUser(data.user)
+    persistUser(data)
   }
 
   return (
@@ -43,7 +43,6 @@ function App() {
       <SideMenu
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        user={currentUser}
         onSignOut={handleSignOut}
       />
 
@@ -61,7 +60,6 @@ function App() {
           element={
             currentUser ? (
               <ProfilePage
-                user={currentUser}
                 onUserUpdate={handleUserUpdate}
                 onSignOut={handleSignOut}
                 onOpenMenu={() => setIsMenuOpen(true)}
@@ -75,7 +73,6 @@ function App() {
           path="/projects"
           element={
             <ProjectsPage
-              user={currentUser}
               onSignOut={handleSignOut}
               onOpenMenu={() => setIsMenuOpen(true)}
             />
@@ -85,7 +82,6 @@ function App() {
           path="/"
           element={
             <LandingPage
-              user={currentUser}
               onSignOut={handleSignOut}
               onOpenMenu={() => setIsMenuOpen(true)}
             />

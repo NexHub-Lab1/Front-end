@@ -1,11 +1,14 @@
 export type AuthMode = 'login' | 'signup'
 
 export type AuthUser = {
+  user: User
+  token: string
+}
+export type User = {
   id: number
   username: string
   email: string
 }
-
 export type ApiResponse<T> = {
   status: 'success' | 'error'
   message: string
