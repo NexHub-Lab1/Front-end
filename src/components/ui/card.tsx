@@ -1,15 +1,26 @@
 import * as React from 'react'
 
 import { cn } from '../../lib/utils'
-
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  hoverShadow?: boolean
+  clickMouse?: boolean
+}
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, hoverShadow, clickMouse, ...props }, ref) => {
+    let style = ''
+    if (hoverShadow) style += 'hover:translate-x-0.5 hover:shadow-md hover:shadow-indigo-400 transition-all'
+    if (clickMouse) style += ' cursor-pointer'
+    return (
     <div
       ref={ref}
-      className={cn('rounded-3xl border border-slate-200/80 bg-white/90 shadow-[0_18px_38px_rgba(30,64,140,0.06)]', className)}
+      className={cn(
+          'rounded-3xl border border-slate-200/80 bg-white/90 shadow-[0_18px_38px_rgba(30,64,140,0.06)]'
+          + style, 
+          className
+        )}
       {...props}
     />
-  )
+  )}
 )
 Card.displayName = 'Card'
 

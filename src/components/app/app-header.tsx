@@ -6,7 +6,6 @@ import { BrandMark } from './brand-mark'
 import { readStoredUser } from '../../lib/auth-storage'
 
 export function AppHeader({
-  onSignOut,
   onOpenMenu,
 }: {
   onSignOut: () => void
@@ -39,9 +38,6 @@ export function AppHeader({
               <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/profile')}>
                 <User size={16} />
                 {user.username}
-              </Button>
-              <Button variant="outline" className="hidden sm:inline-flex" onClick={onSignOut}>
-                Sign out
               </Button>
             </>
           ) : (

@@ -5,26 +5,25 @@ import { Card, CardBody, CardDescription, CardTitle } from '../../components/ui/
 import type { AuthUser } from '../../types/app'
 import { ProfileTab } from './profile-tabs/profile'
 import { ProjectsTab } from './profile-tabs/projects'
+import { readStoredUser } from '../../lib/auth-storage'
 
 export function ProfilePage({
-  user,
   onUserUpdate,
   onSignOut,
   onOpenMenu,
 }: {
-  user: AuthUser | null
   onUserUpdate: (user: AuthUser) => void
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
-
+  const user = readStoredUser()
   if (!user) return (
     <div>No user registered, please login or sign up.</div>
   )
 
   const tabs = {
-    profile: <ProfileTab user={user} onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
-    projects: <ProjectsTab user={user} />
+    profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
+    projects: <ProjectsTab />
   }
 
   const [activeTab, setActiveTab] = useState<{key: String, component: ReactElement | null}>({
@@ -61,7 +60,7 @@ export function ProfilePage({
 
   return (
       <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-        <AppHeader user={user} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
+        <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
         <section className="mx-auto mt-6 h-[80vh] grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           <Card>
