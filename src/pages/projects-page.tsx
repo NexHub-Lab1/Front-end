@@ -3,11 +3,14 @@ import { Search, Star, Users } from 'lucide-react'
 import { AppHeader } from '../components/app/app-header'
 import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
-import { topProjects } from '../data/mock-content'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useNavigate } from 'react-router-dom'
+import { getAllProjects } from '../lib/project-storage'
+import { useEffect, useState } from 'react'
+import type { ProjectResponse } from '../types/app'
 
 export function ProjectsPage({
   onSignOut,
@@ -16,6 +19,16 @@ export function ProjectsPage({
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
+  const navigator = useNavigate()
+  const [projects, setProjects] = useState<ProjectResponse[]>([])
+
+  useEffect(() => {
+    const response = getAllProjects()
+    response
+    .then(res => res ? setProjects(res) : setProjects([]))
+    .catch(error => console.error(error))
+  }, [setProjects])
+
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
@@ -45,8 +58,8 @@ export function ProjectsPage({
             <SectionTitle title="Popular projects" />
 
             <div className="space-y-3">
-              {topProjects.map((project) => (
-                <Card key={project.name} className="shadow-none">
+              {projects && projects.map((project) => (
+                <Card key={project.id} className="shadow-none">
                   <CardBody className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 space-y-3">
                       <div className="space-y-1">
@@ -56,7 +69,7 @@ export function ProjectsPage({
 
                       <div className="flex flex-wrap gap-2">
                         {project.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
+                          <Badge key={tag.at(0)} variant="secondary">
                             {tag}
                           </Badge>
                         ))}
@@ -65,17 +78,17 @@ export function ProjectsPage({
                       <div className="flex flex-wrap gap-4">
                         <StatLine
                           icon={<Star size={14} className="text-amber-400" />}
-                          text={`${project.stars} stars`}
+                          text={`${project.starsCount} stars`}
                         />
                         <StatLine
                           icon={<Users size={14} className="text-slate-400" />}
-                          text={`${project.followers} followers`}
+                          text={`WIP followers`}
                         />
                       </div>
                     </div>
 
                     <div className="flex shrink-0 items-center sm:pt-1">
-                      <Button variant="primary">View</Button>
+                      <Button variant="primary" onClick={() => navigator(`/project/${project.id}`)}>View</Button>
                     </div>
                   </CardBody>
                 </Card>

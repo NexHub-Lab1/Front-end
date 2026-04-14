@@ -80,7 +80,7 @@ function App() {
           }
         />
         <Route
-          path="/projects/:id"
+          path="/project/:id"
           element={
             currentUser ? (
               <ProjectDetailPage
