@@ -173,7 +173,7 @@ export function ProjectsTab() {
           <div className="grid gap-4 lg:grid-cols-3">
             {projects &&
               projects.map((project) => (
-                <Card onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
+                <Card onClick={() => navigate(`/projects/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-2xl font-medium">

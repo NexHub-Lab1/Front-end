@@ -6,6 +6,7 @@ import { SideMenu } from './components/app/side-menu'
 import { persistUser, readStoredUser } from './lib/auth-storage'
 import { AuthPage } from './pages/auth-page'
 import { LandingPage } from './pages/landing-page'
+import { ProjectDetailPage } from './pages/project-detail-page'
 import { ProfilePage } from './pages/profile/profile-page'
 import { ProjectsPage } from './pages/projects-page'
 import type { AuthUser, User } from './types/app'
@@ -78,6 +79,21 @@ function App() {
             />
           }
         />
+        <Route
+          path="/projects/:id"
+          element={
+            currentUser ? (
+              <ProjectDetailPage
+                onSignOut={handleSignOut}
+                onOpenMenu={() => setIsMenuOpen(true)}
+              />
+            ) : (
+              <Navigate to="/auth/login" replace />
+            )
+          }
+        />
+
+
         <Route
           path="/"
           element={
