@@ -21,6 +21,12 @@ export function ProjectsTab() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<ProjectResponse[] | null>();
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [createErrors, setCreateErrors] = useState<{
+    name?: string
+    description?: string
+    githubRepo?: string
+    status?: string
+  }>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -44,8 +50,42 @@ export function ProjectsTab() {
     data.then((res) => setProjects(res)).catch((_) => setProjects([]));
   }, []);
 
+  function validateProjectForm() {
+    const nextErrors: {
+      name?: string
+      description?: string
+      githubRepo?: string
+      status?: string
+    } = {}
+
+    if (!projectForm.name.trim()) {
+      nextErrors.name = 'Project name is required.'
+    }
+
+    if (!projectForm.description.trim()) {
+      nextErrors.description = 'Description is required.'
+    }
+
+    if (!projectForm.githubRepo.trim()) {
+      nextErrors.githubRepo = 'GitHub repository is required.'
+    }
+
+    if (!projectForm.status.trim()) {
+      nextErrors.status = 'Status is required.'
+    }
+
+    setCreateErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!validateProjectForm()) {
+      setFeedback(null)
+      return
+    }
+
     setIsSubmitting(true);
     setFeedback(null);
 
@@ -80,13 +120,18 @@ export function ProjectsTab() {
     return (
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false)
+          setCreateErrors({})
+        }}
         title={"Create a new project"}
       >
         <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
           <Input
             label="Project Name"
             placeholder="Test"
+            helperText={createErrors.name}
+            className={createErrors.name ? 'border-red-300 focus-visible:ring-red-200' : undefined}
             value={projectForm.name}
             onChange={(event) =>
               setProjectForm((current) => ({
@@ -98,6 +143,8 @@ export function ProjectsTab() {
           <Input
             label="GitHub Repo"
             placeholder="http://github.com/DHipo/repoTest"
+            helperText={createErrors.githubRepo}
+            className={createErrors.githubRepo ? 'border-red-300 focus-visible:ring-red-200' : undefined}
             value={projectForm.githubRepo}
             onChange={(event) =>
               setProjectForm((current) => ({
@@ -109,6 +156,8 @@ export function ProjectsTab() {
           <Input
             label="Description"
             placeholder="Web app"
+            helperText={createErrors.description}
+            className={createErrors.description ? 'border-red-300 focus-visible:ring-red-200' : undefined}
             value={projectForm.description}
             onChange={(event) =>
               setProjectForm((current) => ({
@@ -120,6 +169,8 @@ export function ProjectsTab() {
           <Input
             label="Status"
             placeholder="In Progress"
+            helperText={createErrors.status}
+            className={createErrors.status ? 'border-red-300 focus-visible:ring-red-200' : undefined}
             value={projectForm.status}
             onChange={(event) =>
               setProjectForm((current) => ({
