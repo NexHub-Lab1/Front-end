@@ -1,10 +1,10 @@
-import { ArrowLeft, FolderGit2, Pencil, Sparkles, Star, Users } from 'lucide-react'
+import { ArrowLeft, FolderGit2, Pencil, Sparkles, Star, Trash2, Users } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
-import { getProjectById, updateProject } from '../lib/user-storage'
+import { getProjectById, getCurrentUserAuthData, updateProject, deleteProject } from '../lib/user-storage'
 import type { ProjectResponse, ProjectUpdateForm } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -39,6 +39,12 @@ export function ProjectDetailPage({
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editFeedback, setEditFeedback] = useState<string | null>(null)
+  const [editErrors, setEditErrors] = useState<{
+    name?: string
+    description?: string
+    githubRepo?: string
+    status?: string
+  }>({})
   const [editForm, setEditForm] = useState<ProjectUpdateForm>({
     id: 0,
     name: '',
@@ -48,6 +54,8 @@ export function ProjectDetailPage({
     tags: [],
   })
   const [tagsInput, setTagsInput] = useState('')
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const currentUser = getCurrentUserAuthData()?.user
 
   useEffect(() => {
     async function loadProject() {
@@ -95,14 +103,55 @@ export function ProjectDetailPage({
       tags: project.tags.map((tag) => tag.toString()),
     })
     setTagsInput(project.tags.map((tag) => tag.toString()).join(', '))
+    setEditErrors({})
   }, [project])
 
   const repoUrl = useMemo(() => normalizeRepoUrl(project?.githubRepo?.toString()), [project?.githubRepo])
+  const isOwner = useMemo(() => {
+    if (!project || !currentUser) {
+      return false
+    }
+
+    return project.ownerId === currentUser.id
+  }, [project, currentUser])
+
+  function validateEditForm() {
+    const nextErrors: {
+      name?: string
+      description?: string
+      githubRepo?: string
+      status?: string
+    } = {}
+
+    if (!editForm.name.trim()) {
+      nextErrors.name = 'Project name is required.'
+    }
+
+    if (!editForm.description.trim()) {
+      nextErrors.description = 'Description is required.'
+    }
+
+    if (!editForm.githubRepo.trim()) {
+      nextErrors.githubRepo = 'GitHub repository is required.'
+    }
+
+    if (!editForm.status.trim()) {
+      nextErrors.status = 'Status is required.'
+    }
+
+    setEditErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
 
   async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!project) {
+      return
+    }
+
+    if (!validateEditForm()) {
+      setEditFeedback(null)
       return
     }
 
@@ -130,6 +179,25 @@ export function ProjectDetailPage({
       setEditFeedback(submitError instanceof Error ? submitError.message : 'Unable to update project')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleDeleteProject() {
+    if (!project || !isOwner) {
+      return
+    }
+
+    setEditFeedback(null)
+
+    try {
+      const deletedProject = await deleteProject(project.id)
+      if (!deletedProject) {
+        throw new Error('Unable to delete project')
+      }
+
+      navigate('/profile')
+    } catch (deleteError) {
+      setEditFeedback(deleteError instanceof Error ? deleteError.message : 'Unable to delete project')
     }
   }
 
@@ -199,6 +267,16 @@ export function ProjectDetailPage({
                       <Pencil size={16} />
                       Edit project
                     </Button>
+                    {isOwner ? (
+                      <Button
+                        variant="outline"
+                        className="border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => setIsDeleteOpen(true)}
+                      >
+                        <Trash2 size={16} />
+                        Delete project
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -267,6 +345,8 @@ export function ProjectDetailPage({
               <form className="grid gap-4" onSubmit={handleEditSubmit}>
                 <Input
                   label="Project name"
+                  helperText={editErrors.name}
+                  className={editErrors.name ? 'border-red-300 focus-visible:ring-red-200' : undefined}
                   value={editForm.name}
                   onChange={(event) =>
                     setEditForm((current) => ({
@@ -277,6 +357,8 @@ export function ProjectDetailPage({
                 />
                 <Input
                   label="Description"
+                  helperText={editErrors.description}
+                  className={editErrors.description ? 'border-red-300 focus-visible:ring-red-200' : undefined}
                   value={editForm.description}
                   onChange={(event) =>
                     setEditForm((current) => ({
@@ -287,6 +369,8 @@ export function ProjectDetailPage({
                 />
                 <Input
                   label="GitHub repository"
+                  helperText={editErrors.githubRepo}
+                  className={editErrors.githubRepo ? 'border-red-300 focus-visible:ring-red-200' : undefined}
                   value={editForm.githubRepo}
                   onChange={(event) =>
                     setEditForm((current) => ({
@@ -297,6 +381,8 @@ export function ProjectDetailPage({
                 />
                 <Input
                   label="Status"
+                  helperText={editErrors.status}
+                  className={editErrors.status ? 'border-red-300 focus-visible:ring-red-200' : undefined}
                   value={editForm.status}
                   onChange={(event) =>
                     setEditForm((current) => ({
@@ -320,6 +406,32 @@ export function ProjectDetailPage({
                   </Button>
                 </div>
               </form>
+            </Modal>
+
+            <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete project">
+              <div className="grid gap-4">
+                <CardDescription className="text-base text-slate-600">
+                  This will remove <span className="font-medium text-slate-900">{project.name.toString()}</span> from
+                  your projects. This action cannot be undone.
+                </CardDescription>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" variant="ghost" onClick={() => setIsDeleteOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={async () => {
+                      setIsDeleteOpen(false)
+                      await handleDeleteProject()
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    Delete project
+                  </Button>
+                </div>
+              </div>
             </Modal>
           </>
         ) : null}
