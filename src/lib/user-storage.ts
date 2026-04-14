@@ -26,6 +26,24 @@ export async function getProjectsFromCurrentUser() {
     return result.data
 }
 
+export async function getProjectById(projectId: number): Promise<ProjectResponse | null> {
+    const userData = getCurrentUserAuthData()
+    if (!userData) return null
+
+    const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/${projectId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${userData.token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) return null
+
+    const result = await response.json() as ApiResponse<ProjectResponse>
+    return result.data
+}
+
 export async function createProject(p: ProjectForm): Promise<ProjectResponse | null> {
     const userData = getCurrentUserAuthData()
     if (!userData) return null
