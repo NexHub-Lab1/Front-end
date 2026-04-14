@@ -25,7 +25,7 @@ export function SideMenu({
         onClick={onClose}
       />
       <aside
-        className={`fixed right-0 top-0 z-50 h-full w-full max-w-sm border-l border-slate-200 bg-slate-100 p-8 shadow-2xl transition-transform ${
+        className={`fixed right-0 flex flex-col top-0 z-50 h-full w-full  max-w-sm border-l border-slate-200 bg-slate-100 p-8 shadow-2xl transition-transform ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -39,11 +39,7 @@ export function SideMenu({
           </Button>
         </div>
 
-        <nav className="space-y-6">
-          <button className="menu-item" type="button" onClick={onClose}>
-            <WalletCards size={34} />
-            <span>Bounties</span>
-          </button>
+        <nav className="space-y-6 h-full">
 
           <button
             className="menu-item"
@@ -57,6 +53,7 @@ export function SideMenu({
             <span>My profile</span>
           </button>
 
+          
           <button
             className="menu-item"
             type="button"
@@ -67,6 +64,11 @@ export function SideMenu({
           >
             <FolderKanban size={34} />
             <span>Projects</span>
+          </button>
+
+          <button className="menu-item" type="button" onClick={onClose}>
+            <WalletCards size={34} />
+            <span>Bounties</span>
           </button>
 
           <button className="menu-item" type="button" onClick={onClose}>

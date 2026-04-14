@@ -30,7 +30,7 @@ export function LandingPage({
               <SectionTitle title="Top projects" />
               <div className="grid gap-4 lg:grid-cols-3">
                 {topProjects.map((project) => (
-                  <Card key={project.name} className="shadow-none">
+                  <Card key={project.name} className="shadow-none" hoverShadow={true} clickMouse={true}>
                     <CardBody className="space-y-4 p-5">
                       <div className="space-y-2">
                         <CardTitle className="text-2xl font-medium">{project.name}</CardTitle>
