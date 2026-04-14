@@ -83,6 +83,25 @@ export async function updateProject(project: ProjectUpdateForm): Promise<Project
     return result.data
 }
 
+export async function deleteProject(projectId: number): Promise<ProjectResponse | null> {
+    const userData = getCurrentUserAuthData()
+    if (!userData) return null
+
+    const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userData.token}`
+      },
+      body: JSON.stringify(projectId)
+    })
+
+    if (!response.ok) return null
+
+    const result = (await response.json()) as ApiResponse<ProjectResponse>
+    return result.data
+}
+
 export async function signOutCurrentUser() {
     return await fetch('/api/auth/signout', { method: 'POST' })
 }
