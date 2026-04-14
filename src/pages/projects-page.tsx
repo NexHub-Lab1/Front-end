@@ -1,13 +1,12 @@
-import { Search, Star, Users } from 'lucide-react'
+import { Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { AppHeader } from '../components/app/app-header'
+import { ProjectListCard } from '../components/app/project-list-card'
 import { SectionTitle } from '../components/app/section-title'
-import { StatLine } from '../components/app/stat-line'
-import { topProjects } from '../data/mock-content'
-import type { AuthUser } from '../types/app'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
+import { PROJECTS_ROOT_ENDPOINT } from '../lib/project-api'
+import type { ApiResponse, AuthUser, ProjectSummary } from '../types/app'
+import { Card, CardBody, CardDescription } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 
 export function ProjectsPage({
@@ -19,6 +18,52 @@ export function ProjectsPage({
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [search, setSearch] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadProjects() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch(PROJECTS_ROOT_ENDPOINT)
+        const result = (await response.json()) as ApiResponse<ProjectSummary[]>
+
+        if (!response.ok || result.status === 'error' || !result.data) {
+          throw new Error(result.message || 'Unable to load projects')
+        }
+
+        setProjects(result.data)
+      } catch (fetchError) {
+        setProjects([])
+        setError(fetchError instanceof Error ? fetchError.message : 'Unable to load projects')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    void loadProjects()
+  }, [])
+
+  const filteredProjects = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+      return projects
+    }
+
+    return projects.filter((project) => {
+      return (
+        project.name.toLowerCase().includes(normalizedSearch) ||
+        project.description.toLowerCase().includes(normalizedSearch) ||
+        project.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch))
+      )
+    })
+  }, [projects, search])
+
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader user={user} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
@@ -38,52 +83,46 @@ export function ProjectsPage({
                 size={18}
                 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
               />
-              <Input className="pl-11" placeholder="Search projects" aria-label="Search projects" />
+              <Input
+                className="pl-11"
+                placeholder="Search projects"
+                aria-label="Search projects"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </div>
           </CardBody>
         </Card>
 
         <Card>
           <CardBody className="space-y-4 p-6">
-            <SectionTitle title="Popular projects" />
+            <SectionTitle title="Projects" />
 
-            <div className="space-y-3">
-              {topProjects.map((project) => (
-                <Card key={project.name} className="shadow-none">
-                  <CardBody className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-3">
-                      <div className="space-y-1">
-                        <CardTitle className="text-2xl font-medium">{project.name}</CardTitle>
-                        <CardDescription className="max-w-3xl">{project.description}</CardDescription>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {project.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      <div className="flex flex-wrap gap-4">
-                        <StatLine
-                          icon={<Star size={14} className="text-amber-400" />}
-                          text={`${project.stars} stars`}
-                        />
-                        <StatLine
-                          icon={<Users size={14} className="text-slate-400" />}
-                          text={`${project.followers} followers`}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center sm:pt-1">
-                      <Button variant="primary">View</Button>
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
+            {isLoading ? (
+              <CardDescription>Loading projects...</CardDescription>
+            ) : error ? (
+              <CardDescription className=" text-red-600">{error}</CardDescription>
+            ) : filteredProjects.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredProjects.map((project) => (
+                  <ProjectListCard
+                    key={project.id}
+                    id={project.id}
+                    name={project.name}
+                    description={project.description}
+                    tags={project.tags}
+                    status={project.status}
+                    ownerUsername={project.ownerUsername}
+                    stars={project.starsCount}
+                    contributors={project.contributorCount}
+                    githubRepo={project.githubRepo}
+                    actionLabel="View project"
+                  />
+                ))}
+              </div>
+            ) : (
+              <CardDescription>No projects match this search yet.</CardDescription>
+            )}
           </CardBody>
         </Card>
       </section>

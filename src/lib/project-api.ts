@@ -1,0 +1,4 @@
+export const PROJECTS_ROOT_ENDPOINT = '/api/projects'
+export const PROJECTS_BY_TAG_ENDPOINT = PROJECTS_ROOT_ENDPOINT + '/findbytag'
+export const PROJECTS_UPDATE_ENDPOINT = PROJECTS_ROOT_ENDPOINT + '/updateproject'
+export const PROJECTS_DELETE_ENDPOINT = PROJECTS_ROOT_ENDPOINT + '/delete'

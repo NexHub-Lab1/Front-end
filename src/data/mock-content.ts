@@ -2,6 +2,7 @@ import type { BountyCard, DeveloperCard, ProjectCard } from '../types/app'
 
 export const topProjects: ProjectCard[] = [
   {
+    id: 1,
     name: 'DevConnector',
     description: 'Social network for developers',
     tags: ['Node.js', 'MERN'],
@@ -9,6 +10,7 @@ export const topProjects: ProjectCard[] = [
     followers: 14,
   },
   {
+    id: 2,
     name: 'Web3 Dashboard',
     description: 'Crypto and DeFi management tool',
     tags: ['Solidity', 'Ethereum'],
@@ -16,6 +18,7 @@ export const topProjects: ProjectCard[] = [
     followers: 9,
   },
   {
+    id: 3,
     name: 'AI Code Assistant',
     description: 'AI-powered coding assistant',
     tags: ['Python', 'OpenAI'],
