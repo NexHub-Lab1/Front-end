@@ -1,4 +1,4 @@
-import type { ApiResponse, ProjectForm, ProjectResponse } from "../types/app";
+import type { ApiResponse, ProjectForm, ProjectResponse, ProjectUpdateForm } from "../types/app";
 import { readStoredAuthUser } from "./auth-storage";
 
 export const PROJECT_ROOT_ENDPOINT = '/api/projects'
@@ -60,6 +60,25 @@ export async function createProject(p: ProjectForm): Promise<ProjectResponse | n
     })
 
     if (!response.ok) return null
+    const result = (await response.json()) as ApiResponse<ProjectResponse>
+    return result.data
+}
+
+export async function updateProject(project: ProjectUpdateForm): Promise<ProjectResponse | null> {
+    const userData = getCurrentUserAuthData()
+    if (!userData) return null
+
+    const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/updateproject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userData.token}`
+      },
+      body: JSON.stringify(project)
+    })
+
+    if (!response.ok) return null
+
     const result = (await response.json()) as ApiResponse<ProjectResponse>
     return result.data
 }
