@@ -191,27 +191,16 @@ export function ProjectsTab() {
 
   return (
     <Card>
-      <CardBody className="p-4 flex flex-col gap-2">
-        <div>
-          <CardTitle className="text-3xl">My projects</CardTitle>
-          <CardDescription className="mt-2 text-base">
-            Here you can see all of your projects and create new ones.
-          </CardDescription>
-        </div>
-        <section className="flex flex-row">
-          <div className="hidden md:block">
-            <div className="flex h-12 items-center gap-3 rounded-l-2xl border border-slate-200 bg-white px-4 shadow-sm">
-              <Search size={18} className="text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search"
-                aria-label="Search"
-                className="w-full border-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-              />
-            </div>
+      <CardBody className="p-4 flex flex-col max-h-full">
+        <section className="flex flex-row items-center">
+          <div className="w-full">
+            <CardTitle className="text-3xl">My projects</CardTitle>
+            <CardDescription className="mt-2 text-base">
+              Here you can see all of your projects and create new ones.
+            </CardDescription>
           </div>
           <Button
-            className="rounded-l-none h-12"
+            className="h-12 mr-10"
             variant="primary"
             size="lg"
             onClick={() => setShowModal(true)}
@@ -220,11 +209,11 @@ export function ProjectsTab() {
           </Button>
         </section>
         {displayModal()}
-        <section>
-          <div className="grid gap-4 lg:grid-cols-3">
+        <section className="mt-10 max-h-full">
+          <div className="grid lg:grid-cols-3 grid-cols-1 gap-2 overflow-scroll">
             {projects &&
               projects.map((project) => (
-                <Card onClick={() => navigate(`/projects/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
+                <Card className="" onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-2xl font-medium">
