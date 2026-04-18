@@ -1,4 +1,4 @@
-import { Menu, Search, User } from 'lucide-react'
+import { Menu, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '../ui/button'
@@ -16,7 +16,7 @@ export function AppHeader({
   return (
     <header className="rounded-3xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
       <div className="grid items-center gap-4 md:grid-cols-[auto_minmax(240px,1fr)_auto]">
-        <button type="button" onClick={() => navigate('/')} className="text-left">
+        <button type="button" onClick={() => navigate('/')} className="text-left cursor-pointer">
           <BrandMark />
         </button>
 

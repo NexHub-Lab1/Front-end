@@ -11,7 +11,11 @@ export async function getAllProjects() : Promise<ProjectResponse[] | null> {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
         }
-    }).then(res => res.json() as Promise<ApiResponse<ProjectResponse[]>>)
-    .then(res => res.data)
+    })
+    .then(res => res.json() as Promise<ApiResponse<ProjectResponse[]>>)
+    .then(res => res.data ? 
+        res.data.map(p => ({ ...p, updatedAt: new Date(p.updatedAt), createdAt: new Date(p.createdAt) }))
+        : null
+    )
     .catch(_ => null)
 }

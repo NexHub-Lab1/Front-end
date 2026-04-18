@@ -1,4 +1,4 @@
-import { Search, Star, Users } from 'lucide-react'
+import { ArrowLeft, Search, Star, Users } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
 import { SectionTitle } from '../components/app/section-title'
@@ -21,6 +21,8 @@ export function ProjectsPage({
 }) {
   const navigator = useNavigate()
   const [projects, setProjects] = useState<ProjectResponse[]>([])
+  const [editFeedback, setEditFeedback] = useState<string | null>(null)
+  const [editErrors, setEditErrors] = useState<{
 
   useEffect(() => {
     const response = getAllProjects()
@@ -37,7 +39,7 @@ export function ProjectsPage({
         <Card>
           <CardBody className="space-y-5 p-6">
             <div>
-              <SectionTitle title="Projects" />
+              <SectionTitle title="Projects" goBack={true}/>
               <CardDescription className="max-w-2xl text-base">
                 Explore active products and open source initiatives across NexHub.
               </CardDescription>
@@ -50,20 +52,16 @@ export function ProjectsPage({
               />
               <Input className="pl-11" placeholder="Search projects" aria-label="Search projects" />
             </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="space-y-4 p-6">
-            <SectionTitle title="Popular projects" />
-
-            <div className="space-y-3">
-              {projects && projects.map((project) => (
-                <Card key={project.id} className="shadow-none">
-                  <CardBody className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="grid grid-cols-3 gap-2">
+              {projects && projects.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).map((project) => (
+                <Card key={project.id} className="shadow-none" hoverShadow={true}>
+                  <CardBody className="flex flex-col gap-4 p-5 sm:items-start sm:justify-between">
                     <div className="min-w-0 space-y-3">
                       <div className="space-y-1">
-                        <CardTitle className="text-2xl font-medium">{project.name}</CardTitle>
+                        <CardTitle className="text-2xl font-medium">
+                          {project.name + ' '}
+                          <span className='font-bold text-lg'>| {project.ownerUsername}</span>
+                        </CardTitle>
                         <CardDescription className="max-w-3xl">{project.description}</CardDescription>
                       </div>
 
@@ -87,8 +85,8 @@ export function ProjectsPage({
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center sm:pt-1">
-                      <Button variant="primary" onClick={() => navigator(`/project/${project.id}`)}>View</Button>
+                    <div className="flex w-full items-center">
+                      <Button variant='primary' className='w-full' onClick={() => navigator(`/project/${project.id}`)}>View</Button>
                     </div>
                   </CardBody>
                 </Card>

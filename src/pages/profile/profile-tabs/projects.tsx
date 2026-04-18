@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { ArrowRight, Badge, Check, Cross, LoaderCircle, PlusIcon, Search, Star, Users } from "lucide-react";
+import { Badge, Check, Cross, PlusIcon, Star, Users } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 
 import type { ProjectForm, ProjectResponse } from "../../../types/app";
@@ -33,6 +33,8 @@ export function ProjectsTab() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [tagsInput, setTagsInput] = useState('')
+
   const [projectForm, setProjectForm] = useState<ProjectForm>({
     name: "",
     ownerId: 0,
@@ -42,12 +44,16 @@ export function ProjectsTab() {
     tags: []
   });
 
-  useEffect(() => {
+  const reloadProjects = async () => {
     const data = (async () => {
       return await getProjectsFromCurrentUser();
     })();
 
-    data.then((res) => setProjects(res)).catch((_) => setProjects([]));
+    data.then((res) => setProjects(res)).catch(() => setProjects([]));
+  }
+
+  useEffect(() => {
+    reloadProjects();
   }, []);
 
   function validateProjectForm() {
@@ -89,7 +95,13 @@ export function ProjectsTab() {
     setIsSubmitting(true);
     setFeedback(null);
 
-    await createProject(projectForm)
+    await createProject({
+      ...projectForm,
+      tags: tagsInput
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    })
       .then((res) => {
         setIsSubmitting(false)
         if (res == null) {
@@ -98,21 +110,15 @@ export function ProjectsTab() {
         }
         
         console.log(res)
-        setInterval(() => {window.location.reload();}, 1500)
-        setFeedback({message: "Project created correctly", type:"success"});
+        setIsSubmitting(false)
+        setFeedback({message: "Project created successfully", type:"success"});
+        setShowModal(false)
+        reloadProjects()
       })
       .catch((res) => console.log(res))
   }
 
-  const displayFeedback = () => {
-    if(!feedback) return (<>Create Project<ArrowRight size={18} /></>)
-  
-    if (isSubmitting) return (<>Loading<LoaderCircle size={18}/></>)
 
-    if (feedback?.type == 'success') return (<>Success<Check size={18}/></>)
-    
-    return (<>Error<Cross size={18}/></>)
-  }
 
   const displayModal = () => {
     if (!showModal) return null;
@@ -123,10 +129,19 @@ export function ProjectsTab() {
         onClose={() => {
           setShowModal(false)
           setCreateErrors({})
+          setTagsInput('')
+          setProjectForm({
+            name: "",
+            ownerId: 0,
+            description: "",
+            githubRepo: "",
+            status: "",
+            tags: []
+          })
         }}
         title={"Create a new project"}
       >
-        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
+        <form className="grid gap-4" onSubmit={handleSubmit}>
           <Input
             label="Project Name"
             placeholder="Test"
@@ -179,9 +194,18 @@ export function ProjectsTab() {
               }))
             }
           />
-          <div className="flex w-full pt-5">
-            <Button type="submit" variant="primary" size="lg" className="w-full">
-              {displayFeedback()}
+          <Input
+            label="Tags"
+            helperText="Separate tags with commas."
+            value={tagsInput}
+            onChange={(event) => setTagsInput(event.target.value)}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create project'}
             </Button>
           </div>
         </form>
@@ -208,6 +232,14 @@ export function ProjectsTab() {
             <PlusIcon size={16} />
           </Button>
         </section>
+        {feedback ? (
+          <Card className={`border-${feedback.type === 'success' ? 'green' : 'red'}-100 bg-${feedback.type === 'success' ? 'green' : 'red'}-50/70 shadow-none`}>
+            <CardBody className="flex items-center gap-3 p-4">
+              {feedback.type === 'success' ? <Check size={16} className="text-green-600" /> : <Cross size={16} className="text-red-600" />}
+              <CardDescription className={`text-sm text-${feedback.type === 'success' ? 'green' : 'red'}-700`}>{feedback.message}</CardDescription>
+            </CardBody>
+          </Card>
+        ) : null}
         {displayModal()}
         <section className="mt-10 max-h-full">
           <div className="grid lg:grid-cols-3 grid-cols-1 gap-2 overflow-scroll">

@@ -206,11 +206,6 @@ export function ProjectDetailPage({
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 max-w-5xl space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/profile')}>
-          <ArrowLeft size={16} />
-          Back to profile
-        </Button>
-
         {isLoading ? (
           <Card>
             <CardBody className="space-y-3 p-6">
