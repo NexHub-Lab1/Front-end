@@ -1,4 +1,4 @@
-import { ArrowLeft, FolderGit2, Pencil, Sparkles, Star, Trash2, Users } from 'lucide-react'
+import { FolderGit2, Pencil, Sparkles, Star, Trash2, Users } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 

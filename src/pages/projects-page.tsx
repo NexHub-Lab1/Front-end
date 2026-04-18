@@ -21,8 +21,6 @@ export function ProjectsPage({
 }) {
   const navigator = useNavigate()
   const [projects, setProjects] = useState<ProjectResponse[]>([])
-  const [editFeedback, setEditFeedback] = useState<string | null>(null)
-  const [editErrors, setEditErrors] = useState<{
 
   useEffect(() => {
     const response = getAllProjects()

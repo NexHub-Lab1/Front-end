@@ -1,5 +1,5 @@
 import type { ApiResponse, ProjectForm, ProjectResponse, ProjectUpdateForm } from "../types/app";
-import { readStoredAuthUser } from "./auth-storage";
+import { readStoredAuthUser, handleForbiddenResponse } from "./auth-storage";
 
 export const PROJECT_ROOT_ENDPOINT = '/api/projects'
 export const GET_PROJECTS_ENDPOINT = (user_id: Number) => PROJECT_ROOT_ENDPOINT + '/owner/' + String(user_id)
@@ -22,6 +22,11 @@ export async function getProjectsFromCurrentUser() {
         }
     })
 
+    if (response.status === 403) {
+        handleForbiddenResponse()
+        return []
+    }
+
     const result = await response.json() as ApiResponse<ProjectResponse[]>
     return result.data
 }
@@ -37,6 +42,11 @@ export async function getProjectById(projectId: number): Promise<ProjectResponse
         'Content-Type': 'application/json'
       }
     })
+
+    if (response.status === 403) {
+        handleForbiddenResponse()
+        return null
+    }
 
     if (!response.ok) return null
 
@@ -59,6 +69,11 @@ export async function createProject(p: ProjectForm): Promise<ProjectResponse | n
       body: JSON.stringify(p)
     })
 
+    if (response.status === 403) {
+        handleForbiddenResponse()
+        return null
+    }
+
     if (!response.ok) return null
     const result = (await response.json()) as ApiResponse<ProjectResponse>
     return result.data
@@ -76,6 +91,11 @@ export async function updateProject(project: ProjectUpdateForm): Promise<Project
       },
       body: JSON.stringify(project)
     })
+
+    if (response.status === 403) {
+        handleForbiddenResponse()
+        return null
+    }
 
     if (!response.ok) return null
 
@@ -95,6 +115,11 @@ export async function deleteProject(projectId: number): Promise<ProjectResponse 
       },
       body: JSON.stringify(projectId)
     })
+
+    if (response.status === 403) {
+        handleForbiddenResponse()
+        return null
+    }
 
     if (!response.ok) return null
 

@@ -39,3 +39,8 @@ export function persistUser(user: AuthUser | null) {
 
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user))
 }
+
+export function handleForbiddenResponse() {
+  persistUser(null)
+  window.location.href = '/auth/login'
+}
