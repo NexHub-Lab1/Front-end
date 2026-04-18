@@ -20,18 +20,6 @@ export function AppHeader({
           <BrandMark />
         </button>
 
-        <div className="hidden md:block">
-          <div className="flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 shadow-sm">
-            <Search size={18} className="text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search"
-              aria-label="Search"
-              className="w-full border-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-            />
-          </div>
-        </div>
-
         <nav className="flex items-center justify-end gap-2 sm:gap-3">
           {user ? (
             <>
