@@ -260,18 +260,61 @@ export function TasksTab() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
+            <label className="block text-sm font-medium mb-2">Reward Amount</label>
             <Input
-              placeholder="Detailed description of the task"
-              helperText={createErrors.description}
-              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
-              value={taskForm.description}
+              placeholder="100"
+              helperText={createErrors.rewardAmount}
+              style={createErrors.rewardAmount ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              value={taskForm.rewardAmount || ''}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === '' || /^\d+(\.\d{0,2})?$/.test(value)) {
+                  setTaskForm((current) => ({
+                    ...current,
+                    rewardAmount: value === '' ? 0 : Number(value),
+                  }))
+                }
+              }}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="status-select" className="block text-sm font-medium mb-2">
+              Status
+            </label>
+            <select
+              id="status-select"
+              value={taskForm.status}
               onChange={(event) =>
                 setTaskForm((current) => ({
                   ...current,
-                  description: event.target.value,
+                  status: event.target.value,
                 }))
               }
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            >
+              <option value="">Select a status...</option>
+              <option value="OPEN">OPEN</option>
+              <option value="HIRING">HIRING</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="COMPLETED">COMPLETED</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Max Attempts</label>
+            <Input
+              placeholder="3"
+              value={taskForm.maxAttempts || ''}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === '' || /^\d+$/.test(value)) {
+                  setTaskForm((current) => ({
+                    ...current,
+                    maxAttempts: value === '' ? 0 : Number(value),
+                  }))
+                }
+              }}
             />
           </div>
 
@@ -292,37 +335,6 @@ export function TasksTab() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Reward Amount</label>
-            <Input
-              placeholder="100"
-              type="number"
-              helperText={createErrors.rewardAmount}
-              style={createErrors.rewardAmount ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
-              value={taskForm.rewardAmount}
-              onChange={(event) =>
-                setTaskForm((current) => ({
-                  ...current,
-                  rewardAmount: Number(event.target.value),
-                }))
-              }
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Status</label>
-            <Input
-              placeholder="Open"
-              value={taskForm.status}
-              onChange={(event) =>
-                setTaskForm((current) => ({
-                  ...current,
-                  status: event.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-medium mb-2">Recommended Skills</label>
             <Input
               placeholder="Separate skills with commas."
@@ -330,6 +342,26 @@ export function TasksTab() {
               onChange={(event) => setSkillsInput(event.target.value)}
             />
             <p className="text-xs text-slate-500 mt-1">Separate skills with commas.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <textarea
+              placeholder="Detailed description of the task"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none"
+              rows={4}
+              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              value={taskForm.description}
+              onChange={(event) =>
+                setTaskForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+            />
+            {createErrors.description && (
+              <p className="text-xs text-red-600 mt-1">{createErrors.description}</p>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

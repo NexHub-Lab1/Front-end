@@ -172,32 +172,51 @@ export function ProjectsTab() {
               }))
             }
           />
-          <Input
-            label="Description"
-            placeholder="Web app"
-            helperText={createErrors.description}
-            className={createErrors.description ? 'border-red-300 focus-visible:ring-red-200' : undefined}
-            value={projectForm.description}
-            onChange={(event) =>
-              setProjectForm((current) => ({
-                ...current,
-                description: event.target.value,
-              }))
-            }
-          />
-          <Input
-            label="Status"
-            placeholder="In Progress"
-            helperText={createErrors.status}
-            className={createErrors.status ? 'border-red-300 focus-visible:ring-red-200' : undefined}
-            value={projectForm.status}
-            onChange={(event) =>
-              setProjectForm((current) => ({
-                ...current,
-                status: event.target.value,
-              }))
-            }
-          />
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <textarea
+              placeholder="Web app"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none"
+              rows={4}
+              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              value={projectForm.description}
+              onChange={(event) =>
+                setProjectForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+            />
+            {createErrors.description && (
+              <p className="text-xs text-red-600 mt-1">{createErrors.description}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="project-status-select" className="block text-sm font-medium mb-2">
+              Status
+            </label>
+            <select
+              id="project-status-select"
+              value={projectForm.status}
+              onChange={(event) =>
+                setProjectForm((current) => ({
+                  ...current,
+                  status: event.target.value,
+                }))
+              }
+              style={createErrors.status ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            >
+              <option value="">Select a status...</option>
+              <option value="OPEN">OPEN</option>
+              <option value="HIRING">HIRING</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="COMPLETED">COMPLETED</option>
+            </select>
+            {createErrors.status && (
+              <p className="text-xs text-red-600 mt-1">{createErrors.status}</p>
+            )}
+          </div>
           <Input
             label="Tags"
             helperText="Separate tags with commas."
