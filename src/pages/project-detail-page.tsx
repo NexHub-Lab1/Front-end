@@ -1,4 +1,4 @@
-import { FolderGit2, Pencil, Sparkles, Star, Trash2, Users } from 'lucide-react'
+import { FolderGit2, Pencil, Sparkles, Star, Trash2, Users, ArrowLeft } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -206,7 +206,11 @@ export function ProjectDetailPage({
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
-      <section className="mx-auto mt-6 max-w-5xl space-y-6">
+      <section className="mx-auto mt-6 max-w-5xl space-y-2">
+        <Button variant="ghost" onClick={() => navigate('/profile')} className="w-fit">
+          <ArrowLeft size={16} className="mr-2" />
+          Back
+        </Button>
         {isLoading ? (
           <Card>
             <CardBody className="space-y-3 p-6">

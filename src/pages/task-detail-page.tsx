@@ -70,7 +70,11 @@ export function TaskDetailPage({
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
-      <section className="mx-auto mt-6 max-w-5xl space-y-6">
+      <section className="mx-auto mt-6 max-w-5xl space-y-2">
+        <Button variant="ghost" onClick={() => navigate('/profile')} className="w-fit">
+          <ArrowLeft size={16} className="mr-2" />
+          Back
+        </Button>
         {isLoading ? (
           <Card>
             <CardBody className="space-y-3 p-6">
@@ -83,10 +87,6 @@ export function TaskDetailPage({
             <CardBody className="space-y-3 p-6">
               <CardTitle className="text-3xl">Task not found</CardTitle>
               <CardDescription>{error}</CardDescription>
-              <Button variant="outline" onClick={() => navigate('/profile')}>
-                <ArrowLeft size={16} className="mr-2" />
-                Back to Profile
-              </Button>
             </CardBody>
           </Card>
         ) : task ? (
@@ -185,10 +185,6 @@ export function TaskDetailPage({
               </CardBody>
             </Card>
 
-            <Button variant="outline" onClick={() => navigate('/profile')}>
-              <ArrowLeft size={16} className="mr-2" />
-              Back to Profile
-            </Button>
           </>
         ) : null}
       </section>
