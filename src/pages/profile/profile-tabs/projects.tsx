@@ -4,12 +4,13 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { Badge, Check, Cross, PlusIcon, Star, Users } from "lucide-react";
+import { Check, Cross, PlusIcon, Star, Users } from "lucide-react";
+import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
 import type { ProjectForm, ProjectResponse } from "../../../types/app";
 
-import { createProject, getProjectsFromCurrentUser } from "../../../lib/user-storage";
+import { createProject, fetchProjectsByCurrentUser } from "../../../lib/project-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
@@ -45,11 +46,14 @@ export function ProjectsTab() {
   });
 
   const reloadProjects = async () => {
-    const data = (async () => {
-      return await getProjectsFromCurrentUser();
-    })();
+    const response = await fetchProjectsByCurrentUser();
 
-    data.then((res) => setProjects(res)).catch(() => setProjects([]));
+    if (response.status === 'success' && response.data) {
+      setProjects(response.data)
+      console.log(response.data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+    } else {
+      setProjects([])
+    }
   }
 
   useEffect(() => {
@@ -104,12 +108,12 @@ export function ProjectsTab() {
     })
       .then((res) => {
         setIsSubmitting(false)
-        if (res == null) {
-          setFeedback({message:"Error", type:"error"})
+        if (res.status === 'error' || !res.data) {
+          setFeedback({message: res.message || "Error", type:"error"})
           return
         }
         
-        console.log(res)
+        console.log(res.data)
         setIsSubmitting(false)
         setFeedback({message: "Project created successfully", type:"success"});
         setShowModal(false)
@@ -168,32 +172,51 @@ export function ProjectsTab() {
               }))
             }
           />
-          <Input
-            label="Description"
-            placeholder="Web app"
-            helperText={createErrors.description}
-            className={createErrors.description ? 'border-red-300 focus-visible:ring-red-200' : undefined}
-            value={projectForm.description}
-            onChange={(event) =>
-              setProjectForm((current) => ({
-                ...current,
-                description: event.target.value,
-              }))
-            }
-          />
-          <Input
-            label="Status"
-            placeholder="In Progress"
-            helperText={createErrors.status}
-            className={createErrors.status ? 'border-red-300 focus-visible:ring-red-200' : undefined}
-            value={projectForm.status}
-            onChange={(event) =>
-              setProjectForm((current) => ({
-                ...current,
-                status: event.target.value,
-              }))
-            }
-          />
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <textarea
+              placeholder="Web app"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none"
+              rows={4}
+              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              value={projectForm.description}
+              onChange={(event) =>
+                setProjectForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+            />
+            {createErrors.description && (
+              <p className="text-xs text-red-600 mt-1">{createErrors.description}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="project-status-select" className="block text-sm font-medium mb-2">
+              Status
+            </label>
+            <select
+              id="project-status-select"
+              value={projectForm.status}
+              onChange={(event) =>
+                setProjectForm((current) => ({
+                  ...current,
+                  status: event.target.value,
+                }))
+              }
+              style={createErrors.status ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            >
+              <option value="">Select a status...</option>
+              <option value="OPEN">OPEN</option>
+              <option value="HIRING">HIRING</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="COMPLETED">COMPLETED</option>
+            </select>
+            {createErrors.status && (
+              <p className="text-xs text-red-600 mt-1">{createErrors.status}</p>
+            )}
+          </div>
           <Input
             label="Tags"
             helperText="Separate tags with commas."
@@ -215,7 +238,7 @@ export function ProjectsTab() {
 
   return (
     <Card>
-      <CardBody className="p-4 flex flex-col max-h-full">
+      <CardBody className="p-4 flex flex-col max-h-full h-full">
         <section className="flex flex-row items-center">
           <div className="w-full">
             <CardTitle className="text-3xl">My projects</CardTitle>
@@ -241,11 +264,11 @@ export function ProjectsTab() {
           </Card>
         ) : null}
         {displayModal()}
-        <section className="mt-10 max-h-full">
-          <div className="grid lg:grid-cols-3 grid-cols-1 gap-2 overflow-scroll">
+        <section className="mt-10 h-full">
+          <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
             {projects &&
               projects.map((project) => (
-                <Card className="" onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
+                <Card className="h-fit" onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-2xl font-medium">
@@ -255,7 +278,7 @@ export function ProjectsTab() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {project.tags.map((tag) => (
-                        <Badge key={tag[0]}>{tag}</Badge>
+                        <Badge variant='outline' key={tag[0]}>{tag}</Badge>
                       ))}
                     </div>
                     <div className="flex flex-wrap gap-4">

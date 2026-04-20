@@ -1,11 +1,13 @@
-import { FolderGit2, Pencil, Sparkles, Star, Trash2, Users } from 'lucide-react'
+import { FolderGit2, Pencil, Sparkles, Star, Trash2, Users, ArrowLeft } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
-import { getProjectById, getCurrentUserAuthData, updateProject, deleteProject } from '../lib/user-storage'
-import type { ProjectResponse, ProjectUpdateForm } from '../types/app'
+import { readStoredUser } from '../lib/auth-storage'
+import { fetchProjectById, updateProject, deleteProject } from '../lib/project-storage'
+import { fetchTasksByProject } from '../lib/task-storage'
+import type { ProjectResponse, ProjectUpdateForm, TaskResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -55,7 +57,9 @@ export function ProjectDetailPage({
   })
   const [tagsInput, setTagsInput] = useState('')
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-  const currentUser = getCurrentUserAuthData()?.user
+  const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false)
+  const currentUser = readStoredUser()
 
   useEffect(() => {
     async function loadProject() {
@@ -71,13 +75,13 @@ export function ProjectDetailPage({
       setError(null)
 
       try {
-        const result = await getProjectById(parsedId)
+        const response = await fetchProjectById(parsedId)
 
-        if (!result) {
-          throw new Error('Unable to load project')
+        if (response.status === 'error' || !response.data) {
+          throw new Error(response.message || 'Unable to load project')
         }
 
-        setProject(result)
+        setProject(response.data)
       } catch (fetchError) {
         setProject(null)
         setError(fetchError instanceof Error ? fetchError.message : 'Unable to load project')
@@ -88,6 +92,30 @@ export function ProjectDetailPage({
 
     void loadProject()
   }, [id])
+
+  useEffect(() => {
+    if (!project) {
+      return
+    }
+
+    async function loadTasks() {
+      setIsLoadingTasks(true)
+      try {
+        const response = await fetchTasksByProject(project!.id)
+        if (response.status === 'success' && response.data) {
+          setProjectTasks(response.data)
+        } else {
+          setProjectTasks([])
+        }
+      } catch (error) {
+        setProjectTasks([])
+      } finally {
+        setIsLoadingTasks(false)
+      }
+    }
+
+    void loadTasks()
+  }, [project?.id])
 
   useEffect(() => {
     if (!project) {
@@ -159,7 +187,7 @@ export function ProjectDetailPage({
     setEditFeedback(null)
 
     try {
-      const updatedProject = await updateProject({
+      const response = await updateProject({
         ...editForm,
         id: project.id,
         tags: tagsInput
@@ -168,11 +196,11 @@ export function ProjectDetailPage({
           .filter(Boolean),
       })
 
-      if (!updatedProject) {
-        throw new Error('Unable to update project')
+      if (response.status === 'error' || !response.data) {
+        throw new Error(response.message || 'Unable to update project')
       }
 
-      setProject(updatedProject)
+      setProject(response.data)
       setEditFeedback('Project updated successfully')
       setIsEditOpen(false)
     } catch (submitError) {
@@ -190,9 +218,9 @@ export function ProjectDetailPage({
     setEditFeedback(null)
 
     try {
-      const deletedProject = await deleteProject(project.id)
-      if (!deletedProject) {
-        throw new Error('Unable to delete project')
+      const response = await deleteProject(project.id)
+      if (response.status === 'error') {
+        throw new Error(response.message || 'Unable to delete project')
       }
 
       navigate('/profile')
@@ -205,7 +233,11 @@ export function ProjectDetailPage({
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
-      <section className="mx-auto mt-6 max-w-5xl space-y-6">
+      <section className="mx-auto mt-6 max-w-5xl space-y-2">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
+          <ArrowLeft size={16} className="mr-2" />
+          Back
+        </Button>
         {isLoading ? (
           <Card>
             <CardBody className="space-y-3 p-6">
@@ -334,6 +366,58 @@ export function ProjectDetailPage({
                   </div>
                 </CardBody>
               </Card>
+            </div>
+
+            <div className="space-y-4">
+              <CardTitle className="text-xl">Tasks in this project</CardTitle>
+              {isLoadingTasks ? (
+                <Card className="shadow-none">
+                  <CardBody className="p-6 text-center">
+                    <CardDescription>Loading tasks...</CardDescription>
+                  </CardBody>
+                </Card>
+              ) : projectTasks.length === 0 ? (
+                <Card className="shadow-none">
+                  <CardBody className="p-6 text-center">
+                    <CardDescription>No tasks yet for this project.</CardDescription>
+                  </CardBody>
+                </Card>
+              ) : (
+                <div className="grid lg:grid-cols-3 grid-cols-1 gap-2">
+                  {projectTasks.map((task) => (
+                    <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
+                      <CardBody className="space-y-4 p-5">
+                        <div className="space-y-2">
+                          <CardTitle className="text-xl font-medium">
+                            {task.title}
+                          </CardTitle>
+                          <CardDescription>{task.description}</CardDescription>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary">{task.status}</Badge>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
+                          <p><strong>Deliverables:</strong> {task.deliverables}</p>
+                          <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
+                        </div>
+
+                        {task.recommendedSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {task.recommendedSkills.map((skill) => (
+                              <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </CardBody>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit project">

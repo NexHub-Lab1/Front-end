@@ -75,3 +75,33 @@ export type DeveloperCard = {
   score: string
   rank: string
 }
+
+export type TaskRequest = {
+  projectId: number,
+  title: string,
+  description: string,
+  deliverables: string,
+  rewardAmount: number,
+  rewardCurrency: string,
+  deadline: Date,
+  status: string,
+  maxAttempts: number,
+  recommendedSkills: string[]
+}
+
+export type TaskResponse = {
+  id: number,
+  projectId: number,
+  projectName: string,
+  title: string,
+  description: string,
+  deliverables: string,
+  rewardAmount: number,
+  rewardCurrency: string,
+  deadline: Date,
+  status: string,
+  maxAttempts: number,
+  createdAt: Date,
+  updatedAt: Date,
+  recommendedSkills: string[]
+}

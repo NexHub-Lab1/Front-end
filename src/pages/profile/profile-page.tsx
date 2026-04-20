@@ -5,6 +5,7 @@ import { Card, CardBody, CardDescription, CardTitle } from '../../components/ui/
 import type { AuthUser } from '../../types/app'
 import { ProfileTab } from './profile-tabs/profile'
 import { ProjectsTab } from './profile-tabs/projects'
+import { TasksTab } from './profile-tabs/tasks'
 import { readStoredUser } from '../../lib/auth-storage'
 
 export function ProfilePage({
@@ -23,7 +24,8 @@ export function ProfilePage({
 
   const tabs = {
     profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
-    projects: <ProjectsTab />
+    projects: <ProjectsTab />,
+    tasks: <TasksTab />
   }
 
   const [activeTab, setActiveTab] = useState<{key: String, component: ReactElement | null}>({

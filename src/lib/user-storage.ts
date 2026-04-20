@@ -1,132 +1,44 @@
-import type { ApiResponse, ProjectForm, ProjectResponse, ProjectUpdateForm } from "../types/app";
-import { readStoredAuthUser, handleForbiddenResponse } from "./auth-storage";
+import type { ApiResponse, User } from '../types/app'
+import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 
-export const PROJECT_ROOT_ENDPOINT = '/api/projects'
-export const GET_PROJECTS_ENDPOINT = (user_id: Number) => PROJECT_ROOT_ENDPOINT + '/owner/' + String(user_id)
+export const USER_ROOT_ENDPOINT = '/api/users'
 
-export function getCurrentUserAuthData() {
-  return readStoredAuthUser()
+function getAuthHeaders(): HeadersInit {
+  const token = readStoredUserToken()
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  }
 }
 
-export async function getProjectsFromCurrentUser() {
-    const data = getCurrentUserAuthData()
-    if (!data) return []
-
-    const endpoint = GET_PROJECTS_ENDPOINT(data.user.id)
-
-    const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${data.token}`,
-            'Content-Type': 'application/json'
-        }
-    })
-
-    if (response.status === 403) {
-        handleForbiddenResponse()
-        return []
-    }
-
-    const result = await response.json() as ApiResponse<ProjectResponse[]>
-    return result.data
+function handleResponse(response: Response) {
+  if (response.status === 403) {
+    handleForbiddenResponse()
+  }
+  return response.json()
 }
 
-export async function getProjectById(projectId: number): Promise<ProjectResponse | null> {
-    const userData = getCurrentUserAuthData()
-    if (!userData) return null
-
-    const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/${projectId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${userData.token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (response.status === 403) {
-        handleForbiddenResponse()
-        return null
-    }
-
-    if (!response.ok) return null
-
-    const result = await response.json() as ApiResponse<ProjectResponse>
-    return result.data
+export async function fetchUserById(userId: number): Promise<ApiResponse<User>> {
+  const response = await fetch(`${USER_ROOT_ENDPOINT}/${userId}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  })
+  return handleResponse(response)
 }
 
-export async function createProject(p: ProjectForm): Promise<ProjectResponse | null> {
-    const userData = getCurrentUserAuthData()
-    if (!userData) return null
-
-    p.ownerId = userData.user.id
-
-    const response = await fetch(PROJECT_ROOT_ENDPOINT, {
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userData.token}`
-      },
-      body: JSON.stringify(p)
-    })
-
-    if (response.status === 403) {
-        handleForbiddenResponse()
-        return null
-    }
-
-    if (!response.ok) return null
-    const result = (await response.json()) as ApiResponse<ProjectResponse>
-    return result.data
+export async function fetchAllUsers(): Promise<ApiResponse<User[]>> {
+  const response = await fetch(USER_ROOT_ENDPOINT, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  })
+  return handleResponse(response)
 }
 
-export async function updateProject(project: ProjectUpdateForm): Promise<ProjectResponse | null> {
-    const userData = getCurrentUserAuthData()
-    if (!userData) return null
-
-    const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/updateproject`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userData.token}`
-      },
-      body: JSON.stringify(project)
-    })
-
-    if (response.status === 403) {
-        handleForbiddenResponse()
-        return null
-    }
-
-    if (!response.ok) return null
-
-    const result = (await response.json()) as ApiResponse<ProjectResponse>
-    return result.data
-}
-
-export async function deleteProject(projectId: number): Promise<ProjectResponse | null> {
-    const userData = getCurrentUserAuthData()
-    if (!userData) return null
-
-    const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/delete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userData.token}`
-      },
-      body: JSON.stringify(projectId)
-    })
-
-    if (response.status === 403) {
-        handleForbiddenResponse()
-        return null
-    }
-
-    if (!response.ok) return null
-
-    const result = (await response.json()) as ApiResponse<ProjectResponse>
-    return result.data
-}
-
-export async function signOutCurrentUser() {
-    return await fetch('/api/auth/signout', { method: 'POST' })
+export async function updateUser(user: User): Promise<ApiResponse<User>> {
+  const response = await fetch(`${USER_ROOT_ENDPOINT}/${user.id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(user),
+  })
+  return handleResponse(response)
 }
