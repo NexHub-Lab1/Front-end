@@ -13,6 +13,7 @@ import type { TaskRequest, TaskResponse, ProjectResponse } from "../../../types/
 import { createTask, fetchAllTasks, updateTask, deleteTask } from "../../../lib/task-storage";
 import { fetchProjectsByCurrentUser } from "../../../lib/project-storage";
 import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
 
@@ -31,6 +32,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
 
 export function TasksTab() {
 
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -387,7 +389,7 @@ export function TasksTab() {
           ) : (
             <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
               {tasks.map((task) => (
-                <Card key={task.id} hoverShadow={true} className="h-fit">
+                <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-xl font-medium">
@@ -421,7 +423,10 @@ export function TasksTab() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleEditTask(task)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditTask(task)
+                        }}
                         className="flex-1"
                       >
                         <Pencil size={14} />
@@ -430,7 +435,10 @@ export function TasksTab() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleDeleteTask(task.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteTask(task.id)
+                        }}
                         className="flex-1"
                       >
                         <Trash2 size={14} />
