@@ -345,7 +345,7 @@ export function TasksTab() {
 
   return (
     <Card>
-      <CardBody className="p-4 flex flex-col max-h-full">
+      <CardBody className="p-4 flex flex-col max-h-full h-full">
         <section className="flex flex-row items-center">
           <div className="w-full">
             <CardTitle className="text-3xl">My Tasks</CardTitle>
@@ -377,7 +377,7 @@ export function TasksTab() {
           </Card>
         ) : null}
         {displayModal()}
-        <section className="mt-10 max-h-full">
+        <section className="mt-10 h-full">
           {tasks.length === 0 ? (
             <Card>
               <CardBody className="p-6 text-center">
@@ -385,9 +385,9 @@ export function TasksTab() {
               </CardBody>
             </Card>
           ) : (
-            <div className="grid lg:grid-cols-3 grid-cols-1 gap-2 overflow-scroll">
+            <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
               {tasks.map((task) => (
-                <Card key={task.id} hoverShadow={true} className="relative">
+                <Card key={task.id} hoverShadow={true} className="h-fit">
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-xl font-medium">

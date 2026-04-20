@@ -219,7 +219,7 @@ export function ProjectsTab() {
 
   return (
     <Card>
-      <CardBody className="p-4 flex flex-col max-h-full">
+      <CardBody className="p-4 flex flex-col max-h-full h-full">
         <section className="flex flex-row items-center">
           <div className="w-full">
             <CardTitle className="text-3xl">My projects</CardTitle>
@@ -245,11 +245,11 @@ export function ProjectsTab() {
           </Card>
         ) : null}
         {displayModal()}
-        <section className="mt-10 max-h-full">
-          <div className="grid lg:grid-cols-3 grid-cols-1 gap-2 overflow-scroll">
+        <section className="mt-10 h-full">
+          <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
             {projects &&
               projects.map((project) => (
-                <Card className="" onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
+                <Card className="h-fit" onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
                   <CardBody className="space-y-4 p-5">
                     <div className="space-y-2">
                       <CardTitle className="text-2xl font-medium">
