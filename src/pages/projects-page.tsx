@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useNavigate } from 'react-router-dom'
-import { getAllProjects } from '../lib/project-storage'
+import { fetchAllProjects } from '../lib/project-storage'
 import { useEffect, useState } from 'react'
 import type { ProjectResponse } from '../types/app'
 
@@ -23,10 +23,15 @@ export function ProjectsPage({
   const [projects, setProjects] = useState<ProjectResponse[]>([])
 
   useEffect(() => {
-    const response = getAllProjects()
-    response
-    .then(res => res ? setProjects(res) : setProjects([]))
-    .catch(error => console.error(error))
+    const loadProjects = async () => {
+      const response = await fetchAllProjects()
+      if (response.status === 'success' && response.data) {
+        setProjects(response.data)
+      } else {
+        setProjects([])
+      }
+    }
+    loadProjects().catch(error => console.error(error))
   }, [setProjects])
 
   return (

@@ -9,7 +9,7 @@ import { Button } from "../../../components/ui/button";
 
 import type { ProjectForm, ProjectResponse } from "../../../types/app";
 
-import { createProject, getProjectsFromCurrentUser } from "../../../lib/user-storage";
+import { createProject, fetchProjectsByCurrentUser } from "../../../lib/project-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
@@ -45,11 +45,14 @@ export function ProjectsTab() {
   });
 
   const reloadProjects = async () => {
-    const data = (async () => {
-      return await getProjectsFromCurrentUser();
-    })();
+    const response = await fetchProjectsByCurrentUser();
 
-    data.then((res) => setProjects(res)).catch(() => setProjects([]));
+    if (response.status === 'success' && response.data) {
+      setProjects(response.data)
+      console.log(response.data.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+    } else {
+      setProjects([])
+    }
   }
 
   useEffect(() => {
@@ -104,12 +107,12 @@ export function ProjectsTab() {
     })
       .then((res) => {
         setIsSubmitting(false)
-        if (res == null) {
-          setFeedback({message:"Error", type:"error"})
+        if (res.status === 'error' || !res.data) {
+          setFeedback({message: res.message || "Error", type:"error"})
           return
         }
         
-        console.log(res)
+        console.log(res.data)
         setIsSubmitting(false)
         setFeedback({message: "Project created successfully", type:"success"});
         setShowModal(false)

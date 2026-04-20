@@ -31,7 +31,7 @@ function App() {
     setCurrentUser(null)
     persistUser(null)
     setIsMenuOpen(false)
-    navigate('/')
+    navigate('/auth/login')
   }
 
   function handleUserUpdate(data: AuthUser) {

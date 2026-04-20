@@ -4,7 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
-import { getProjectById, getCurrentUserAuthData, updateProject, deleteProject } from '../lib/user-storage'
+import { readStoredUser } from '../lib/auth-storage'
+import { fetchProjectById, updateProject, deleteProject } from '../lib/project-storage'
 import type { ProjectResponse, ProjectUpdateForm } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -55,7 +56,7 @@ export function ProjectDetailPage({
   })
   const [tagsInput, setTagsInput] = useState('')
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-  const currentUser = getCurrentUserAuthData()?.user
+  const currentUser = readStoredUser()
 
   useEffect(() => {
     async function loadProject() {
@@ -71,13 +72,13 @@ export function ProjectDetailPage({
       setError(null)
 
       try {
-        const result = await getProjectById(parsedId)
+        const response = await fetchProjectById(parsedId)
 
-        if (!result) {
-          throw new Error('Unable to load project')
+        if (response.status === 'error' || !response.data) {
+          throw new Error(response.message || 'Unable to load project')
         }
 
-        setProject(result)
+        setProject(response.data)
       } catch (fetchError) {
         setProject(null)
         setError(fetchError instanceof Error ? fetchError.message : 'Unable to load project')
@@ -159,7 +160,7 @@ export function ProjectDetailPage({
     setEditFeedback(null)
 
     try {
-      const updatedProject = await updateProject({
+      const response = await updateProject({
         ...editForm,
         id: project.id,
         tags: tagsInput
@@ -168,11 +169,11 @@ export function ProjectDetailPage({
           .filter(Boolean),
       })
 
-      if (!updatedProject) {
-        throw new Error('Unable to update project')
+      if (response.status === 'error' || !response.data) {
+        throw new Error(response.message || 'Unable to update project')
       }
 
-      setProject(updatedProject)
+      setProject(response.data)
       setEditFeedback('Project updated successfully')
       setIsEditOpen(false)
     } catch (submitError) {
@@ -190,9 +191,9 @@ export function ProjectDetailPage({
     setEditFeedback(null)
 
     try {
-      const deletedProject = await deleteProject(project.id)
-      if (!deletedProject) {
-        throw new Error('Unable to delete project')
+      const response = await deleteProject(project.id)
+      if (response.status === 'error') {
+        throw new Error(response.message || 'Unable to delete project')
       }
 
       navigate('/profile')
