@@ -4,7 +4,8 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { Badge, Check, Cross, PlusIcon, Star, Users } from "lucide-react";
+import { Check, Cross, PlusIcon, Star, Users } from "lucide-react";
+import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
 import type { ProjectForm, ProjectResponse } from "../../../types/app";
@@ -258,7 +259,7 @@ export function ProjectsTab() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {project.tags.map((tag) => (
-                        <Badge key={tag[0]}>{tag}</Badge>
+                        <Badge variant='outline' key={tag[0]}>{tag}</Badge>
                       ))}
                     </div>
                     <div className="flex flex-wrap gap-4">
