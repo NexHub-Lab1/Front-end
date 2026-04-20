@@ -50,7 +50,7 @@ export function ProjectsTab() {
 
     if (response.status === 'success' && response.data) {
       setProjects(response.data)
-      console.log(response.data.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+      console.log(response.data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
     } else {
       setProjects([])
     }

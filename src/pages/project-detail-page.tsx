@@ -6,7 +6,8 @@ import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
 import { readStoredUser } from '../lib/auth-storage'
 import { fetchProjectById, updateProject, deleteProject } from '../lib/project-storage'
-import type { ProjectResponse, ProjectUpdateForm } from '../types/app'
+import { fetchTasksByProject } from '../lib/task-storage'
+import type { ProjectResponse, ProjectUpdateForm, TaskResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -56,6 +57,8 @@ export function ProjectDetailPage({
   })
   const [tagsInput, setTagsInput] = useState('')
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false)
   const currentUser = readStoredUser()
 
   useEffect(() => {
@@ -89,6 +92,30 @@ export function ProjectDetailPage({
 
     void loadProject()
   }, [id])
+
+  useEffect(() => {
+    if (!project) {
+      return
+    }
+
+    async function loadTasks() {
+      setIsLoadingTasks(true)
+      try {
+        const response = await fetchTasksByProject(project!.id)
+        if (response.status === 'success' && response.data) {
+          setProjectTasks(response.data)
+        } else {
+          setProjectTasks([])
+        }
+      } catch (error) {
+        setProjectTasks([])
+      } finally {
+        setIsLoadingTasks(false)
+      }
+    }
+
+    void loadTasks()
+  }, [project?.id])
 
   useEffect(() => {
     if (!project) {
@@ -207,7 +234,7 @@ export function ProjectDetailPage({
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 max-w-5xl space-y-2">
-        <Button variant="ghost" onClick={() => navigate('/profile')} className="w-fit">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
           <ArrowLeft size={16} className="mr-2" />
           Back
         </Button>
@@ -339,6 +366,58 @@ export function ProjectDetailPage({
                   </div>
                 </CardBody>
               </Card>
+            </div>
+
+            <div className="space-y-4">
+              <CardTitle className="text-xl">Tasks in this project</CardTitle>
+              {isLoadingTasks ? (
+                <Card className="shadow-none">
+                  <CardBody className="p-6 text-center">
+                    <CardDescription>Loading tasks...</CardDescription>
+                  </CardBody>
+                </Card>
+              ) : projectTasks.length === 0 ? (
+                <Card className="shadow-none">
+                  <CardBody className="p-6 text-center">
+                    <CardDescription>No tasks yet for this project.</CardDescription>
+                  </CardBody>
+                </Card>
+              ) : (
+                <div className="grid lg:grid-cols-3 grid-cols-1 gap-2">
+                  {projectTasks.map((task) => (
+                    <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
+                      <CardBody className="space-y-4 p-5">
+                        <div className="space-y-2">
+                          <CardTitle className="text-xl font-medium">
+                            {task.title}
+                          </CardTitle>
+                          <CardDescription>{task.description}</CardDescription>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary">{task.status}</Badge>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
+                          <p><strong>Deliverables:</strong> {task.deliverables}</p>
+                          <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
+                        </div>
+
+                        {task.recommendedSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {task.recommendedSkills.map((skill) => (
+                              <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </CardBody>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit project">

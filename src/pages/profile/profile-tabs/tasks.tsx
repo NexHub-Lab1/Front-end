@@ -67,7 +67,7 @@ export function TasksTab() {
 
     if (response.status === 'success' && response.data) {
       setTasks(response.data)
-      console.log(response.data.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+      console.log(response.data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
     } else {
       setTasks([])
     }

@@ -1,7 +1,6 @@
 import { ArrowLeft, Search, Star, Users } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
-import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -39,10 +38,14 @@ export function ProjectsPage({
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mt-6 space-y-6">
+        <Button variant="ghost" onClick={() => navigator(-1)} className="w-fit mb-4">
+          <ArrowLeft size={16} className="mr-2" />
+          Back
+        </Button>
         <Card>
           <CardBody className="space-y-5 p-6">
             <div>
-              <SectionTitle title="Projects" goBack={true}/>
+              <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">Projects</h2>
               <CardDescription className="max-w-2xl text-base">
                 Explore active products and open source initiatives across NexHub.
               </CardDescription>
@@ -56,7 +59,7 @@ export function ProjectsPage({
               <Input className="pl-11" placeholder="Search projects" aria-label="Search projects" />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {projects && projects.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).map((project) => (
+              {projects && projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).map((project) => (
                 <Card key={project.id} className="shadow-none" hoverShadow={true}>
                   <CardBody className="flex flex-col gap-4 p-5 sm:items-start sm:justify-between">
                     <div className="min-w-0 space-y-3">

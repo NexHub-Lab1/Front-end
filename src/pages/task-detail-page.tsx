@@ -69,7 +69,7 @@ export function TaskDetailPage({
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 max-w-5xl space-y-2">
-        <Button variant="ghost" onClick={() => navigate('/profile')} className="w-fit">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
           <ArrowLeft size={16} className="mr-2" />
           Back
         </Button>
