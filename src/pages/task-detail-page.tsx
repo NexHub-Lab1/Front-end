@@ -3,8 +3,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import { StatLine } from '../components/app/stat-line'
-import { fetchTasksByProject } from '../lib/task-storage'
 import type { TaskResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
