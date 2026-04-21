@@ -1,4 +1,4 @@
-import type { ApiResponse, TaskAssignmentResponse, TaskAssignmentRequest, TaskAssignmentUpdateRequest } from '../types/app'
+import type { ApiResponse, TaskAssignmentResponse, TaskAssignmentUpdateRequest } from '../types/app'
 import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 
 const ASSIGNMENT_ROOT_ENDPOINT = '/api/task-assignments'
