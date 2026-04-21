@@ -4,7 +4,7 @@ import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 export const ROOT_TASK_ENDPOINT = '/api/tasks'
 export const TASKS_BY_PROJECT_ENDPOINT = (id: number) => ROOT_TASK_ENDPOINT + `/project/${id}`
 export const DELETE_TASK_ENDPOINT = ROOT_TASK_ENDPOINT + '/delete'
-export const UPDATE_TASK_ENDPOINT = ROOT_TASK_ENDPOINT + '/update'
+export const UPDATE_TASK_ENDPOINT = ROOT_TASK_ENDPOINT + '/updatetask'
 
 function getAuthHeaders(): HeadersInit {
   const token = readStoredUserToken()
@@ -15,6 +15,7 @@ function getAuthHeaders(): HeadersInit {
 }
 
 function handleResponse(response: Response, redirectOnForbidden = true) {
+  console.log('API Response Status:', response)
   if (redirectOnForbidden && response.status === 403) {
     handleForbiddenResponse()
   }

@@ -16,6 +16,7 @@ function getAuthHeaders(): HeadersInit {
 }
 
 function handleResponse(response: Response) {
+  console.log('API Response Status:', response)
   if (response.status === 403) {
     handleForbiddenResponse()
   }
@@ -62,6 +63,7 @@ export async function deleteAssignment(assignmentId: number): Promise<ApiRespons
     headers: getAuthHeaders(),
     body: JSON.stringify({ id: assignmentId }),
   })
+  console.log('Delete Assignment Response Status:', response)
   return handleResponse(response)
 }
 

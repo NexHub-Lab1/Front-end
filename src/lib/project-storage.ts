@@ -15,6 +15,7 @@ function getAuthHeaders(): HeadersInit {
 }
 
 function handleResponse(response: Response, redirectOnForbidden = true) {
+  console.log('API Response Status:', response)
   if (redirectOnForbidden && response.status === 403) {
     handleForbiddenResponse()
   }
