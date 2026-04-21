@@ -21,6 +21,7 @@ export function ToReviewTab() {
   const [reviewComments, setReviewComments] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
+  const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [debugInfo, setDebugInfo] = useState<{
     projectsCount: number
     tasksCount: number
@@ -148,6 +149,7 @@ export function ToReviewTab() {
 
     try {
       setIsSubmitting(true)
+      setReviewFeedback(null)
       
       const result = await updateSubmission({
         id: selectedSubmission.id,
@@ -162,12 +164,21 @@ export function ToReviewTab() {
         setReviewComments('')
         setSelectedSubmission(null)
         await loadSubmissionsToReview()
-        alert(`Submission ${approved ? 'approved' : 'rejected'} successfully!`)
+        setReviewFeedback({
+          type: 'success',
+          message: `Submission ${approved ? 'approved' : 'rejected'} successfully.`,
+        })
       } else {
-        alert('Failed to submit review: ' + result.message)
+        setReviewFeedback({
+          type: 'error',
+          message: 'Failed to submit review: ' + result.message,
+        })
       }
     } catch (error) {
-      alert('Error submitting review: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      setReviewFeedback({
+        type: 'error',
+        message: 'Error submitting review: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -230,6 +241,24 @@ export function ToReviewTab() {
             Refresh
           </Button>
         </div>
+
+        {reviewFeedback ? (
+          <Card
+            className={`shadow-none ${
+              reviewFeedback.type === 'success'
+                ? 'border-green-200 bg-green-50'
+                : 'border-red-200 bg-red-50'
+            }`}
+          >
+            <CardBody className="p-4">
+              <CardDescription
+                className={reviewFeedback.type === 'success' ? 'text-green-700' : 'text-red-700'}
+              >
+                {reviewFeedback.message}
+              </CardDescription>
+            </CardBody>
+          </Card>
+        ) : null}
 
         {submissions.length === 0 ? (
           <div className="text-center py-8 space-y-2">

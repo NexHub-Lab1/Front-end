@@ -59,7 +59,7 @@ export async function deleteTask(taskId: number): Promise<ApiResponse<null>> {
   const response = await fetch(DELETE_TASK_ENDPOINT, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ id: taskId }),
+    body: JSON.stringify(taskId),
   })
   return handleResponse(response)
 }
