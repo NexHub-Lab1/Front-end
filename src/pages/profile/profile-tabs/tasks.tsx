@@ -60,23 +60,35 @@ export function TasksTab() {
     const response = await fetchProjectsByCurrentUser();
     if (response.status === 'success' && response.data) {
       setProjects(response.data)
+      return response.data
     }
+
+    setProjects([])
+    return []
   }
 
-  const reloadTasks = async () => {
+  const reloadTasks = async (ownedProjects = projects) => {
     const response = await fetchAllTasks();
 
     if (response.status === 'success' && response.data) {
-      setTasks(response.data)
-      console.log(response.data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+      const ownedProjectIds = new Set(ownedProjects.map((project) => project.id))
+      setTasks(
+        response.data
+          .filter((task) => ownedProjectIds.has(task.projectId))
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      )
     } else {
       setTasks([])
     }
   }
 
   useEffect(() => {
-    loadProjects();
-    reloadTasks();
+    async function loadProfileTasks() {
+      const ownedProjects = await loadProjects()
+      await reloadTasks(ownedProjects)
+    }
+
+    void loadProfileTasks();
   }, []);
 
   function validateTaskForm() {
