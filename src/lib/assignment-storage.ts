@@ -49,7 +49,7 @@ export async function updateAssignment(assignment: TaskAssignmentUpdateRequest):
 
 export async function deleteAssignment(assignmentId: number): Promise<ApiResponse<null>> {
   const response = await fetch(DELETE_ASSIGNMENT_ENDPOINT, {
-    method: 'DELETE',
+    method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ id: assignmentId }),
   })
