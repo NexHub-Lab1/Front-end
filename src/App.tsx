@@ -10,6 +10,7 @@ import { ProjectDetailPage } from './pages/project-detail-page'
 import { TaskDetailPage } from './pages/task-detail-page'
 import { ProfilePage } from './pages/profile/profile-page'
 import { ProjectsPage } from './pages/projects-page'
+import { TasksPage } from './pages/tasks-page'
 import type { AuthUser, User } from './types/app'
 
 function App() {
@@ -81,6 +82,19 @@ function App() {
           }
         />
         <Route
+          path="/tasks"
+          element={
+            currentUser ? (
+              <TasksPage
+                onSignOut={handleSignOut}
+                onOpenMenu={() => setIsMenuOpen(true)}
+              />
+            ) : (
+              <Navigate to="/auth/login" replace />
+            )
+          }
+        />
+        <Route
           path="/project/:id"
           element={
             currentUser ? (
@@ -120,7 +134,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </> 
   )
 }
 

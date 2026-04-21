@@ -1,4 +1,4 @@
-import { FolderKanban, Settings, Trophy, User, WalletCards, X } from 'lucide-react'
+import { FolderKanban, ListChecks, Settings, Trophy, User, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '../ui/button'
@@ -66,9 +66,16 @@ export function SideMenu({
             <span>Projects</span>
           </button>
 
-          <button className="menu-item" type="button" onClick={onClose}>
-            <WalletCards size={34} />
-            <span>Bounties</span>
+          <button
+            className="menu-item"
+            type="button"
+            onClick={() => {
+              navigate('/tasks')
+              onClose()
+            }}
+          >
+            <ListChecks size={34} />
+            <span>Tasks</span>
           </button>
 
           <button className="menu-item" type="button" onClick={onClose}>
