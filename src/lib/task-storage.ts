@@ -14,8 +14,8 @@ function getAuthHeaders(): HeadersInit {
   }
 }
 
-function handleResponse(response: Response) {
-  if (response.status === 403) {
+function handleResponse(response: Response, redirectOnForbidden = true) {
+  if (redirectOnForbidden && response.status === 403) {
     handleForbiddenResponse()
   }
   return response.json()
@@ -24,17 +24,25 @@ function handleResponse(response: Response) {
 export async function fetchAllTasks(): Promise<ApiResponse<TaskResponse[]>> {
   const response = await fetch(ROOT_TASK_ENDPOINT, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
   })
-  return handleResponse(response)
+  return handleResponse(response, false)
 }
 
 export async function fetchTasksByProject(projectId: number): Promise<ApiResponse<TaskResponse[]>> {
   const response = await fetch(TASKS_BY_PROJECT_ENDPOINT(projectId), {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
   })
-  return handleResponse(response)
+  return handleResponse(response, false)
+}
+
+export async function fetchTaskById(taskId: number): Promise<ApiResponse<TaskResponse>> {
+  const response = await fetch(`${ROOT_TASK_ENDPOINT}/${taskId}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return handleResponse(response, false)
 }
 
 export async function createTask(task: TaskRequest): Promise<ApiResponse<TaskResponse>> {

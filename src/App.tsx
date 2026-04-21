@@ -84,41 +84,29 @@ function App() {
         <Route
           path="/tasks"
           element={
-            currentUser ? (
-              <TasksPage
-                onSignOut={handleSignOut}
-                onOpenMenu={() => setIsMenuOpen(true)}
-              />
-            ) : (
-              <Navigate to="/auth/login" replace />
-            )
+            <TasksPage
+              onSignOut={handleSignOut}
+              onOpenMenu={() => setIsMenuOpen(true)}
+            />
           }
         />
         <Route
           path="/project/:id"
           element={
-            currentUser ? (
-              <ProjectDetailPage
-                onSignOut={handleSignOut}
-                onOpenMenu={() => setIsMenuOpen(true)}
-              />
-            ) : (
-              <Navigate to="/auth/login" replace />
-            )
+            <ProjectDetailPage
+              onSignOut={handleSignOut}
+              onOpenMenu={() => setIsMenuOpen(true)}
+            />
           }
         />
         <Route
           path="/task/:id"
           element={
-            currentUser ? (
-              <TaskDetailPage
-                currentUser={currentUser}
-                onSignOut={handleSignOut}
-                onOpenMenu={() => setIsMenuOpen(true)}
-              />
-            ) : (
-              <Navigate to="/auth/login" replace />
-            )
+            <TaskDetailPage
+              currentUser={currentUser}
+              onSignOut={handleSignOut}
+              onOpenMenu={() => setIsMenuOpen(true)}
+            />
           }
         />
 
