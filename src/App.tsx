@@ -98,6 +98,7 @@ function App() {
           element={
             currentUser ? (
               <TaskDetailPage
+                currentUser={currentUser}
                 onSignOut={handleSignOut}
                 onOpenMenu={() => setIsMenuOpen(true)}
               />
