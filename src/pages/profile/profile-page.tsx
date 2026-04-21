@@ -6,6 +6,8 @@ import type { AuthUser } from '../../types/app'
 import { ProfileTab } from './profile-tabs/profile'
 import { ProjectsTab } from './profile-tabs/projects'
 import { TasksTab } from './profile-tabs/tasks'
+import { ToReviewTab } from './profile-tabs/to-review'
+import { SubmissionsTab } from './profile-tabs/submissions'
 import { readStoredUser } from '../../lib/auth-storage'
 
 export function ProfilePage({
@@ -25,7 +27,9 @@ export function ProfilePage({
   const tabs = {
     profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
     projects: <ProjectsTab />,
-    tasks: <TasksTab />
+    tasks: <TasksTab />,
+    'to-review': <ToReviewTab />,
+    submissions: <SubmissionsTab />
   }
 
   const [activeTab, setActiveTab] = useState<{key: String, component: ReactElement | null}>({
@@ -35,7 +39,7 @@ export function ProfilePage({
 
   function capitalize(str:String) {
     return str
-      .split(' ')
+      .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
   }

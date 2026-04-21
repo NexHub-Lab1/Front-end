@@ -129,3 +129,35 @@ export type TaskAssignmentUpdateRequest = {
   status: string
   attemptsUsed: number
 }
+
+export type TaskSubmissionRequest = {
+  assignmentId: number
+  pullRequestUrl: string
+}
+
+export type TaskSubmissionResponse = {
+  id: number
+  taskId: number
+  taskTitle: string
+  assignmentId: number
+  projectId: number
+  projectName: string,
+  userId: number,
+  username: string,
+  pullRequestUrl: string,
+  submittedAt: Date,
+  status: string,
+  reviewComments: string,
+  reviewedAt: Date,
+  reviewerId: number,
+  reviewerUsername: string,
+  attemptsUsed: number
+}
+
+export type TaskSubmissionUpdateRequest = {
+  id: number
+  pullRequestUrl: string
+  status: string
+  reviewComments: string
+  reviewerId: number
+}

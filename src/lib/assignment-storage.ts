@@ -1,4 +1,4 @@
-import type { ApiResponse, TaskAssignmentResponse, TaskAssignmentUpdateRequest } from '../types/app'
+import type { ApiResponse, TaskAssignmentResponse, TaskAssignmentRequest, TaskAssignmentUpdateRequest } from '../types/app'
 import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 
 const ASSIGNMENT_ROOT_ENDPOINT = '/api/task-assignments'
@@ -34,6 +34,15 @@ export async function fetchAssignmentsByTask(taskId: number): Promise<ApiRespons
   const response = await fetch(GET_ASSIGNMENTS_BY_TASK_ENDPOINT(taskId), {
     method: 'GET',
     headers: getAuthHeaders(),
+  })
+  return handleResponse(response)
+}
+
+export async function createAssignment(assignment: TaskAssignmentRequest): Promise<ApiResponse<TaskAssignmentResponse>> {
+  const response = await fetch(ASSIGNMENT_ROOT_ENDPOINT, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(assignment),
   })
   return handleResponse(response)
 }
