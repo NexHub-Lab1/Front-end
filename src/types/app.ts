@@ -105,3 +105,27 @@ export type TaskResponse = {
   updatedAt: Date,
   recommendedSkills: string[]
 }
+
+export type TaskAssignmentRequest = {
+  taskId: number
+  userId: number
+}
+
+export type TaskAssignmentResponse = {
+  id: number,
+  taskId: number,
+  taskTitle: string,
+  projectId: number,
+  projectName: string,
+  userId: number,
+  username: string,
+  assignedAt: Date,
+  status: string,
+  attemptsUsed: number
+}
+
+export type TaskAssignmentUpdateRequest = {
+  id: number
+  status: string
+  attemptsUsed: number
+}
