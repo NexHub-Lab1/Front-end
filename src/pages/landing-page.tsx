@@ -10,7 +10,6 @@ import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/car
 import { DeveloperAvatar } from '../components/app/developer-avatar'
 import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
-import { readStoredUserToken } from '../lib/auth-storage'
 import { fetchAllProjects } from '../lib/project-storage'
 import { fetchAllTasks } from '../lib/task-storage'
 import type { ProjectResponse, TaskResponse } from '../types/app'
@@ -30,13 +29,6 @@ export function LandingPage({
 
   useEffect(() => {
     async function loadLandingData() {
-      const token = readStoredUserToken()
-      if (!token) {
-        setTopProjects([])
-        setTopTasks([])
-        return
-      }
-
       try {
         const [projectsResponse, tasksResponse] = await Promise.all([
           fetchAllProjects(),
@@ -112,7 +104,7 @@ export function LandingPage({
                     <CardBody className="p-5">
                       <CardTitle className="text-xl font-medium">No projects to show yet</CardTitle>
                       <CardDescription>
-                        Sign in to explore the latest NexHub projects.
+                        There are no projects to show yet.
                       </CardDescription>
                     </CardBody>
                   </Card>
@@ -171,7 +163,7 @@ export function LandingPage({
                       <CardBody className="p-5">
                         <CardTitle className="text-xl font-medium">No tasks to show yet</CardTitle>
                         <CardDescription>
-                          Sign in to explore the latest tasks from NexHub projects.
+                          There are no tasks to show yet.
                         </CardDescription>
                       </CardBody>
                     </Card>
@@ -210,7 +202,7 @@ export function LandingPage({
                   <Button
                     variant="primary"
                     size="lg"
-                    onClick={() => navigate(readStoredUserToken() ? '/tasks' : '/auth/login')}
+                    onClick={() => navigate('/tasks')}
                   >
                     See more
                     <ArrowRight size={16} />

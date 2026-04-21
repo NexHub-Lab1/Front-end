@@ -35,6 +35,7 @@ export function TaskDetailPage({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
     async function loadTask() {
@@ -77,7 +78,7 @@ export function TaskDetailPage({
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id)
           if (assignmentsRes.data) {
             const activeAssignment = assignmentsRes.data.find(
-              a => a.taskId === parsedId && a.status !== 'COMPLETED'
+              a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(activeAssignment || null)
           }
@@ -106,6 +107,7 @@ export function TaskDetailPage({
     try {
       setIsAssigning(true)
       setAssignError(null)
+      setActionFeedback(null)
 
       const result = await createAssignment({
         taskId: task.id,
@@ -114,12 +116,18 @@ export function TaskDetailPage({
 
       if (result.status === 'success' && result.data) {
         setUserAssignment(result.data)
-        alert('Task assigned successfully! You can now work on this task.')
+        setActionFeedback({
+          type: 'success',
+          message: 'Task assigned successfully. You can now submit your pull request.',
+        })
       } else {
         setAssignError(result.message || 'Failed to assign task')
+        setActionFeedback({ type: 'error', message: result.message || 'Failed to assign task' })
       }
     } catch (error) {
-      setAssignError(error instanceof Error ? error.message : 'An error occurred')
+      const message = error instanceof Error ? error.message : 'An error occurred'
+      setAssignError(message)
+      setActionFeedback({ type: 'error', message })
     } finally {
       setIsAssigning(false)
     }
@@ -144,6 +152,7 @@ export function TaskDetailPage({
     try {
       setIsSubmitting(true)
       setSubmitError(null)
+      setActionFeedback(null)
 
       const result = await createSubmission({
         assignmentId: userAssignment.id,
@@ -153,14 +162,17 @@ export function TaskDetailPage({
       if (result.status === 'success') {
         setShowSubmitModal(false)
         setPrUrl('')
-        alert('Submission created successfully!')
+        setActionFeedback({
+          type: 'success',
+          message: 'Submission created successfully. The project owner can now review it.',
+        })
         
         // Reload assignments to update status
         if (currentUser) {
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id)
           if (assignmentsRes.data) {
             const updatedAssignment = assignmentsRes.data.find(
-              a => a.taskId === task?.id && a.status !== 'COMPLETED'
+              a => a.taskId === task?.id && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(updatedAssignment || null)
           }
@@ -332,6 +344,24 @@ export function TaskDetailPage({
                 {assignError && (
                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
                     <p className="text-sm text-red-700">{assignError}</p>
+                  </div>
+                )}
+
+                {actionFeedback && (
+                  <div
+                    className={`rounded-md border p-3 ${
+                      actionFeedback.type === 'success'
+                        ? 'border-green-200 bg-green-50'
+                        : 'border-red-200 bg-red-50'
+                    }`}
+                  >
+                    <p
+                      className={`text-sm ${
+                        actionFeedback.type === 'success' ? 'text-green-700' : 'text-red-700'
+                      }`}
+                    >
+                      {actionFeedback.message}
+                    </p>
                   </div>
                 )}
 

@@ -38,6 +38,7 @@ export function TasksTab() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<TaskResponse | null>(null);
   const [createErrors, setCreateErrors] = useState<{
     title?: string
     description?: string
@@ -161,7 +162,6 @@ export function TasksTab() {
   }
 
   async function handleDeleteTask(taskId: number) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
 
     try {
       const res = await deleteTask(taskId)
@@ -171,6 +171,7 @@ export function TasksTab() {
       }
 
       setFeedback({message: "Task deleted successfully", type:"success"});
+      setTaskToDelete(null)
       reloadTasks()
     } catch (error) {
       setFeedback({message: "Error deleting task", type:"error"})
@@ -214,8 +215,8 @@ export function TasksTab() {
         onClose={resetForm}
         title={isEditMode ? "Edit task" : "Create a new task"}
       >
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <div>
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Task Title</label>
             <Input
               placeholder="Implement feature X"
@@ -334,7 +335,7 @@ export function TasksTab() {
             />
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Recommended Skills</label>
             <Input
               placeholder="Separate skills with commas."
@@ -344,7 +345,7 @@ export function TasksTab() {
             <p className="text-xs text-slate-500 mt-1">Separate skills with commas.</p>
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Description</label>
             <textarea
               placeholder="Detailed description of the task"
@@ -364,7 +365,7 @@ export function TasksTab() {
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 md:col-span-2">
             <Button type="button" variant="ghost" onClick={resetForm}>
               Cancel
             </Button>
@@ -411,6 +412,27 @@ export function TasksTab() {
           </Card>
         ) : null}
         {displayModal()}
+        {taskToDelete ? (
+          <Modal
+            isOpen={Boolean(taskToDelete)}
+            onClose={() => setTaskToDelete(null)}
+            title="Delete task"
+          >
+            <div className="space-y-4">
+              <CardDescription>
+                Are you sure you want to delete <strong>{taskToDelete.title}</strong>? This action cannot be undone.
+              </CardDescription>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="ghost" onClick={() => setTaskToDelete(null)}>
+                  Cancel
+                </Button>
+                <Button type="button" variant="primary" onClick={() => handleDeleteTask(taskToDelete.id)}>
+                  Delete task
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        ) : null}
         <section className="mt-10 h-full">
           {tasks.length === 0 ? (
             <Card>
@@ -469,7 +491,7 @@ export function TasksTab() {
                         variant="ghost"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDeleteTask(task.id)
+                          setTaskToDelete(task)
                         }}
                         className="flex-1"
                       >

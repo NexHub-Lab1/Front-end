@@ -73,7 +73,7 @@ export async function login(email: string, password: string): Promise<ApiRespons
   return response.json()
 }
 
-export async function signup(username: string, email: string, password: string): Promise<ApiResponse<AuthUser>> {
+export async function signup(username: string, email: string, password: string): Promise<ApiResponse<User>> {
   const response = await fetch(AUTH_SIGN_UP_ENDPOINT, {
     method: 'POST',
     headers: {

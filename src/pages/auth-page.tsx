@@ -24,6 +24,36 @@ const initialSignup = {
   password: '',
 }
 
+async function requestLogin(email: string, password: string): Promise<AuthUser> {
+  const response = await fetch(AUTH_LOG_IN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+
+  const result = (await response.json()) as ApiResponse<AuthUser>
+  if (!response.ok || result.status === 'error' || !result.data) {
+    throw new Error(result.message || 'Login failed')
+  }
+
+  return result.data
+}
+
+async function requestSignupAndLogin(signupForm: typeof initialSignup): Promise<AuthUser> {
+  const signupResponse = await fetch(AUTH_SIGN_UP_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(signupForm),
+  })
+
+  const signupResult = (await signupResponse.json()) as ApiResponse<User>
+  if (!signupResponse.ok || signupResult.status === 'error' || !signupResult.data) {
+    throw new Error(signupResult.message || 'Signup failed')
+  }
+
+  return requestLogin(signupForm.email, signupForm.password)
+}
+
 export function AuthPage({
   mode,
   onAuthSuccess,
@@ -59,24 +89,19 @@ export function AuthPage({
     setIsSubmitting(true)
     setFeedback(null)
 
-    const payload = mode === 'login' ? loginForm : signupForm
-
     try {
-      const response = await fetch(activeHeading.endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      const authUser = mode === 'login'
+        ? await requestLogin(loginForm.email, loginForm.password)
+        : await requestSignupAndLogin(signupForm)
+
+      setCurrentUser(authUser.user)
+      onAuthSuccess(authUser)
+      setFeedback({
+        type: 'success',
+        message: mode === 'signup'
+          ? 'Account created. You are signed in.'
+          : 'Login exitoso',
       })
-
-      const result = (await response.json()) as ApiResponse<AuthUser>
-
-      if (!response.ok || result.status === 'error' || !result.data) {
-        throw new Error(result.message || 'Request failed')
-      }
-
-      setCurrentUser(result.data.user)
-      setFeedback({ type: 'success', message: result.message })
-      onAuthSuccess(result.data)
 
       if (mode === 'signup') {
         setSignupForm(initialSignup)
@@ -85,7 +110,7 @@ export function AuthPage({
       }
 
       window.setTimeout(() => {
-        navigate('/')
+        navigate('/', { replace: true })
       }, 600)
     } catch (error) {
       setCurrentUser(null)
@@ -189,7 +214,7 @@ export function AuthPage({
                 }
               />
 
-              <Button type="submit" variant="primary" size="lg" className="w-full">
+              <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>
                 {mode === 'login' ? 'Sign in to NexHub' : 'Create account'}
                 {isSubmitting ? <LoaderCircle size={18} className="animate-spin" /> : <ArrowRight size={18} />}
               </Button>
