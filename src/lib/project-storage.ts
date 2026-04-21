@@ -90,7 +90,7 @@ export async function deleteProject(projectId: number): Promise<ApiResponse<null
   const response = await fetch(DELETE_PROJECT_ENDPOINT, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ id: projectId }),
+    body: JSON.stringify(projectId),
   })
   return handleResponse(response)
 }
