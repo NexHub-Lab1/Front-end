@@ -14,8 +14,8 @@ function getAuthHeaders(): HeadersInit {
   }
 }
 
-function handleResponse(response: Response) {
-  if (response.status === 403) {
+function handleResponse(response: Response, redirectOnForbidden = true) {
+  if (redirectOnForbidden && response.status === 403) {
     handleForbiddenResponse()
   }
   return response.json()
@@ -24,9 +24,9 @@ function handleResponse(response: Response) {
 export async function fetchAllProjects(): Promise<ApiResponse<ProjectResponse[]>> {
   const response = await fetch(PROJECT_ROOT_ENDPOINT, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
   })
-  return handleResponse(response)
+  return handleResponse(response, false)
 }
 
 export async function fetchProjectsByCurrentUser(): Promise<ApiResponse<ProjectResponse[]>> {
@@ -51,9 +51,9 @@ export async function fetchProjectsByCurrentUser(): Promise<ApiResponse<ProjectR
 export async function fetchProjectById(projectId: number): Promise<ApiResponse<ProjectResponse>> {
   const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/${projectId}`, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
   })
-  return handleResponse(response)
+  return handleResponse(response, false)
 }
 
 export async function createProject(project: ProjectForm): Promise<ApiResponse<ProjectResponse>> {

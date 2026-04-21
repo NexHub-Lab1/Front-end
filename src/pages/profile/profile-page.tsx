@@ -6,6 +6,7 @@ import type { AuthUser } from '../../types/app'
 import { ProfileTab } from './profile-tabs/profile'
 import { ProjectsTab } from './profile-tabs/projects'
 import { TasksTab } from './profile-tabs/tasks'
+import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
 import { readStoredUser } from '../../lib/auth-storage'
@@ -28,6 +29,7 @@ export function ProfilePage({
     profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
     projects: <ProjectsTab />,
     tasks: <TasksTab />,
+    'assigned-tasks': <AssignedTasksTab />,
     'to-review': <ToReviewTab />,
     submissions: <SubmissionsTab />
   }

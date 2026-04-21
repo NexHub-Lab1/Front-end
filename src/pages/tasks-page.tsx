@@ -7,7 +7,6 @@ import { StatLine } from '../components/app/stat-line'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
-import { fetchProjectsByCurrentUser } from '../lib/project-storage'
 import { fetchAllTasks } from '../lib/task-storage'
 import type { TaskResponse } from '../types/app'
 
@@ -26,10 +25,7 @@ export function TasksPage({
     async function loadTasks() {
       setLoadError(null)
 
-      const [tasksResponse, ownedProjectsResponse] = await Promise.all([
-        fetchAllTasks(),
-        fetchProjectsByCurrentUser(),
-      ])
+      const tasksResponse = await fetchAllTasks()
 
       if (tasksResponse.status === 'error' || !tasksResponse.data) {
         setTasks([])
@@ -37,15 +33,8 @@ export function TasksPage({
         return
       }
 
-      const ownedProjectIds = new Set(
-        ownedProjectsResponse.status === 'success' && ownedProjectsResponse.data
-          ? ownedProjectsResponse.data.map((project) => project.id)
-          : [],
-      )
-
       setTasks(
         tasksResponse.data
-          .filter((task) => !ownedProjectIds.has(task.projectId))
           .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
       )
     }

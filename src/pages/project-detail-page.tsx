@@ -290,10 +290,12 @@ export function ProjectDetailPage({
                         </a>
                       </Button>
                     ) : null}
-                    <Button variant="primary" onClick={() => setIsEditOpen(true)}>
-                      <Pencil size={16} />
-                      Edit project
-                    </Button>
+                    {isOwner ? (
+                      <Button variant="primary" onClick={() => setIsEditOpen(true)}>
+                        <Pencil size={16} />
+                        Edit project
+                      </Button>
+                    ) : null}
                     {isOwner ? (
                       <Button
                         variant="outline"

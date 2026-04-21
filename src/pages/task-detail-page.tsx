@@ -10,6 +10,7 @@ import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/car
 import Modal from '../components/ui/modal'
 import { Input } from '../components/ui/input'
 import { fetchProjectsByCurrentUser } from '../lib/project-storage'
+import { fetchTaskById } from '../lib/task-storage'
 import { createSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 
@@ -51,27 +52,18 @@ export function TaskDetailPage({
       setError(null)
 
       try {
-        const response = await fetch(`/api/tasks/${parsedId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('nexhub-auth-user') ? JSON.parse(localStorage.getItem('nexhub-auth-user')!).token : ''}`,
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Unable to load task')
+        const response = await fetchTaskById(parsedId)
+        if (response.status === 'error' || !response.data) {
+          throw new Error(response.message || 'Unable to load task')
         }
 
-        const data = await response.json()
-        if (data.status === 'error' || !data.data) {
-          throw new Error(data.message || 'Unable to load task')
-        }
-
-        setTask(data.data)
+        const loadedTask = response.data
+        setTask(loadedTask)
 
         if (currentUser) {
           const projectsRes = await fetchProjectsByCurrentUser()
           if (projectsRes.data) {
-            const isOwner = projectsRes.data.some(p => p.id === data.data.projectId)
+            const isOwner = projectsRes.data.some(p => p.id === loadedTask.projectId)
             setIsOwner(isOwner)
           }
 
