@@ -16,6 +16,7 @@ import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
 import { useNavigate } from "react-router-dom";
+import { isGithubRepositoryUrl } from "../../../lib/github-url";
 
 export function ProjectsTab() {
 
@@ -78,6 +79,8 @@ export function ProjectsTab() {
 
     if (!projectForm.githubRepo.trim()) {
       nextErrors.githubRepo = 'GitHub repository is required.'
+    } else if (!isGithubRepositoryUrl(projectForm.githubRepo)) {
+      nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
     }
 
     if (!projectForm.status.trim()) {
@@ -86,6 +89,38 @@ export function ProjectsTab() {
 
     setCreateErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
+  }
+
+  function validateProjectField(field: keyof typeof createErrors, value: string) {
+    if (field === 'name') {
+      return value.trim() ? undefined : 'Project name is required.'
+    }
+
+    if (field === 'description') {
+      return value.trim() ? undefined : 'Description is required.'
+    }
+
+    if (field === 'githubRepo') {
+      if (!value.trim()) {
+        return 'GitHub repository is required.'
+      }
+      return isGithubRepositoryUrl(value) ? undefined : 'Enter a valid GitHub repository URL.'
+    }
+
+    return value.trim() ? undefined : 'Status is required.'
+  }
+
+  function updateCreateError(field: keyof typeof createErrors, value: string) {
+    setCreateErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      return {
+        ...current,
+        [field]: validateProjectField(field, value),
+      }
+    })
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -150,42 +185,49 @@ export function ProjectsTab() {
             label="Project Name"
             placeholder="Test"
             helperText={createErrors.name}
-            className={createErrors.name ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+            error={Boolean(createErrors.name)}
             value={projectForm.name}
             onChange={(event) =>
+              {
               setProjectForm((current) => ({
                 ...current,
                 name: event.target.value,
               }))
-            }
+              updateCreateError('name', event.target.value)
+            }}
           />
           <Input
             label="GitHub Repo"
-            placeholder="http://github.com/DHipo/repoTest"
+            placeholder="Example: https://github.com/owner/repository"
             helperText={createErrors.githubRepo}
-            className={createErrors.githubRepo ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+            error={Boolean(createErrors.githubRepo)}
             value={projectForm.githubRepo}
-            onChange={(event) =>
+            onChange={(event) => {
               setProjectForm((current) => ({
                 ...current,
                 githubRepo: event.target.value,
               }))
-            }
+              updateCreateError('githubRepo', event.target.value)
+            }}
           />
           <div>
             <label className="block text-sm font-medium mb-2">Description</label>
             <textarea
               placeholder="Web app"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${
+                createErrors.description
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+              }`}
               rows={4}
-              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
               value={projectForm.description}
-              onChange={(event) =>
+              onChange={(event) => {
                 setProjectForm((current) => ({
                   ...current,
                   description: event.target.value,
                 }))
-              }
+                updateCreateError('description', event.target.value)
+              }}
             />
             {createErrors.description && (
               <p className="text-xs text-red-600 mt-1">{createErrors.description}</p>
@@ -198,14 +240,18 @@ export function ProjectsTab() {
             <select
               id="project-status-select"
               value={projectForm.status}
-              onChange={(event) =>
+              onChange={(event) => {
                 setProjectForm((current) => ({
                   ...current,
                   status: event.target.value,
                 }))
-              }
-              style={createErrors.status ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                updateCreateError('status', event.target.value)
+              }}
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                createErrors.status
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+              }`}
             >
               <option value="">Select a status...</option>
               <option value="OPEN">OPEN</option>

@@ -15,6 +15,10 @@ import {
   readStoredUser,
 } from '../../../lib/auth-storage'
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
 export function ProfileTab({
   onUserUpdate,
   onSignOut,
@@ -40,6 +44,16 @@ export function ProfileTab({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [editErrors, setEditErrors] = useState<{
+    currentEmail?: string
+    currentPassword?: string
+    newUsername?: string
+    newEmail?: string
+    newPassword?: string
+  }>({})
+  const [deleteErrors, setDeleteErrors] = useState<{
+    currentPassword?: string
+  }>({})
 
   useEffect(() => {
     const storedUser = readStoredUser()
@@ -56,6 +70,8 @@ export function ProfileTab({
       newEmail: storedUser.email,
       newPassword: '',
     })
+    setEditErrors({})
+    setDeleteErrors({})
   }, [navigate])
 
   const profileRows = useMemo(
@@ -85,6 +101,11 @@ export function ProfileTab({
 
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!validateEditProfileForm()) {
+      setFeedback(null)
+      return
+    }
+
     setIsSaving(true)
     setFeedback(null)
 
@@ -124,12 +145,13 @@ export function ProfileTab({
   }
 
   async function handleDeleteAccount() {
-    if (!form.currentPassword) {
-      setFeedback({
-        type: 'error',
-        message: 'Enter your current password before deleting the account.',
-      })
-      setIsDeleteOpen(false)
+    const nextErrors = {
+      currentPassword: form.currentPassword.trim() ? undefined : 'Current password is required.',
+    }
+
+    setDeleteErrors(nextErrors)
+    if (nextErrors.currentPassword) {
+      setFeedback(null)
       return
     }
 
@@ -162,6 +184,82 @@ export function ProfileTab({
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  function validateEditProfileForm() {
+    const nextErrors: {
+      currentEmail?: string
+      currentPassword?: string
+      newUsername?: string
+      newEmail?: string
+      newPassword?: string
+    } = {}
+
+    if (!form.currentEmail.trim()) {
+      nextErrors.currentEmail = 'Current email is required.'
+    } else if (!isValidEmail(form.currentEmail)) {
+      nextErrors.currentEmail = 'Enter a valid current email.'
+    }
+
+    if (!form.currentPassword.trim()) {
+      nextErrors.currentPassword = 'Current password is required.'
+    }
+
+    if (!form.newUsername.trim()) {
+      nextErrors.newUsername = 'Username is required.'
+    }
+
+    if (!form.newEmail.trim()) {
+      nextErrors.newEmail = 'New email is required.'
+    } else if (!isValidEmail(form.newEmail)) {
+      nextErrors.newEmail = 'Enter a valid new email.'
+    }
+
+    if (form.newPassword && form.newPassword.length < 8) {
+      nextErrors.newPassword = 'New password must be at least 8 characters.'
+    }
+
+    setEditErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  function validateEditProfileField(field: keyof typeof editErrors, value: string) {
+    if (field === 'currentEmail') {
+      if (!value.trim()) {
+        return 'Current email is required.'
+      }
+      return isValidEmail(value) ? undefined : 'Enter a valid current email.'
+    }
+
+    if (field === 'currentPassword') {
+      return value.trim() ? undefined : 'Current password is required.'
+    }
+
+    if (field === 'newUsername') {
+      return value.trim() ? undefined : 'Username is required.'
+    }
+
+    if (field === 'newEmail') {
+      if (!value.trim()) {
+        return 'New email is required.'
+      }
+      return isValidEmail(value) ? undefined : 'Enter a valid new email.'
+    }
+
+    return !value || value.length >= 8 ? undefined : 'New password must be at least 8 characters.'
+  }
+
+  function updateEditError(field: keyof typeof editErrors, value: string) {
+    setEditErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      return {
+        ...current,
+        [field]: validateEditProfileField(field, value),
+      }
+    })
   }
 
   return (
@@ -245,8 +343,8 @@ export function ProfileTab({
             <div className="space-y-2">
               <CardTitle className="text-xl text-red-700">Delete account</CardTitle>
               <CardDescription className="text-red-700/80">
-                This removes your current account from the platform. You will be asked to confirm using your current
-                password.
+                This removes your current account when it has no activity. If you have projects, tasks, assignments, or
+                submissions, the account will be deactivated so history stays intact.
               </CardDescription>
             </div>
             <Button
@@ -267,62 +365,80 @@ export function ProfileTab({
             <Input
               type="email"
               label="Current email"
+              helperText={editErrors.currentEmail}
+              error={Boolean(editErrors.currentEmail)}
               value={form.currentEmail}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((current) => ({
                   ...current,
                   currentEmail: event.target.value,
                 }))
-              }
+                updateEditError('currentEmail', event.target.value)
+              }}
             />
 
             <Input
               type="password"
               label="Current password"
-              helperText="Required to save changes."
+              helperText={editErrors.currentPassword || 'Required to save changes.'}
+              error={Boolean(editErrors.currentPassword)}
               value={form.currentPassword}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((current) => ({
                   ...current,
                   currentPassword: event.target.value,
                 }))
-              }
+                updateEditError('currentPassword', event.target.value)
+                if (deleteErrors.currentPassword) {
+                  setDeleteErrors({
+                    currentPassword: event.target.value.trim() ? undefined : 'Current password is required.',
+                  })
+                }
+              }}
             />
 
             <Input
               label="New username"
+              helperText={editErrors.newUsername}
+              error={Boolean(editErrors.newUsername)}
               value={form.newUsername}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((current) => ({
                   ...current,
                   newUsername: event.target.value,
                 }))
-              }
+                updateEditError('newUsername', event.target.value)
+              }}
             />
 
             <Input
               type="email"
               label="New email"
+              helperText={editErrors.newEmail}
+              error={Boolean(editErrors.newEmail)}
               value={form.newEmail}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((current) => ({
                   ...current,
                   newEmail: event.target.value,
                 }))
-              }
+                updateEditError('newEmail', event.target.value)
+              }}
             />
 
             <Input
               type="password"
               label="New password"
-              helperText="Leave empty to keep the current one."
+              helperText={editErrors.newPassword || 'Leave empty to keep the current one.'}
+              error={Boolean(editErrors.newPassword)}
               value={form.newPassword}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((current) => ({
                   ...current,
                   newPassword: event.target.value,
                 }))
-              }
+                updateEditError('newPassword', event.target.value)
+              }}
             />
 
             <div className="flex justify-end gap-3 pt-2">
@@ -340,18 +456,25 @@ export function ProfileTab({
         <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete account">
           <div className="grid gap-4">
             <CardDescription className="text-base text-slate-600">
-              To delete your account, confirm your current password below. This action cannot be undone.
+              Confirm your current password below. Accounts with platform activity are deactivated instead of hard
+              deleted, so related project and task history does not break.
             </CardDescription>
             <Input
               type="password"
               label="Current password"
+              helperText={deleteErrors.currentPassword}
+              error={Boolean(deleteErrors.currentPassword)}
               value={form.currentPassword}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((current) => ({
                   ...current,
                   currentPassword: event.target.value,
                 }))
-              }
+                setDeleteErrors({
+                  currentPassword: event.target.value.trim() ? undefined : 'Current password is required.',
+                })
+                updateEditError('currentPassword', event.target.value)
+              }}
             />
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="ghost" onClick={() => setIsDeleteOpen(false)}>

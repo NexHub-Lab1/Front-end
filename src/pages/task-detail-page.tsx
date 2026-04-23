@@ -126,13 +126,9 @@ export function TaskDetailPage({
   }
 
   const handleSubmit = async () => {
-    if (!prUrl.trim()) {
-      setSubmitError('Please enter a Pull Request URL')
-      return
-    }
-
-    if (!prUrl.startsWith('http://') && !prUrl.startsWith('https://')) {
-      setSubmitError('Please enter a valid URL (must start with http:// or https://)')
+    const urlError = validatePullRequestUrl(prUrl)
+    if (urlError) {
+      setSubmitError(urlError)
       return
     }
 
@@ -177,6 +173,18 @@ export function TaskDetailPage({
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function validatePullRequestUrl(value: string) {
+    if (!value.trim()) {
+      return 'Please enter a Pull Request URL'
+    }
+
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      return 'Please enter a valid URL (must start with http:// or https://)'
+    }
+
+    return undefined
   }
 
   const getAssignmentButtonContent = () => {
@@ -435,13 +443,17 @@ export function TaskDetailPage({
               <Input
                 type="text"
                 value={prUrl}
-                onChange={(e) => setPrUrl(e.target.value)}
+                onChange={(e) => {
+                  setPrUrl(e.target.value)
+                  if (submitError) {
+                    setSubmitError(validatePullRequestUrl(e.target.value) ?? null)
+                  }
+                }}
                 placeholder="https://github.com/..."
                 disabled={isSubmitting}
+                helperText={submitError || undefined}
+                error={Boolean(submitError)}
               />
-              {submitError && (
-                <p className="text-sm text-red-600">{submitError}</p>
-              )}
             </div>
             {userAssignment && (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
