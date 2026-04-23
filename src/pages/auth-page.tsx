@@ -24,6 +24,10 @@ const initialSignup = {
   password: '',
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
 async function requestLogin(email: string, password: string): Promise<AuthUser> {
   const response = await fetch(AUTH_LOG_IN_ENDPOINT, {
     method: 'POST',
@@ -67,6 +71,11 @@ export function AuthPage({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [authErrors, setAuthErrors] = useState<{
+    username?: string
+    email?: string
+    password?: string
+  }>({})
 
   const activeHeading = useMemo(() => {
     return mode === 'login'
@@ -86,6 +95,11 @@ export function AuthPage({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!validateAuthForm()) {
+      setFeedback(null)
+      return
+    }
+
     setIsSubmitting(true)
     setFeedback(null)
 
@@ -123,6 +137,65 @@ export function AuthPage({
     }
   }
 
+  function validateAuthForm() {
+    const activeForm = mode === 'login' ? loginForm : signupForm
+    const nextErrors: {
+      username?: string
+      email?: string
+      password?: string
+    } = {}
+
+    if (mode === 'signup' && !signupForm.username.trim()) {
+      nextErrors.username = 'Username is required.'
+    }
+
+    if (!activeForm.email.trim()) {
+      nextErrors.email = 'Email is required.'
+    } else if (!isValidEmail(activeForm.email)) {
+      nextErrors.email = 'Enter a valid email address.'
+    }
+
+    if (!activeForm.password.trim()) {
+      nextErrors.password = 'Password is required.'
+    } else if (activeForm.password.length < 8) {
+      nextErrors.password = 'Password must be at least 8 characters.'
+    }
+
+    setAuthErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  function validateAuthField(field: 'username' | 'email' | 'password', value: string) {
+    if (field === 'username') {
+      return mode === 'signup' && !value.trim() ? 'Username is required.' : undefined
+    }
+
+    if (field === 'email') {
+      if (!value.trim()) {
+        return 'Email is required.'
+      }
+      return isValidEmail(value) ? undefined : 'Enter a valid email address.'
+    }
+
+    if (!value.trim()) {
+      return 'Password is required.'
+    }
+    return value.length >= 8 ? undefined : 'Password must be at least 8 characters.'
+  }
+
+  function updateAuthError(field: 'username' | 'email' | 'password', value: string) {
+    setAuthErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      return {
+        ...current,
+        [field]: validateAuthField(field, value),
+      }
+    })
+  }
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="grid min-h-[calc(100vh-3rem)] gap-8 lg:grid-cols-[minmax(320px,1.15fr)_minmax(340px,440px)] lg:items-center">
@@ -158,7 +231,14 @@ export function AuthPage({
 
         <Card className="border-slate-200/90 bg-white/95 shadow-[0_22px_60px_rgba(33,70,144,0.12)]">
           <CardBody className="p-6 sm:p-7">
-            <Tabs value={mode} onValueChange={(value) => navigate(value === 'signup' ? '/auth/signup' : '/auth/login')}>
+            <Tabs
+              value={mode}
+              onValueChange={(value) => {
+                setAuthErrors({})
+                setFeedback(null)
+                navigate(value === 'signup' ? '/auth/signup' : '/auth/login')
+              }}
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">
                   <LogIn size={16} />
@@ -185,8 +265,13 @@ export function AuthPage({
                 <Input
                   label="Username"
                   placeholder="buildername"
+                  helperText={authErrors.username}
+                  error={Boolean(authErrors.username)}
                   value={signupForm.username}
-                  onChange={(event) => setSignupForm((current) => ({ ...current, username: event.target.value }))}
+                  onChange={(event) => {
+                    setSignupForm((current) => ({ ...current, username: event.target.value }))
+                    updateAuthError('username', event.target.value)
+                  }}
                 />
               ) : null}
 
@@ -194,24 +279,30 @@ export function AuthPage({
                 type="email"
                 label="Email"
                 placeholder="you@nexhub.dev"
+                helperText={authErrors.email}
+                error={Boolean(authErrors.email)}
                 value={mode === 'login' ? loginForm.email : signupForm.email}
-                onChange={(event) =>
+                onChange={(event) => {
                   mode === 'login'
                     ? setLoginForm((current) => ({ ...current, email: event.target.value }))
                     : setSignupForm((current) => ({ ...current, email: event.target.value }))
-                }
+                  updateAuthError('email', event.target.value)
+                }}
               />
 
               <Input
                 type="password"
                 label="Password"
                 placeholder="At least 8 characters"
+                helperText={authErrors.password}
+                error={Boolean(authErrors.password)}
                 value={mode === 'login' ? loginForm.password : signupForm.password}
-                onChange={(event) =>
+                onChange={(event) => {
                   mode === 'login'
                     ? setLoginForm((current) => ({ ...current, password: event.target.value }))
                     : setSignupForm((current) => ({ ...current, password: event.target.value }))
-                }
+                  updateAuthError('password', event.target.value)
+                }}
               />
 
               <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>

@@ -1,12 +1,13 @@
-import { FolderGit2, Pencil, Sparkles, Star, Trash2, Users, ArrowLeft } from 'lucide-react'
+import { Archive, FolderGit2, Pencil, Sparkles, Star, Trash2, Users, ArrowLeft } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
 import { readStoredUser } from '../lib/auth-storage'
-import { fetchProjectById, updateProject, deleteProject } from '../lib/project-storage'
+import { fetchProjectById, updateProject, deleteProject, archiveProject } from '../lib/project-storage'
 import { fetchTasksByProject } from '../lib/task-storage'
+import { isGithubRepositoryUrl } from '../lib/github-url'
 import type { ProjectResponse, ProjectUpdateForm, TaskResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -57,6 +58,7 @@ export function ProjectDetailPage({
   })
   const [tagsInput, setTagsInput] = useState('')
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false)
   const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
   const [isLoadingTasks, setIsLoadingTasks] = useState(false)
   const currentUser = readStoredUser()
@@ -142,6 +144,10 @@ export function ProjectDetailPage({
 
     return project.ownerId === currentUser.id
   }, [project, currentUser])
+  const isArchivedProject = project?.status.toString().toLowerCase() === 'archived'
+  const canManageProject = isOwner && !isArchivedProject
+  const canDeleteProject = canManageProject && !isLoadingTasks && projectTasks.length === 0
+  const canArchiveProject = canManageProject && !isLoadingTasks && projectTasks.length > 0
 
   function validateEditForm() {
     const nextErrors: {
@@ -161,6 +167,8 @@ export function ProjectDetailPage({
 
     if (!editForm.githubRepo.trim()) {
       nextErrors.githubRepo = 'GitHub repository is required.'
+    } else if (!isGithubRepositoryUrl(editForm.githubRepo)) {
+      nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
     }
 
     if (!editForm.status.trim()) {
@@ -171,10 +179,42 @@ export function ProjectDetailPage({
     return Object.keys(nextErrors).length === 0
   }
 
+  function validateEditField(field: keyof typeof editErrors, value: string) {
+    if (field === 'name') {
+      return value.trim() ? undefined : 'Project name is required.'
+    }
+
+    if (field === 'description') {
+      return value.trim() ? undefined : 'Description is required.'
+    }
+
+    if (field === 'githubRepo') {
+      if (!value.trim()) {
+        return 'GitHub repository is required.'
+      }
+      return isGithubRepositoryUrl(value) ? undefined : 'Enter a valid GitHub repository URL.'
+    }
+
+    return value.trim() ? undefined : 'Status is required.'
+  }
+
+  function updateEditError(field: keyof typeof editErrors, value: string) {
+    setEditErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      return {
+        ...current,
+        [field]: validateEditField(field, value),
+      }
+    })
+  }
+
   async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!project) {
+    if (!project || isArchivedProject) {
       return
     }
 
@@ -211,7 +251,7 @@ export function ProjectDetailPage({
   }
 
   async function handleDeleteProject() {
-    if (!project || !isOwner) {
+    if (!project || !canManageProject) {
       return
     }
 
@@ -226,6 +266,26 @@ export function ProjectDetailPage({
       navigate('/profile')
     } catch (deleteError) {
       setEditFeedback(deleteError instanceof Error ? deleteError.message : 'Unable to delete project')
+    }
+  }
+
+  async function handleArchiveProject() {
+    if (!project || !canManageProject) {
+      return
+    }
+
+    setEditFeedback(null)
+
+    try {
+      const response = await archiveProject(project.id)
+      if (response.status === 'error' || !response.data) {
+        throw new Error(response.message || 'Unable to archive project')
+      }
+
+      setProject(response.data)
+      setEditFeedback('Project archived successfully')
+    } catch (archiveError) {
+      setEditFeedback(archiveError instanceof Error ? archiveError.message : 'Unable to archive project')
     }
   }
 
@@ -290,13 +350,23 @@ export function ProjectDetailPage({
                         </a>
                       </Button>
                     ) : null}
-                    {isOwner ? (
+                    {canManageProject ? (
                       <Button variant="primary" onClick={() => setIsEditOpen(true)}>
                         <Pencil size={16} />
                         Edit project
                       </Button>
                     ) : null}
-                    {isOwner ? (
+                    {canArchiveProject ? (
+                      <Button
+                        variant="outline"
+                        className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                        onClick={() => setIsArchiveOpen(true)}
+                      >
+                        <Archive size={16} />
+                        Archive project
+                      </Button>
+                    ) : null}
+                    {canDeleteProject ? (
                       <Button
                         variant="outline"
                         className="border-red-200 text-red-600 hover:bg-red-50"
@@ -427,50 +497,59 @@ export function ProjectDetailPage({
                 <Input
                   label="Project name"
                   helperText={editErrors.name}
-                  className={editErrors.name ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+                  error={Boolean(editErrors.name)}
                   value={editForm.name}
                   onChange={(event) =>
+                    {
                     setEditForm((current) => ({
                       ...current,
                       name: event.target.value,
                     }))
-                  }
+                    updateEditError('name', event.target.value)
+                  }}
                 />
                 <Input
                   label="Description"
                   helperText={editErrors.description}
-                  className={editErrors.description ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+                  error={Boolean(editErrors.description)}
                   value={editForm.description}
                   onChange={(event) =>
+                    {
                     setEditForm((current) => ({
                       ...current,
                       description: event.target.value,
                     }))
-                  }
+                    updateEditError('description', event.target.value)
+                  }}
                 />
                 <Input
                   label="GitHub repository"
+                  placeholder="Example: https://github.com/owner/repository"
                   helperText={editErrors.githubRepo}
-                  className={editErrors.githubRepo ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+                  error={Boolean(editErrors.githubRepo)}
                   value={editForm.githubRepo}
                   onChange={(event) =>
+                    {
                     setEditForm((current) => ({
                       ...current,
                       githubRepo: event.target.value,
                     }))
-                  }
+                    updateEditError('githubRepo', event.target.value)
+                  }}
                 />
                 <Input
                   label="Status"
                   helperText={editErrors.status}
-                  className={editErrors.status ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+                  error={Boolean(editErrors.status)}
                   value={editForm.status}
                   onChange={(event) =>
+                    {
                     setEditForm((current) => ({
                       ...current,
                       status: event.target.value,
                     }))
-                  }
+                    updateEditError('status', event.target.value)
+                  }}
                 />
                 <Input
                   label="Tags"
@@ -510,6 +589,32 @@ export function ProjectDetailPage({
                   >
                     <Trash2 size={16} />
                     Delete project
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+
+            <Modal isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} title="Archive project">
+              <div className="grid gap-4">
+                <CardDescription className="text-base text-slate-600">
+                  This project has tasks, so it cannot be safely deleted. Archiving keeps its task history while marking
+                  <span className="font-medium text-slate-900"> {project.name.toString()}</span> as archived.
+                </CardDescription>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" variant="ghost" onClick={() => setIsArchiveOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                    onClick={async () => {
+                      setIsArchiveOpen(false)
+                      await handleArchiveProject()
+                    }}
+                  >
+                    <Archive size={16} />
+                    Archive project
                   </Button>
                 </div>
               </div>

@@ -5,22 +5,24 @@ import { cn } from '../../lib/utils'
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   helperText?: string
+  error?: boolean
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, helperText, ...props }, ref) => (
+  ({ className, type, label, helperText, error = false, ...props }, ref) => (
     <label className="grid gap-2">
       {label ? <span className="text-sm font-medium text-slate-700">{label}</span> : null}
       <input
         type={type}
         className={cn(
           'flex h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm shadow-slate-100 transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-50',
+          error && 'border-red-300 text-red-900 focus-visible:ring-red-200',
           className
         )}
         ref={ref}
         {...props}
       />
-      {helperText ? <span className="text-xs text-slate-500">{helperText}</span> : null}
+      {helperText ? <span className={cn('text-xs', error ? 'text-red-600' : 'text-slate-500')}>{helperText}</span> : null}
     </label>
   )
 )

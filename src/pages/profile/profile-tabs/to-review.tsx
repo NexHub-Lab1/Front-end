@@ -398,7 +398,11 @@ export function ToReviewTab() {
                   ? "Add your feedback (optional)" 
                   : "Please explain why you're rejecting this submission"}
                 rows={4}
-                className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full rounded-md border p-2 text-sm focus:ring-2 focus:border-transparent ${
+                  reviewAction === 'reject' && !reviewComments.trim()
+                    ? 'border-red-300 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
               />
               {reviewAction === 'reject' && !reviewComments.trim() && (
                 <p className="text-xs text-red-600">Comments are required when rejecting a submission</p>
