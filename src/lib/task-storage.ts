@@ -4,6 +4,7 @@ import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 export const ROOT_TASK_ENDPOINT = '/api/tasks'
 export const TASKS_BY_PROJECT_ENDPOINT = (id: number) => ROOT_TASK_ENDPOINT + `/project/${id}`
 export const DELETE_TASK_ENDPOINT = ROOT_TASK_ENDPOINT + '/delete'
+export const CANCEL_TASK_ENDPOINT = ROOT_TASK_ENDPOINT + '/cancel'
 export const UPDATE_TASK_ENDPOINT = ROOT_TASK_ENDPOINT + '/updatetask'
 
 function getAuthHeaders(): HeadersInit {
@@ -64,8 +65,17 @@ export async function updateTask(task: TaskRequest & { id: number }): Promise<Ap
   return handleResponse(response)
 }
 
-export async function deleteTask(taskId: number): Promise<ApiResponse<null>> {
+export async function deleteTask(taskId: number): Promise<ApiResponse<TaskResponse>> {
   const response = await fetch(DELETE_TASK_ENDPOINT, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(taskId),
+  })
+  return handleResponse(response)
+}
+
+export async function cancelTask(taskId: number): Promise<ApiResponse<TaskResponse>> {
+  const response = await fetch(CANCEL_TASK_ENDPOINT, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(taskId),

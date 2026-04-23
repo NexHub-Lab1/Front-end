@@ -438,10 +438,9 @@ export function TaskDetailPage({
                 onChange={(e) => setPrUrl(e.target.value)}
                 placeholder="https://github.com/..."
                 disabled={isSubmitting}
+                helperText={submitError || undefined}
+                error={Boolean(submitError)}
               />
-              {submitError && (
-                <p className="text-sm text-red-600">{submitError}</p>
-              )}
             </div>
             {userAssignment && (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">

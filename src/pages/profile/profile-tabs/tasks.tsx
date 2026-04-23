@@ -4,13 +4,13 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { Check, Cross, PlusIcon, Pencil, Trash2 } from "lucide-react";
+import { Ban, Check, Cross, PlusIcon, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
 import type { TaskRequest, TaskResponse, ProjectResponse } from "../../../types/app";
 
-import { createTask, fetchAllTasks, updateTask, deleteTask } from "../../../lib/task-storage";
+import { createTask, fetchAllTasks, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
 import { fetchProjectsByCurrentUser } from "../../../lib/project-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +39,7 @@ export function TasksTab() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<TaskResponse | null>(null);
+  const [taskToCancel, setTaskToCancel] = useState<TaskResponse | null>(null);
   const [createErrors, setCreateErrors] = useState<{
     title?: string
     description?: string
@@ -59,8 +60,11 @@ export function TasksTab() {
   const loadProjects = async () => {
     const response = await fetchProjectsByCurrentUser();
     if (response.status === 'success' && response.data) {
-      setProjects(response.data)
-      return response.data
+      const activeProjects = response.data.filter(
+        (project) => project.status.toString().toLowerCase() !== 'archived'
+      )
+      setProjects(activeProjects)
+      return activeProjects
     }
 
     setProjects([])
@@ -190,6 +194,22 @@ export function TasksTab() {
     }
   }
 
+  async function handleCancelTask(taskId: number) {
+    try {
+      const res = await cancelTask(taskId)
+      if (res.status === 'error') {
+        setFeedback({message: res.message || "Error cancelling task", type:"error"})
+        return
+      }
+
+      setFeedback({message: "Task cancelled successfully", type:"success"});
+      setTaskToCancel(null)
+      reloadTasks()
+    } catch (error) {
+      setFeedback({message: "Error cancelling task", type:"error"})
+    }
+  }
+
   function handleEditTask(task: TaskResponse) {
     setTaskForm({
       projectId: task.projectId,
@@ -233,7 +253,7 @@ export function TasksTab() {
             <Input
               placeholder="Implement feature X"
               helperText={createErrors.title}
-              style={createErrors.title ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              error={Boolean(createErrors.title)}
               value={taskForm.title}
               onChange={(event) =>
                 setTaskForm((current) => ({
@@ -257,8 +277,11 @@ export function TasksTab() {
                   projectId: Number(event.target.value),
                 }))
               }
-              style={createErrors.projectId ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                createErrors.projectId
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+              }`}
             >
               <option value={0}>Select a project...</option>
               {projects.map((project) => (
@@ -277,7 +300,7 @@ export function TasksTab() {
             <Input
               placeholder="100"
               helperText={createErrors.rewardAmount}
-              style={createErrors.rewardAmount ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              error={Boolean(createErrors.rewardAmount)}
               value={taskForm.rewardAmount || ''}
               onChange={(event) => {
                 const value = event.target.value;
@@ -336,7 +359,7 @@ export function TasksTab() {
             <Input
               placeholder="What needs to be delivered"
               helperText={createErrors.deliverables}
-              style={createErrors.deliverables ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
+              error={Boolean(createErrors.deliverables)}
               value={taskForm.deliverables}
               onChange={(event) =>
                 setTaskForm((current) => ({
@@ -361,9 +384,12 @@ export function TasksTab() {
             <label className="block text-sm font-medium mb-2">Description</label>
             <textarea
               placeholder="Detailed description of the task"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${
+                createErrors.description
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+              }`}
               rows={4}
-              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
               value={taskForm.description}
               onChange={(event) =>
                 setTaskForm((current) => ({
@@ -445,6 +471,28 @@ export function TasksTab() {
             </div>
           </Modal>
         ) : null}
+        {taskToCancel ? (
+          <Modal
+            isOpen={Boolean(taskToCancel)}
+            onClose={() => setTaskToCancel(null)}
+            title="Cancel task"
+          >
+            <div className="space-y-4">
+              <CardDescription>
+                Cancel <strong>{taskToCancel.title}</strong>? This keeps assignment and submission history, but marks the
+                task as cancelled.
+              </CardDescription>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="ghost" onClick={() => setTaskToCancel(null)}>
+                  Keep task
+                </Button>
+                <Button type="button" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => handleCancelTask(taskToCancel.id)}>
+                  Cancel task
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        ) : null}
         <section className="mt-10 h-full">
           {tasks.length === 0 ? (
             <Card>
@@ -485,7 +533,7 @@ export function TasksTab() {
                       </div>
                     )}
 
-                    <div className="flex gap-2 pt-4">
+                    <div className="flex flex-wrap gap-2 pt-4">
                       <Button
                         size="sm"
                         variant="ghost"
@@ -498,6 +546,20 @@ export function TasksTab() {
                         <Pencil size={14} />
                         Edit
                       </Button>
+                      {task.status.toLowerCase() !== 'cancelled' ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTaskToCancel(task)
+                          }}
+                          className="flex-1"
+                        >
+                          <Ban size={14} />
+                          Cancel
+                        </Button>
+                      ) : null}
                       <Button
                         size="sm"
                         variant="ghost"

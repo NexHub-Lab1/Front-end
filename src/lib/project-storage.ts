@@ -5,6 +5,7 @@ export const PROJECT_ROOT_ENDPOINT = '/api/projects'
 export const GET_PROJECTS_ENDPOINT = (user_id: number) => PROJECT_ROOT_ENDPOINT + '/owner/' + String(user_id)
 export const UPDATE_PROJECT_ENDPOINT = PROJECT_ROOT_ENDPOINT + '/updateproject'
 export const DELETE_PROJECT_ENDPOINT = PROJECT_ROOT_ENDPOINT + '/delete'
+export const ARCHIVE_PROJECT_ENDPOINT = PROJECT_ROOT_ENDPOINT + '/archive'
 
 function getAuthHeaders(): HeadersInit {
   const token = readStoredUserToken()
@@ -86,8 +87,17 @@ export async function updateProject(project: ProjectUpdateForm): Promise<ApiResp
   return handleResponse(response)
 }
 
-export async function deleteProject(projectId: number): Promise<ApiResponse<null>> {
+export async function deleteProject(projectId: number): Promise<ApiResponse<ProjectResponse>> {
   const response = await fetch(DELETE_PROJECT_ENDPOINT, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(projectId),
+  })
+  return handleResponse(response)
+}
+
+export async function archiveProject(projectId: number): Promise<ApiResponse<ProjectResponse>> {
+  const response = await fetch(ARCHIVE_PROJECT_ENDPOINT, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(projectId),

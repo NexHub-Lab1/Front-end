@@ -245,8 +245,8 @@ export function ProfileTab({
             <div className="space-y-2">
               <CardTitle className="text-xl text-red-700">Delete account</CardTitle>
               <CardDescription className="text-red-700/80">
-                This removes your current account from the platform. You will be asked to confirm using your current
-                password.
+                This removes your current account when it has no activity. If you have projects, tasks, assignments, or
+                submissions, the account will be deactivated so history stays intact.
               </CardDescription>
             </div>
             <Button
@@ -340,7 +340,8 @@ export function ProfileTab({
         <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete account">
           <div className="grid gap-4">
             <CardDescription className="text-base text-slate-600">
-              To delete your account, confirm your current password below. This action cannot be undone.
+              Confirm your current password below. Accounts with platform activity are deactivated instead of hard
+              deleted, so related project and task history does not break.
             </CardDescription>
             <Input
               type="password"

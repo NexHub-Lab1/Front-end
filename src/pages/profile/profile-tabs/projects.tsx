@@ -16,6 +16,7 @@ import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
 import { useNavigate } from "react-router-dom";
+import { isGithubRepositoryUrl } from "../../../lib/github-url";
 
 export function ProjectsTab() {
 
@@ -78,6 +79,8 @@ export function ProjectsTab() {
 
     if (!projectForm.githubRepo.trim()) {
       nextErrors.githubRepo = 'GitHub repository is required.'
+    } else if (!isGithubRepositoryUrl(projectForm.githubRepo)) {
+      nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
     }
 
     if (!projectForm.status.trim()) {
@@ -150,7 +153,7 @@ export function ProjectsTab() {
             label="Project Name"
             placeholder="Test"
             helperText={createErrors.name}
-            className={createErrors.name ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+            error={Boolean(createErrors.name)}
             value={projectForm.name}
             onChange={(event) =>
               setProjectForm((current) => ({
@@ -161,9 +164,9 @@ export function ProjectsTab() {
           />
           <Input
             label="GitHub Repo"
-            placeholder="http://github.com/DHipo/repoTest"
+            placeholder="Example: https://github.com/owner/repository"
             helperText={createErrors.githubRepo}
-            className={createErrors.githubRepo ? 'border-red-300 focus-visible:ring-red-200' : undefined}
+            error={Boolean(createErrors.githubRepo)}
             value={projectForm.githubRepo}
             onChange={(event) =>
               setProjectForm((current) => ({
@@ -176,9 +179,12 @@ export function ProjectsTab() {
             <label className="block text-sm font-medium mb-2">Description</label>
             <textarea
               placeholder="Web app"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${
+                createErrors.description
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+              }`}
               rows={4}
-              style={createErrors.description ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
               value={projectForm.description}
               onChange={(event) =>
                 setProjectForm((current) => ({
@@ -204,8 +210,11 @@ export function ProjectsTab() {
                   status: event.target.value,
                 }))
               }
-              style={createErrors.status ? { borderColor: '#fca5a5', outlineColor: '#fecaca' } : {}}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                createErrors.status
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+              }`}
             >
               <option value="">Select a status...</option>
               <option value="OPEN">OPEN</option>
