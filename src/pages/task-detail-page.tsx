@@ -1,6 +1,6 @@
 import { ArrowLeft, Bookmark, Send, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import type { TaskResponse, User, TaskAssignmentResponse } from '../types/app'
@@ -9,10 +9,11 @@ import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import Modal from '../components/ui/modal'
 import { Input } from '../components/ui/input'
-import { fetchProjectsByCurrentUser } from '../lib/project-storage'
+import { fetchProjectById } from '../lib/project-storage'
 import { fetchTaskById } from '../lib/task-storage'
 import { createSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
+import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 
 export function TaskDetailPage({
   currentUser,
@@ -24,6 +25,7 @@ export function TaskDetailPage({
   onOpenMenu: () => void
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const [task, setTask] = useState<TaskResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -61,15 +63,18 @@ export function TaskDetailPage({
         setTask(loadedTask)
 
         if (currentUser) {
-          const projectsRes = await fetchProjectsByCurrentUser()
-          if (projectsRes.data) {
-            const isOwner = projectsRes.data.some(p => p.id === loadedTask.projectId)
-            setIsOwner(isOwner)
+          const projectRes = await fetchProjectById(loadedTask.projectId)
+          if (projectRes.status === 'success' && projectRes.data) {
+            setIsOwner(projectRes.data.ownerId === currentUser.id)
           }
 
-          const assignmentsRes = await fetchAssignmentsByUser(currentUser.id)
+          const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
+            page: 0,
+            size: LOOKUP_PAGE_SIZE,
+            sort: ['assignedAt,desc'],
+          })
           if (assignmentsRes.data) {
-            const activeAssignment = assignmentsRes.data.find(
+            const activeAssignment = assignmentsRes.data.content.find(
               a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(activeAssignment || null)
@@ -157,9 +162,13 @@ export function TaskDetailPage({
         
         // Reload assignments to update status
         if (currentUser) {
-          const assignmentsRes = await fetchAssignmentsByUser(currentUser.id)
+          const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
+            page: 0,
+            size: LOOKUP_PAGE_SIZE,
+            sort: ['assignedAt,desc'],
+          })
           if (assignmentsRes.data) {
-            const updatedAssignment = assignmentsRes.data.find(
+            const updatedAssignment = assignmentsRes.data.content.find(
               a => a.taskId === task?.id && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(updatedAssignment || null)
@@ -249,13 +258,25 @@ export function TaskDetailPage({
 
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
+  const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
+    ? String(location.state.backTo)
+    : null
+
+  function handleBack() {
+    if (backTo) {
+      navigate(backTo)
+      return
+    }
+
+    navigate(-1)
+  }
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 max-w-5xl space-y-2">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
+        <Button variant="ghost" onClick={handleBack} className="w-fit">
           <ArrowLeft size={16} className="mr-2" />
           Back
         </Button>

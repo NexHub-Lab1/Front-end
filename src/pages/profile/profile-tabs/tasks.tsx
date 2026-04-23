@@ -10,12 +10,16 @@ import { Button } from "../../../components/ui/button";
 
 import type { TaskRequest, TaskResponse, ProjectResponse } from "../../../types/app";
 
-import { createTask, fetchAllTasks, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
+import { createTask, fetchTasksByOwner, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
 import { fetchProjectsByCurrentUser } from "../../../lib/project-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
+import { PaginationControls } from "../../../components/ui/pagination-controls";
+import { readStoredUser } from "../../../lib/auth-storage";
+import { LOOKUP_PAGE_SIZE, PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
+import type { PaginatedResponse } from "../../../types/app";
 
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
@@ -33,7 +37,12 @@ const EMPTY_TASK_FORM: TaskRequest = {
 export function TasksTab() {
 
   const navigate = useNavigate()
-  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const currentUser = readStoredUser()
+  const [tasksPage, setTasksPage] = useState<PaginatedResponse<TaskResponse>>(
+    createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE)
+  );
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -58,9 +67,12 @@ export function TasksTab() {
   const [taskForm, setTaskForm] = useState<TaskRequest>(EMPTY_TASK_FORM);
 
   const loadProjects = async () => {
-    const response = await fetchProjectsByCurrentUser();
+    const response = await fetchProjectsByCurrentUser({
+      page: 0,
+      size: LOOKUP_PAGE_SIZE,
+    });
     if (response.status === 'success' && response.data) {
-      const activeProjects = response.data.filter(
+      const activeProjects = response.data.content.filter(
         (project) => project.status.toString().toLowerCase() !== 'archived'
       )
       setProjects(activeProjects)
@@ -71,29 +83,35 @@ export function TasksTab() {
     return []
   }
 
-  const reloadTasks = async (ownedProjects = projects) => {
-    const response = await fetchAllTasks();
+  const reloadTasks = async (pageOverride = currentPage) => {
+    if (!currentUser) {
+      setTasksPage(createEmptyPaginatedResponse<TaskResponse>(pageOverride, PROFILE_PAGE_SIZE))
+      setIsLoadingTasks(false)
+      return
+    }
+
+    setIsLoadingTasks(true)
+    const response = await fetchTasksByOwner(currentUser.id, {
+      page: pageOverride,
+      size: PROFILE_PAGE_SIZE,
+    });
 
     if (response.status === 'success' && response.data) {
-      const ownedProjectIds = new Set(ownedProjects.map((project) => project.id))
-      setTasks(
-        response.data
-          .filter((task) => ownedProjectIds.has(task.projectId))
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      )
+      setTasksPage(response.data)
     } else {
-      setTasks([])
+      setTasksPage(createEmptyPaginatedResponse<TaskResponse>(pageOverride, PROFILE_PAGE_SIZE))
     }
+    setIsLoadingTasks(false)
   }
 
   useEffect(() => {
     async function loadProfileTasks() {
-      const ownedProjects = await loadProjects()
-      await reloadTasks(ownedProjects)
+      await loadProjects()
+      await reloadTasks()
     }
 
     void loadProfileTasks();
-  }, []);
+  }, [currentPage]);
 
   function validateTaskForm() {
     const nextErrors: {
@@ -202,7 +220,8 @@ export function TasksTab() {
       setShowModal(false)
       setIsEditMode(false)
       setEditingTaskId(null)
-      reloadTasks()
+      setCurrentPage(0)
+      void reloadTasks(0)
     } catch (error) {
       setFeedback({message: "Error processing task", type:"error"})
     } finally {
@@ -221,7 +240,8 @@ export function TasksTab() {
 
       setFeedback({message: "Task deleted successfully", type:"success"});
       setTaskToDelete(null)
-      reloadTasks()
+      setCurrentPage(0)
+      void reloadTasks(0)
     } catch (error) {
       setFeedback({message: "Error deleting task", type:"error"})
     }
@@ -237,7 +257,8 @@ export function TasksTab() {
 
       setFeedback({message: "Task cancelled successfully", type:"success"});
       setTaskToCancel(null)
-      reloadTasks()
+      setCurrentPage(0)
+      void reloadTasks(0)
     } catch (error) {
       setFeedback({message: "Error cancelling task", type:"error"})
     }
@@ -533,89 +554,111 @@ export function TasksTab() {
           </Modal>
         ) : null}
         <section className="mt-10 h-full">
-          {tasks.length === 0 ? (
+          {isLoadingTasks ? (
+            <Card>
+              <CardBody className="p-6 text-center">
+                <CardDescription>Loading your tasks...</CardDescription>
+              </CardBody>
+            </Card>
+          ) : tasksPage.content.length === 0 ? (
             <Card>
               <CardBody className="p-6 text-center">
                 <CardDescription>No tasks yet. Create one to get started!</CardDescription>
               </CardBody>
             </Card>
           ) : (
-            <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
-              {tasks.map((task) => (
-                <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
-                  <CardBody className="space-y-4 p-5">
-                    <div className="space-y-2">
-                      <CardTitle className="text-xl font-medium">
-                        {task.title}
-                      </CardTitle>
-                      <CardDescription>{task.description}</CardDescription>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{task.status}</Badge>
-                      <Badge variant="outline">{task.projectName}</Badge>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
-                      <p><strong>Deliverables:</strong> {task.deliverables}</p>
-                      <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
-                    </div>
-
-                    {task.recommendedSkills.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {task.recommendedSkills.map((skill) => (
-                          <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            {skill}
-                          </Badge>
-                        ))}
+            <>
+              <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
+                {tasksPage.content.map((task) => (
+                  <Card
+                    key={task.id}
+                    hoverShadow={true}
+                    className="h-fit cursor-pointer"
+                    onClick={() => navigate(`/task/${task.id}`, { state: { backTo: '/profile?tab=tasks' } })}
+                    clickMouse={true}
+                  >
+                    <CardBody className="space-y-4 p-5">
+                      <div className="space-y-2">
+                        <CardTitle className="text-xl font-medium">
+                          {task.title}
+                        </CardTitle>
+                        <CardDescription>{task.description}</CardDescription>
                       </div>
-                    )}
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{task.status}</Badge>
+                        <Badge variant="outline">{task.projectName}</Badge>
+                      </div>
 
-                    <div className="flex flex-wrap gap-2 pt-4">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleEditTask(task)
-                        }}
-                        className="flex-1"
-                      >
-                        <Pencil size={14} />
-                        Edit
-                      </Button>
-                      {task.status.toLowerCase() !== 'cancelled' ? (
+                      <div className="space-y-2 text-sm">
+                        <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
+                        <p><strong>Deliverables:</strong> {task.deliverables}</p>
+                        <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
+                      </div>
+
+                      {task.recommendedSkills.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {task.recommendedSkills.map((skill) => (
+                            <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-2 pt-4">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation()
-                            setTaskToCancel(task)
+                            handleEditTask(task)
                           }}
                           className="flex-1"
                         >
-                          <Ban size={14} />
-                          Cancel
+                          <Pencil size={14} />
+                          Edit
                         </Button>
-                      ) : null}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTaskToDelete(task)
-                        }}
-                        className="flex-1"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </Button>
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
+                        {task.status.toLowerCase() !== 'cancelled' ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setTaskToCancel(task)
+                            }}
+                            className="flex-1"
+                          >
+                            <Ban size={14} />
+                            Cancel
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTaskToDelete(task)
+                          }}
+                          className="flex-1"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </Button>
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))}
+              </div>
+              <PaginationControls
+                page={tasksPage.page}
+                totalPages={tasksPage.totalPages}
+                totalElements={tasksPage.totalElements}
+                itemLabel="task"
+                isLoading={isLoadingTasks}
+                onPageChange={setCurrentPage}
+              />
+            </>
           )}
         </section>
       </CardBody>

@@ -1,5 +1,13 @@
-import type { ApiResponse, ProjectForm, ProjectResponse, ProjectUpdateForm } from '../types/app'
+import type {
+  ApiResponse,
+  PaginatedResponse,
+  PaginationParams,
+  ProjectForm,
+  ProjectResponse,
+  ProjectUpdateForm,
+} from '../types/app'
 import { readStoredUserToken, readStoredUser, handleForbiddenResponse } from './auth-storage'
+import { buildPaginationQuery, normalizePaginatedApiResponse } from './pagination'
 
 export const PROJECT_ROOT_ENDPOINT = '/api/projects'
 export const GET_PROJECTS_ENDPOINT = (user_id: number) => PROJECT_ROOT_ENDPOINT + '/owner/' + String(user_id)
@@ -23,16 +31,23 @@ function handleResponse(response: Response, redirectOnForbidden = true) {
   return response.json()
 }
 
-export async function fetchAllProjects(): Promise<ApiResponse<ProjectResponse[]>> {
-  const response = await fetch(PROJECT_ROOT_ENDPOINT, {
+export async function fetchAllProjects(
+  params?: PaginationParams,
+): Promise<ApiResponse<PaginatedResponse<ProjectResponse>>> {
+  const page = params?.page ?? 0
+  const size = params?.size ?? 9
+  const response = await fetch(`${PROJECT_ROOT_ENDPOINT}${buildPaginationQuery(params)}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   })
-  return handleResponse(response, false)
+  return normalizePaginatedApiResponse(await handleResponse(response, false), page, size)
 }
 
-export async function fetchProjectsByCurrentUser(): Promise<ApiResponse<ProjectResponse[]>> {
+export async function fetchProjectsByCurrentUser(
+  params?: PaginationParams,
+): Promise<ApiResponse<PaginatedResponse<ProjectResponse>>> {
   const user = readStoredUser()
+  const token = readStoredUserToken()
   if (!user) {
     return {
       status: 'error',
@@ -41,13 +56,23 @@ export async function fetchProjectsByCurrentUser(): Promise<ApiResponse<ProjectR
       timestamp: new Date().toISOString(),
     }
   }
+  if (!token) {
+    return {
+      status: 'error',
+      message: 'No authentication token',
+      data: null,
+      timestamp: new Date().toISOString(),
+    }
+  }
 
-  const endpoint = GET_PROJECTS_ENDPOINT(user.id)
+  const page = params?.page ?? 0
+  const size = params?.size ?? 9
+  const endpoint = `${GET_PROJECTS_ENDPOINT(user.id)}${buildPaginationQuery(params)}`
   const response = await fetch(endpoint, {
     method: 'GET',
     headers: getAuthHeaders(),
   })
-  return handleResponse(response)
+  return normalizePaginatedApiResponse(await handleResponse(response), page, size)
 }
 
 export async function fetchProjectById(projectId: number): Promise<ApiResponse<ProjectResponse>> {

@@ -1,52 +1,58 @@
 import { useEffect, useState } from 'react'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
+import { PaginationControls } from '../../../components/ui/pagination-controls'
 import { readStoredUser } from '../../../lib/auth-storage'
-import type { TaskSubmissionResponse } from '../../../types/app'
+import type { PaginatedResponse, TaskSubmissionResponse } from '../../../types/app'
 import { fetchSubmissionsByUser } from '../../../lib/submission-storage'
+import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from '../../../lib/pagination'
 
 export function SubmissionsTab() {
   const currentUser = readStoredUser()
-  const [submissions, setSubmissions] = useState<TaskSubmissionResponse[]>([])
+  const [submissionsPage, setSubmissionsPage] = useState<PaginatedResponse<TaskSubmissionResponse>>(
+    createEmptyPaginatedResponse<TaskSubmissionResponse>(0, PROFILE_PAGE_SIZE),
+  )
+  const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
-  const loadUserSubmissions = async () => {
+  const loadUserSubmissions = async (pageOverride = currentPage) => {
     try {
       setIsLoading(true)
       if (!currentUser) {
-        setSubmissions([])
+        setSubmissionsPage(createEmptyPaginatedResponse<TaskSubmissionResponse>(pageOverride, PROFILE_PAGE_SIZE))
         return
       }
 
-      const result = await fetchSubmissionsByUser(currentUser.id)
+      const result = await fetchSubmissionsByUser(currentUser.id, {
+        page: pageOverride,
+        size: PROFILE_PAGE_SIZE,
+        sort: ['submittedAt,desc'],
+      })
       if (result.status === 'success' && result.data) {
-        // Sort by submitted date descending
-        const sorted = result.data.sort((a, b) =>
-          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
-        )
-        setSubmissions(sorted)
+        setSubmissionsPage(result.data)
       } else {
-        setSubmissions([])
+        setSubmissionsPage(createEmptyPaginatedResponse<TaskSubmissionResponse>(pageOverride, PROFILE_PAGE_SIZE))
       }
     } catch (error) {
       console.error('Error loading submissions:', error)
-      setSubmissions([])
+      setSubmissionsPage(createEmptyPaginatedResponse<TaskSubmissionResponse>(pageOverride, PROFILE_PAGE_SIZE))
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    loadUserSubmissions()
-  }, [])
+    void loadUserSubmissions()
+  }, [currentPage])
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
+    switch (status.toLowerCase()) {
+      case 'approved':
         return 'bg-green-50 text-green-700 border-green-200'
-      case 'REJECTED':
+      case 'rejected':
         return 'bg-red-50 text-red-700 border-red-200'
-      case 'PENDING':
+      case 'submitted':
+      case 'changes_requested':
         return 'bg-yellow-50 text-yellow-700 border-yellow-200'
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200'
@@ -63,7 +69,7 @@ export function SubmissionsTab() {
     )
   }
 
-  if (submissions.length === 0) {
+  if (submissionsPage.content.length === 0) {
     return (
       <Card>
         <CardBody className="p-6 space-y-3">
@@ -80,7 +86,7 @@ export function SubmissionsTab() {
         <div>
           <CardTitle className="text-2xl mb-4">My Submissions</CardTitle>
           <div className="space-y-3">
-            {submissions.map((submission) => (
+            {submissionsPage.content.map((submission) => (
               <div
                 key={submission.id}
                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -148,6 +154,14 @@ export function SubmissionsTab() {
             ))}
           </div>
         </div>
+        <PaginationControls
+          page={submissionsPage.page}
+          totalPages={submissionsPage.totalPages}
+          totalElements={submissionsPage.totalElements}
+          itemLabel="submission"
+          isLoading={isLoading}
+          onPageChange={setCurrentPage}
+        />
       </CardBody>
     </Card>
   )

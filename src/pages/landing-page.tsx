@@ -31,37 +31,26 @@ export function LandingPage({
     async function loadLandingData() {
       try {
         const [projectsResponse, tasksResponse] = await Promise.all([
-          fetchAllProjects(),
-          fetchAllTasks(),
+          fetchAllProjects({
+            page: 0,
+            size: 3,
+          }),
+          fetchAllTasks({
+            page: 0,
+            size: 3,
+            sort: ['rewardAmount,desc'],
+          }),
         ])
 
         if (projectsResponse.status === 'success' && projectsResponse.data) {
-          setTopProjects(
-            [...projectsResponse.data]
-              .sort((a, b) => {
-                const starDifference = b.starsCount - a.starsCount
-                if (starDifference !== 0) return starDifference
-
-                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-              })
-              .slice(0, 3),
-          )
+          setTopProjects(projectsResponse.data.content)
         } else {
           setTopProjects([])
           setTopProjectsError(projectsResponse.message || 'Unable to load projects.')
         }
 
         if (tasksResponse.status === 'success' && tasksResponse.data) {
-          setTopTasks(
-            [...tasksResponse.data]
-              .sort((a, b) => {
-                const rewardDifference = b.rewardAmount - a.rewardAmount
-                if (rewardDifference !== 0) return rewardDifference
-
-                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-              })
-              .slice(0, 3),
-          )
+          setTopTasks(tasksResponse.data.content)
         } else {
           setTopTasks([])
           setTopTasksError(tasksResponse.message || 'Unable to load tasks.')

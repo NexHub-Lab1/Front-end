@@ -16,6 +16,24 @@ export type ApiResponse<T> = {
   timestamp: string
 }
 
+export type PaginatedResponse<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+export type PaginationParams = {
+  page?: number
+  size?: number
+  sort?: string[]
+}
+
 export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile' | '/projects'
 
 export type ProjectResponse = {

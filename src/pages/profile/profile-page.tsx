@@ -1,4 +1,5 @@
-import { useState, type ReactElement } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AppHeader } from '../../components/app/app-header'
 import { DeveloperAvatar } from '../../components/app/developer-avatar'
 import { Card, CardBody, CardDescription, CardTitle } from '../../components/ui/card'
@@ -11,6 +12,14 @@ import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
 import { readStoredUser } from '../../lib/auth-storage'
 
+const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions'] as const
+
+type ProfileTabKey = (typeof profileTabKeys)[number]
+
+function isProfileTabKey(value: string | null): value is ProfileTabKey {
+  return value !== null && profileTabKeys.includes(value as ProfileTabKey)
+}
+
 export function ProfilePage({
   onUserUpdate,
   onSignOut,
@@ -21,45 +30,56 @@ export function ProfilePage({
   onOpenMenu: () => void
 }) {
   const user = readStoredUser()
+  const [searchParams, setSearchParams] = useSearchParams()
   if (!user) return (
     <div>No user registered, please login or sign up.</div>
   )
 
-  const tabs = {
+  const renderedTabs: Record<ProfileTabKey, ReactElement> = {
     profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
     projects: <ProjectsTab />,
     tasks: <TasksTab />,
     'assigned-tasks': <AssignedTasksTab />,
     'to-review': <ToReviewTab />,
-    submissions: <SubmissionsTab />
+    submissions: <SubmissionsTab />,
   }
 
-  const [activeTab, setActiveTab] = useState<{key: String, component: ReactElement | null}>({
-    key: 'profile',
-    component: tabs.profile
+  const [activeTabKey, setActiveTabKey] = useState<ProfileTabKey>(() => {
+    const tabParam = searchParams.get('tab')
+    return isProfileTabKey(tabParam) ? tabParam : 'profile'
   })
 
-  function capitalize(str:String) {
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (isProfileTabKey(tabParam)) {
+      if (tabParam !== activeTabKey) {
+        setActiveTabKey(tabParam)
+      }
+      return
+    }
+
+    setSearchParams({ tab: activeTabKey }, { replace: true })
+  }, [activeTabKey, searchParams, setSearchParams])
+
+  function capitalize(str: string) {
     return str
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
   }
 
-  function changeActiveTab(param: String) {
-    setActiveTab({
-      key: param,
-      component: Object.entries(tabs).filter( ([k, _]) => k == param)[0][1]
-    })
+  function changeActiveTab(tabKey: ProfileTabKey) {
+    setActiveTabKey(tabKey)
+    setSearchParams({ tab: tabKey })
   }
 
   function showTabs() {
-    return Object.entries(tabs).map(([key, _], idx) => {
+    return profileTabKeys.map((key) => {
       return (
-        <div key={idx} className={
+        <div key={key} className={
           "transition-all text-black hover:shadow-indigo-400 shadow-lg rounded-xl border-2  flex items-center h-12 "
-          + (key == activeTab.key ? "border-indigo-500" : "border-gray-200")
-          } onClick={() => changeActiveTab(key)}>
+          + (key === activeTabKey ? "border-indigo-500" : "border-gray-200")
+          } onClick={() => changeActiveTab(key as ProfileTabKey)}>
           <span className="pl-4">{capitalize(key)}</span>
         </div>
       )
@@ -87,7 +107,7 @@ export function ProfilePage({
             </CardBody>
           </Card>
 
-          {activeTab.component}
+          {renderedTabs[activeTabKey]}
         </section>
       </main>
     )

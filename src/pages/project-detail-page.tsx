@@ -1,6 +1,6 @@
 import { Archive, FolderGit2, Pencil, Sparkles, Star, Trash2, Users, ArrowLeft } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
@@ -14,6 +14,9 @@ import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import Modal from '../components/ui/modal'
+import { PaginationControls } from '../components/ui/pagination-controls'
+import { DETAIL_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
+import type { PaginatedResponse } from '../types/app'
 
 function normalizeRepoUrl(githubRepo?: string) {
   if (!githubRepo) {
@@ -35,6 +38,7 @@ export function ProjectDetailPage({
   onOpenMenu: () => void
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const [project, setProject] = useState<ProjectResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -59,7 +63,10 @@ export function ProjectDetailPage({
   const [tagsInput, setTagsInput] = useState('')
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isArchiveOpen, setIsArchiveOpen] = useState(false)
-  const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
+  const [projectTasksPage, setProjectTasksPage] = useState<PaginatedResponse<TaskResponse>>(
+    createEmptyPaginatedResponse<TaskResponse>(0, DETAIL_PAGE_SIZE),
+  )
+  const [tasksPageIndex, setTasksPageIndex] = useState(0)
   const [isLoadingTasks, setIsLoadingTasks] = useState(false)
   const currentUser = readStoredUser()
 
@@ -100,24 +107,35 @@ export function ProjectDetailPage({
       return
     }
 
+    setTasksPageIndex(0)
+  }, [project?.id])
+
+  useEffect(() => {
+    if (!project) {
+      return
+    }
+
     async function loadTasks() {
       setIsLoadingTasks(true)
       try {
-        const response = await fetchTasksByProject(project!.id)
+        const response = await fetchTasksByProject(project!.id, {
+          page: tasksPageIndex,
+          size: DETAIL_PAGE_SIZE,
+        })
         if (response.status === 'success' && response.data) {
-          setProjectTasks(response.data)
+          setProjectTasksPage(response.data)
         } else {
-          setProjectTasks([])
+          setProjectTasksPage(createEmptyPaginatedResponse<TaskResponse>(tasksPageIndex, DETAIL_PAGE_SIZE))
         }
       } catch (error) {
-        setProjectTasks([])
+        setProjectTasksPage(createEmptyPaginatedResponse<TaskResponse>(tasksPageIndex, DETAIL_PAGE_SIZE))
       } finally {
         setIsLoadingTasks(false)
       }
     }
 
     void loadTasks()
-  }, [project?.id])
+  }, [project?.id, tasksPageIndex])
 
   useEffect(() => {
     if (!project) {
@@ -146,8 +164,20 @@ export function ProjectDetailPage({
   }, [project, currentUser])
   const isArchivedProject = project?.status.toString().toLowerCase() === 'archived'
   const canManageProject = isOwner && !isArchivedProject
-  const canDeleteProject = canManageProject && !isLoadingTasks && projectTasks.length === 0
-  const canArchiveProject = canManageProject && !isLoadingTasks && projectTasks.length > 0
+  const canDeleteProject = canManageProject && !isLoadingTasks && projectTasksPage.totalElements === 0
+  const canArchiveProject = canManageProject && !isLoadingTasks && projectTasksPage.totalElements > 0
+  const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
+    ? String(location.state.backTo)
+    : null
+
+  function handleBack() {
+    if (backTo) {
+      navigate(backTo)
+      return
+    }
+
+    navigate(-1)
+  }
 
   function validateEditForm() {
     const nextErrors: {
@@ -294,7 +324,7 @@ export function ProjectDetailPage({
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 max-w-5xl space-y-2">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
+        <Button variant="ghost" onClick={handleBack} className="w-fit">
           <ArrowLeft size={16} className="mr-2" />
           Back
         </Button>
@@ -448,47 +478,57 @@ export function ProjectDetailPage({
                     <CardDescription>Loading tasks...</CardDescription>
                   </CardBody>
                 </Card>
-              ) : projectTasks.length === 0 ? (
+              ) : projectTasksPage.content.length === 0 ? (
                 <Card className="shadow-none">
                   <CardBody className="p-6 text-center">
                     <CardDescription>No tasks yet for this project.</CardDescription>
                   </CardBody>
                 </Card>
               ) : (
-                <div className="grid lg:grid-cols-3 grid-cols-1 gap-2">
-                  {projectTasks.map((task) => (
-                    <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
-                      <CardBody className="space-y-4 p-5">
-                        <div className="space-y-2">
-                          <CardTitle className="text-xl font-medium">
-                            {task.title}
-                          </CardTitle>
-                          <CardDescription>{task.description}</CardDescription>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary">{task.status}</Badge>
-                        </div>
-
-                        <div className="space-y-2 text-sm">
-                          <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
-                          <p><strong>Deliverables:</strong> {task.deliverables}</p>
-                          <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
-                        </div>
-
-                        {task.recommendedSkills.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {task.recommendedSkills.map((skill) => (
-                              <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                {skill}
-                              </Badge>
-                            ))}
+                <>
+                  <div className="grid lg:grid-cols-3 grid-cols-1 gap-2">
+                    {projectTasksPage.content.map((task) => (
+                      <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
+                        <CardBody className="space-y-4 p-5">
+                          <div className="space-y-2">
+                            <CardTitle className="text-xl font-medium">
+                              {task.title}
+                            </CardTitle>
+                            <CardDescription>{task.description}</CardDescription>
                           </div>
-                        )}
-                      </CardBody>
-                    </Card>
-                  ))}
-                </div>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary">{task.status}</Badge>
+                          </div>
+
+                          <div className="space-y-2 text-sm">
+                            <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
+                            <p><strong>Deliverables:</strong> {task.deliverables}</p>
+                            <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
+                          </div>
+
+                          {task.recommendedSkills.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {task.recommendedSkills.map((skill) => (
+                                <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </div>
+                  <PaginationControls
+                    page={projectTasksPage.page}
+                    totalPages={projectTasksPage.totalPages}
+                    totalElements={projectTasksPage.totalElements}
+                    itemLabel="task"
+                    isLoading={isLoadingTasks}
+                    onPageChange={setTasksPageIndex}
+                  />
+                </>
               )}
             </div>
 

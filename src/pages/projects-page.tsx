@@ -6,10 +6,12 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { PaginationControls } from '../components/ui/pagination-controls'
 import { useNavigate } from 'react-router-dom'
 import { fetchAllProjects } from '../lib/project-storage'
 import { useEffect, useState } from 'react'
-import type { ProjectResponse } from '../types/app'
+import type { PaginatedResponse, ProjectResponse } from '../types/app'
+import { GRID_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
 
 export function ProjectsPage({
   onSignOut,
@@ -19,19 +21,39 @@ export function ProjectsPage({
   onOpenMenu: () => void
 }) {
   const navigator = useNavigate()
-  const [projects, setProjects] = useState<ProjectResponse[]>([])
+  const [projectsPage, setProjectsPage] = useState<PaginatedResponse<ProjectResponse>>(
+    createEmptyPaginatedResponse<ProjectResponse>(0, GRID_PAGE_SIZE),
+  )
+  const [currentPage, setCurrentPage] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadProjects = async () => {
-      const response = await fetchAllProjects()
+      setIsLoading(true)
+      setLoadError(null)
+
+      const response = await fetchAllProjects({
+        page: currentPage,
+        size: GRID_PAGE_SIZE,
+      })
+
       if (response.status === 'success' && response.data) {
-        setProjects(response.data)
+        setProjectsPage(response.data)
       } else {
-        setProjects([])
+        setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(currentPage, GRID_PAGE_SIZE))
+        setLoadError(response.message || 'Unable to load projects.')
       }
+
+      setIsLoading(false)
     }
-    loadProjects().catch(error => console.error(error))
-  }, [setProjects])
+    loadProjects().catch((error) => {
+      console.error(error)
+      setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(currentPage, GRID_PAGE_SIZE))
+      setLoadError('Unable to load projects.')
+      setIsLoading(false)
+    })
+  }, [currentPage])
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -58,46 +80,77 @@ export function ProjectsPage({
               />
               <Input className="pl-11" placeholder="Search projects" aria-label="Search projects" />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {projects && projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).map((project) => (
-                <Card key={project.id} className="shadow-none" hoverShadow={true}>
-                  <CardBody className="flex flex-col gap-4 p-5 sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-3">
-                      <div className="space-y-1">
-                        <CardTitle className="text-2xl font-medium">
-                          {project.name + ' '}
-                          <span className='font-bold text-lg'>| {project.ownerUsername}</span>
-                        </CardTitle>
-                        <CardDescription className="max-w-3xl">{project.description}</CardDescription>
-                      </div>
+            {loadError ? (
+              <Card className="border-red-100 bg-red-50/70 shadow-none">
+                <CardBody className="p-5">
+                  <CardDescription className="text-red-700">{loadError}</CardDescription>
+                </CardBody>
+              </Card>
+            ) : isLoading ? (
+              <Card className="shadow-none">
+                <CardBody className="p-6 text-center">
+                  <CardDescription>Loading projects...</CardDescription>
+                </CardBody>
+              </Card>
+            ) : projectsPage.content.length === 0 ? (
+              <Card className="shadow-none">
+                <CardBody className="p-6 text-center">
+                  <CardDescription>No projects found.</CardDescription>
+                </CardBody>
+              </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+                  {projectsPage.content.map((project) => (
+                    <Card key={project.id} className="h-full shadow-none" hoverShadow={true}>
+                      <CardBody className="flex h-full flex-col gap-4 p-5">
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="min-h-[5rem] space-y-1">
+                            <CardTitle className="text-2xl font-medium">
+                              {project.name + ' '}
+                              <span className='font-bold text-lg'>| {project.ownerUsername}</span>
+                            </CardTitle>
+                            <CardDescription className="max-w-3xl">{project.description}</CardDescription>
+                          </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        {project.tags.map((tag) => (
-                          <Badge key={tag.at(0)} variant="secondary">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                          <div className="flex flex-wrap gap-2">
+                            {project.tags.map((tag) => (
+                              <Badge key={String(tag)} variant="secondary">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
 
-                      <div className="flex flex-wrap gap-4">
-                        <StatLine
-                          icon={<Star size={14} className="text-amber-400" />}
-                          text={`${project.starsCount} stars`}
-                        />
-                        <StatLine
-                          icon={<Users size={14} className="text-slate-400" />}
-                          text={`WIP followers`}
-                        />
-                      </div>
-                    </div>
+                          <div className="flex flex-wrap gap-4">
+                            <StatLine
+                              icon={<Star size={14} className="text-amber-400" />}
+                              text={`${project.starsCount} stars`}
+                            />
+                            <StatLine
+                              icon={<Users size={14} className="text-slate-400" />}
+                              text={`WIP followers`}
+                            />
+                          </div>
+                        </div>
 
-                    <div className="flex w-full items-center">
-                      <Button variant='primary' className='w-full' onClick={() => navigator(`/project/${project.id}`)}>View</Button>
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
+                        <div className="mt-auto flex w-full items-center">
+                          <Button variant='primary' className='w-full' onClick={() => navigator(`/project/${project.id}`)}>View</Button>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </div>
+
+                <PaginationControls
+                  page={projectsPage.page}
+                  totalPages={projectsPage.totalPages}
+                  totalElements={projectsPage.totalElements}
+                  itemLabel="project"
+                  isLoading={isLoading}
+                  onPageChange={setCurrentPage}
+                />
+              </>
+            )}
           </CardBody>
         </Card>
       </section>
