@@ -15,13 +15,20 @@ import { useEffect, useState, type FormEvent } from "react";
 import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
+import { PaginationControls } from "../../../components/ui/pagination-controls";
 import { useNavigate } from "react-router-dom";
 import { isGithubRepositoryUrl } from "../../../lib/github-url";
+import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
+import type { PaginatedResponse } from "../../../types/app";
 
 export function ProjectsTab() {
 
   const navigate = useNavigate()
-  const [projects, setProjects] = useState<ProjectResponse[] | null>();
+  const [projectsPage, setProjectsPage] = useState<PaginatedResponse<ProjectResponse>>(
+    createEmptyPaginatedResponse<ProjectResponse>(0, PROFILE_PAGE_SIZE)
+  );
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [createErrors, setCreateErrors] = useState<{
     name?: string
@@ -46,20 +53,24 @@ export function ProjectsTab() {
     tags: []
   });
 
-  const reloadProjects = async () => {
-    const response = await fetchProjectsByCurrentUser();
+  const reloadProjects = async (pageOverride = currentPage) => {
+    setIsLoadingProjects(true)
+    const response = await fetchProjectsByCurrentUser({
+      page: pageOverride,
+      size: PROFILE_PAGE_SIZE,
+    });
 
     if (response.status === 'success' && response.data) {
-      setProjects(response.data)
-      console.log(response.data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+      setProjectsPage(response.data)
     } else {
-      setProjects([])
+      setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(pageOverride, PROFILE_PAGE_SIZE))
     }
+    setIsLoadingProjects(false)
   }
 
   useEffect(() => {
-    reloadProjects();
-  }, []);
+    void reloadProjects();
+  }, [currentPage]);
 
   function validateProjectForm() {
     const nextErrors: {
@@ -152,7 +163,8 @@ export function ProjectsTab() {
         setIsSubmitting(false)
         setFeedback({message: "Project created successfully", type:"success"});
         setShowModal(false)
-        reloadProjects()
+        setCurrentPage(0)
+        void reloadProjects(0)
       })
       .catch((res) => console.log(res))
   }
@@ -311,36 +323,65 @@ export function ProjectsTab() {
         ) : null}
         {displayModal()}
         <section className="mt-10 h-full">
-          <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
-            {projects &&
-              projects.map((project) => (
-                <Card className="h-fit" onClick={() => navigate(`/project/${project.id}`)} key={project.id} hoverShadow={true} clickMouse={true}>
-                  <CardBody className="space-y-4 p-5">
-                    <div className="space-y-2">
-                      <CardTitle className="text-2xl font-medium">
-                        {project.name}
-                      </CardTitle>
-                      <CardDescription>{project.description}</CardDescription>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {project.tags.map((tag) => (
-                        <Badge variant='outline' key={tag[0]}>{tag}</Badge>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-4">
-                      <StatLine
-                        icon={<Star size={14} className="text-amber-400" />}
-                        text={`${project.starsCount} stars`}
-                      />
-                      <StatLine
-                        icon={<Users size={14} className="text-slate-400" />}
-                        text={` WIP followers`}
-                      />
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-          </div>
+          {isLoadingProjects ? (
+            <Card className="shadow-none">
+              <CardBody className="p-6 text-center">
+                <CardDescription>Loading your projects...</CardDescription>
+              </CardBody>
+            </Card>
+          ) : projectsPage.content.length === 0 ? (
+            <Card className="shadow-none">
+              <CardBody className="p-6 text-center">
+                <CardDescription>No projects yet. Create one to get started.</CardDescription>
+              </CardBody>
+            </Card>
+          ) : (
+            <>
+              <div className="grid h-full auto-rows-fr grid-cols-1 gap-4 overflow-y-auto pr-1 lg:grid-cols-3">
+                {projectsPage.content.map((project) => (
+                  <Card
+                    className="h-full"
+                    onClick={() => navigate(`/project/${project.id}`, { state: { backTo: '/profile?tab=projects' } })}
+                    key={project.id}
+                    hoverShadow={true}
+                    clickMouse={true}
+                  >
+                    <CardBody className="flex h-full flex-col gap-4 p-5">
+                      <div className="min-h-[5rem] space-y-2">
+                        <CardTitle className="text-2xl font-medium">
+                          {project.name}
+                        </CardTitle>
+                        <CardDescription>{project.description}</CardDescription>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {project.tags.map((tag) => (
+                          <Badge variant='outline' key={String(tag)}>{tag}</Badge>
+                        ))}
+                      </div>
+                      <div className="mt-auto flex flex-wrap gap-4">
+                        <StatLine
+                          icon={<Star size={14} className="text-amber-400" />}
+                          text={`${project.starsCount} stars`}
+                        />
+                        <StatLine
+                          icon={<Users size={14} className="text-slate-400" />}
+                          text={` WIP followers`}
+                        />
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))}
+              </div>
+              <PaginationControls
+                page={projectsPage.page}
+                totalPages={projectsPage.totalPages}
+                totalElements={projectsPage.totalElements}
+                itemLabel="project"
+                isLoading={isLoadingProjects}
+                onPageChange={setCurrentPage}
+              />
+            </>
+          )}
         </section>
       </CardBody>
     </Card>

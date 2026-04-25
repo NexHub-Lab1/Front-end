@@ -5,14 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import { Badge } from '../../../components/ui/badge'
 import { Button } from '../../../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
+import { PaginationControls } from '../../../components/ui/pagination-controls'
 import { readStoredUser } from '../../../lib/auth-storage'
 import { fetchAssignmentsByUser } from '../../../lib/assignment-storage'
-import type { TaskAssignmentResponse } from '../../../types/app'
-
-function isOpenAssignment(assignment: TaskAssignmentResponse) {
-  const status = assignment.status.toLowerCase()
-  return status !== 'completed' && status !== 'cancelled'
-}
+import type { PaginatedResponse, TaskAssignmentResponse } from '../../../types/app'
+import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from '../../../lib/pagination'
 
 function statusClassName(status: string) {
   switch (status.toLowerCase()) {
@@ -29,13 +26,16 @@ function statusClassName(status: string) {
 export function AssignedTasksTab() {
   const navigate = useNavigate()
   const currentUser = readStoredUser()
-  const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
+  const [assignmentsPage, setAssignmentsPage] = useState<PaginatedResponse<TaskAssignmentResponse>>(
+    createEmptyPaginatedResponse<TaskAssignmentResponse>(0, PROFILE_PAGE_SIZE),
+  )
+  const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  async function loadAssignedTasks() {
+  async function loadAssignedTasks(pageOverride = currentPage) {
     if (!currentUser) {
-      setAssignments([])
+      setAssignmentsPage(createEmptyPaginatedResponse<TaskAssignmentResponse>(pageOverride, PROFILE_PAGE_SIZE))
       setIsLoading(false)
       return
     }
@@ -44,20 +44,24 @@ export function AssignedTasksTab() {
       setIsLoading(true)
       setLoadError(null)
 
-      const response = await fetchAssignmentsByUser(currentUser.id)
+      const response = await fetchAssignmentsByUser(
+        currentUser.id,
+        {
+          page: pageOverride,
+          size: PROFILE_PAGE_SIZE,
+          sort: ['assignedAt,desc'],
+        },
+        true,
+      )
       if (response.status === 'error' || !response.data) {
-        setAssignments([])
+        setAssignmentsPage(createEmptyPaginatedResponse<TaskAssignmentResponse>(pageOverride, PROFILE_PAGE_SIZE))
         setLoadError(response.message || 'Unable to load assigned tasks.')
         return
       }
 
-      setAssignments(
-        response.data
-          .filter(isOpenAssignment)
-          .sort((a, b) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime()),
-      )
+      setAssignmentsPage(response.data)
     } catch (error) {
-      setAssignments([])
+      setAssignmentsPage(createEmptyPaginatedResponse<TaskAssignmentResponse>(pageOverride, PROFILE_PAGE_SIZE))
       setLoadError(error instanceof Error ? error.message : 'Unable to load assigned tasks.')
     } finally {
       setIsLoading(false)
@@ -66,7 +70,7 @@ export function AssignedTasksTab() {
 
   useEffect(() => {
     void loadAssignedTasks()
-  }, [])
+  }, [currentPage])
 
   if (isLoading) {
     return (
@@ -89,7 +93,7 @@ export function AssignedTasksTab() {
               Tasks you chose to work on and still need to finish.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={loadAssignedTasks}>
+          <Button variant="outline" size="sm" onClick={() => void loadAssignedTasks(currentPage)}>
             <RefreshCw size={14} />
             Refresh
           </Button>
@@ -103,7 +107,7 @@ export function AssignedTasksTab() {
           </Card>
         ) : null}
 
-        {assignments.length === 0 && !loadError ? (
+        {assignmentsPage.content.length === 0 && !loadError ? (
           <Card className="shadow-none">
             <CardBody className="p-6 text-center">
               <CardTitle className="text-xl">No assigned tasks yet</CardTitle>
@@ -117,43 +121,53 @@ export function AssignedTasksTab() {
             </CardBody>
           </Card>
         ) : (
-          <div className="grid flex-1 grid-cols-1 gap-3 overflow-y-auto lg:grid-cols-2">
-            {assignments.map((assignment) => (
-              <Card key={assignment.id} className="h-fit shadow-none" hoverShadow={true}>
-                <CardBody className="space-y-4 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <CardTitle className="text-xl font-medium">{assignment.taskTitle}</CardTitle>
-                      <CardDescription>{assignment.projectName}</CardDescription>
+          <>
+            <div className="grid flex-1 grid-cols-1 gap-3 overflow-y-auto lg:grid-cols-2">
+              {assignmentsPage.content.map((assignment) => (
+                <Card key={assignment.id} className="h-fit shadow-none" hoverShadow={true}>
+                  <CardBody className="space-y-4 p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl font-medium">{assignment.taskTitle}</CardTitle>
+                        <CardDescription>{assignment.projectName}</CardDescription>
+                      </div>
+                      <Badge variant="outline" className={statusClassName(assignment.status)}>
+                        {assignment.status}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className={statusClassName(assignment.status)}>
-                      {assignment.status}
-                    </Badge>
-                  </div>
 
-                  <div className="grid gap-2 text-sm text-slate-600">
-                    <p>
-                      <span className="font-medium text-slate-800">Assigned:</span>{' '}
-                      {new Date(assignment.assignedAt).toLocaleDateString()}
-                    </p>
-                    <p>
-                      <span className="font-medium text-slate-800">Attempts used:</span>{' '}
-                      {assignment.attemptsUsed}
-                    </p>
-                  </div>
+                    <div className="grid gap-2 text-sm text-slate-600">
+                      <p>
+                        <span className="font-medium text-slate-800">Assigned:</span>{' '}
+                        {new Date(assignment.assignedAt).toLocaleDateString()}
+                      </p>
+                      <p>
+                        <span className="font-medium text-slate-800">Attempts used:</span>{' '}
+                        {assignment.attemptsUsed}
+                      </p>
+                    </div>
 
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    onClick={() => navigate(`/task/${assignment.taskId}`)}
-                  >
-                    View task
-                    <ArrowRight size={16} />
-                  </Button>
-                </CardBody>
-              </Card>
-            ))}
-          </div>
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => navigate(`/task/${assignment.taskId}`, { state: { backTo: '/profile?tab=assigned-tasks' } })}
+                    >
+                      View task
+                      <ArrowRight size={16} />
+                    </Button>
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
+            <PaginationControls
+              page={assignmentsPage.page}
+              totalPages={assignmentsPage.totalPages}
+              totalElements={assignmentsPage.totalElements}
+              itemLabel="assignment"
+              isLoading={isLoading}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </CardBody>
     </Card>

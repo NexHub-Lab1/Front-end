@@ -1,5 +1,13 @@
-import type { ApiResponse, TaskAssignmentResponse, TaskAssignmentRequest, TaskAssignmentUpdateRequest } from '../types/app'
+import type {
+  ApiResponse,
+  PaginatedResponse,
+  PaginationParams,
+  TaskAssignmentResponse,
+  TaskAssignmentRequest,
+  TaskAssignmentUpdateRequest,
+} from '../types/app'
 import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
+import { buildPaginationQuery, normalizePaginatedApiResponse } from './pagination'
 
 const ASSIGNMENT_ROOT_ENDPOINT = '/api/task-assignments'
 export const GET_ASSIGNMENTS_BY_USER_ENDPOINT = (user_id: number) => ASSIGNMENT_ROOT_ENDPOINT + '/user/' + String(user_id)
@@ -23,20 +31,53 @@ function handleResponse(response: Response) {
   return response.json()
 }
 
-export async function fetchAssignmentsByUser(userId: number): Promise<ApiResponse<TaskAssignmentResponse[]>> {
-  const response = await fetch(GET_ASSIGNMENTS_BY_USER_ENDPOINT(userId), {
+export async function fetchAssignmentsByUser(
+  userId: number,
+  params?: PaginationParams,
+  openOnly = false,
+): Promise<ApiResponse<PaginatedResponse<TaskAssignmentResponse>>> {
+  const token = readStoredUserToken()
+  if (!token) {
+    return {
+      status: 'error',
+      message: 'No authentication token',
+      data: null,
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  const page = params?.page ?? 0
+  const size = params?.size ?? 9
+  const query = buildPaginationQuery(params)
+  const endpoint = `${GET_ASSIGNMENTS_BY_USER_ENDPOINT(userId)}${query ? `${query}&openOnly=${openOnly}` : `?openOnly=${openOnly}`}`
+  const response = await fetch(endpoint, {
     method: 'GET',
     headers: getAuthHeaders(),
   })
-  return handleResponse(response)
+  return normalizePaginatedApiResponse(await handleResponse(response), page, size)
 }
 
-export async function fetchAssignmentsByTask(taskId: number): Promise<ApiResponse<TaskAssignmentResponse[]>> {
-  const response = await fetch(GET_ASSIGNMENTS_BY_TASK_ENDPOINT(taskId), {
+export async function fetchAssignmentsByTask(
+  taskId: number,
+  params?: PaginationParams,
+): Promise<ApiResponse<PaginatedResponse<TaskAssignmentResponse>>> {
+  const token = readStoredUserToken()
+  if (!token) {
+    return {
+      status: 'error',
+      message: 'No authentication token',
+      data: null,
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  const page = params?.page ?? 0
+  const size = params?.size ?? 9
+  const response = await fetch(`${GET_ASSIGNMENTS_BY_TASK_ENDPOINT(taskId)}${buildPaginationQuery(params)}`, {
     method: 'GET',
     headers: getAuthHeaders(),
   })
-  return handleResponse(response)
+  return normalizePaginatedApiResponse(await handleResponse(response), page, size)
 }
 
 export async function createAssignment(assignment: TaskAssignmentRequest): Promise<ApiResponse<TaskAssignmentResponse>> {
@@ -66,4 +107,3 @@ export async function deleteAssignment(assignmentId: number): Promise<ApiRespons
   console.log('Delete Assignment Response Status:', response)
   return handleResponse(response)
 }
-
