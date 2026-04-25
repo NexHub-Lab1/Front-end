@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleDollarSign, FolderKanban, RotateCcw } from 'lucide-react'
+import { ArrowLeft, CircleDollarSign, FolderKanban, PlusIcon, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -8,9 +8,11 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { PaginationControls } from '../components/ui/pagination-controls'
+import { CreateTaskModal } from '../components/app/create-task-modal'
 import { fetchAllTasks } from '../lib/task-storage'
 import type { PaginatedResponse, TaskResponse } from '../types/app'
 import { GRID_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
+import { readStoredUser } from '../lib/auth-storage'
 
 export function TasksPage({
   onSignOut,
@@ -26,6 +28,9 @@ export function TasksPage({
   const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const currentUser = readStoredUser()
 
   useEffect(() => {
     async function loadTasks() {
@@ -68,14 +73,51 @@ export function TasksPage({
 
         <Card>
           <CardBody className="space-y-5 p-6">
-            <div>
-              <h2 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900">
-                Tasks
-              </h2>
-              <CardDescription className="max-w-2xl text-base">
-                Explore tasks from other projects and open one to apply.
-              </CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900">
+                  Tasks
+                </h2>
+                <CardDescription className="max-w-2xl text-base">
+                  Explore tasks from other projects and open one to apply.
+                </CardDescription>
+              </div>
+              {currentUser ? (
+                <Button
+                  className="h-12"
+                  variant="primary"
+                  size="lg"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  <PlusIcon size={16} />
+                </Button>
+              ) : null}
             </div>
+            {feedback ? (
+              <Card className="border-green-100 bg-green-50/70 shadow-none">
+                <CardBody className="p-4">
+                  <CardDescription className="text-green-700">{feedback}</CardDescription>
+                </CardBody>
+              </Card>
+            ) : null}
+            <CreateTaskModal
+              isOpen={showCreateModal}
+              onClose={() => setShowCreateModal(false)}
+              onCreated={async () => {
+                setFeedback('Task created successfully.')
+                setCurrentPage(0)
+                setIsLoading(true)
+                setLoadError(null)
+                const response = await fetchAllTasks({ page: 0, size: GRID_PAGE_SIZE })
+                if (response.status === 'success' && response.data) {
+                  setTasksPage(response.data)
+                } else {
+                  setTasksPage(createEmptyPaginatedResponse<TaskResponse>(0, GRID_PAGE_SIZE))
+                  setLoadError(response.message || 'Unable to load tasks.')
+                }
+                setIsLoading(false)
+              }}
+            />
 
             {loadError ? (
               <Card className="border-red-100 bg-red-50/70 shadow-none">

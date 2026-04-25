@@ -1,4 +1,4 @@
-import { ArrowLeft, Search, Star, Users } from 'lucide-react'
+import { ArrowLeft, PlusIcon, Search, Star, Users } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
 import { StatLine } from '../components/app/stat-line'
@@ -7,11 +7,13 @@ import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { PaginationControls } from '../components/ui/pagination-controls'
+import { CreateProjectModal } from '../components/app/create-project-modal'
 import { useNavigate } from 'react-router-dom'
 import { fetchAllProjects } from '../lib/project-storage'
 import { useEffect, useState } from 'react'
 import type { PaginatedResponse, ProjectResponse } from '../types/app'
 import { GRID_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
+import { readStoredUser } from '../lib/auth-storage'
 
 export function ProjectsPage({
   onSignOut,
@@ -27,6 +29,9 @@ export function ProjectsPage({
   const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const currentUser = readStoredUser()
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -66,12 +71,49 @@ export function ProjectsPage({
         </Button>
         <Card>
           <CardBody className="space-y-5 p-6">
-            <div>
-              <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">Projects</h2>
-              <CardDescription className="max-w-2xl text-base">
-                Explore active products and open source initiatives across NexHub.
-              </CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">Projects</h2>
+                <CardDescription className="max-w-2xl text-base">
+                  Explore active products and open source initiatives across NexHub.
+                </CardDescription>
+              </div>
+              {currentUser ? (
+                <Button
+                  className="h-12"
+                  variant="primary"
+                  size="lg"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  <PlusIcon size={16} />
+                </Button>
+              ) : null}
             </div>
+            {feedback ? (
+              <Card className="border-green-100 bg-green-50/70 shadow-none">
+                <CardBody className="p-4">
+                  <CardDescription className="text-green-700">{feedback}</CardDescription>
+                </CardBody>
+              </Card>
+            ) : null}
+            <CreateProjectModal
+              isOpen={showCreateModal}
+              onClose={() => setShowCreateModal(false)}
+              onCreated={async () => {
+                setFeedback('Project created successfully.')
+                setCurrentPage(0)
+                setIsLoading(true)
+                setLoadError(null)
+                const response = await fetchAllProjects({ page: 0, size: GRID_PAGE_SIZE })
+                if (response.status === 'success' && response.data) {
+                  setProjectsPage(response.data)
+                } else {
+                  setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(0, GRID_PAGE_SIZE))
+                  setLoadError(response.message || 'Unable to load projects.')
+                }
+                setIsLoading(false)
+              }}
+            />
 
             <div className="relative max-w-3xl">
               <Search
