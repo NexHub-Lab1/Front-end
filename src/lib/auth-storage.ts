@@ -84,7 +84,7 @@ export async function signup(username: string, email: string, password: string):
   return response.json()
 }
 
-export async function updateAccount(user: User): Promise<ApiResponse<User>> {
+export async function updateAccount(user: User): Promise<ApiResponse<AuthUser>> {
   const response = await fetch(AUTH_UPDATE_ENDPOINT, {
     method: 'POST',
     headers: getAuthHeaders(),
