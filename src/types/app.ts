@@ -1,5 +1,16 @@
 export type AuthMode = 'login' | 'signup'
 
+export type UserDetailsResponse = {
+  id: number
+  username: string
+  email: string
+  bio: string
+  streakDay: number
+  image_url: string
+  last_active_at: Date
+  created_at: Date
+}
+
 export type AuthUser = {
   user: User
   token: string

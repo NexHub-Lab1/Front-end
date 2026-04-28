@@ -1,7 +1,8 @@
-import type { ApiResponse, User } from '../types/app'
+import type { ApiResponse, User, UserDetailsResponse } from '../types/app'
 import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 
 export const USER_ROOT_ENDPOINT = '/api/users'
+export const GET_USER_DETAILS = (id:number) => `${USER_ROOT_ENDPOINT}/details/${id}`
 
 function getAuthHeaders(): HeadersInit {
   const token = readStoredUserToken()
@@ -16,6 +17,14 @@ function handleResponse(response: Response) {
     handleForbiddenResponse()
   }
   return response.json()
+}
+
+export async function getUserDetails(userId: number): Promise<ApiResponse<UserDetailsResponse>> {
+  const response = await fetch(GET_USER_DETAILS(userId), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  })
+  return handleResponse(response)
 }
 
 export async function fetchUserById(userId: number): Promise<ApiResponse<User>> {
