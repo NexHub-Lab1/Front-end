@@ -340,14 +340,14 @@ export function ProjectsTab() {
               <div className="grid h-full auto-rows-fr grid-cols-1 gap-4 overflow-y-auto pr-1 lg:grid-cols-3">
                 {projectsPage.content.map((project) => (
                   <Card
-                    className="h-full"
+                    className="h-fit"
                     onClick={() => navigate(`/project/${project.id}`, { state: { backTo: '/profile?tab=projects' } })}
                     key={project.id}
                     hoverShadow={true}
                     clickMouse={true}
                   >
                     <CardBody className="flex h-full flex-col gap-4 p-5">
-                      <div className="min-h-[5rem] space-y-2">
+                      <div className="min-h-20 space-y-2">
                         <CardTitle className="text-2xl font-medium">
                           {project.name}
                         </CardTitle>
