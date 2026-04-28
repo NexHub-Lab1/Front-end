@@ -1,6 +1,7 @@
-import { ArrowLeft, PlusIcon, Search, Star, Users } from 'lucide-react'
+import { ArrowLeft, Github, PlusIcon, Search, Star, Users } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
+import { ImportGithubReposModal } from '../components/app/import-github-repos-modal'
 import { StatLine } from '../components/app/stat-line'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -8,7 +9,7 @@ import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/car
 import { Input } from '../components/ui/input'
 import { PaginationControls } from '../components/ui/pagination-controls'
 import { CreateProjectModal } from '../components/app/create-project-modal'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchAllProjects } from '../lib/project-storage'
 import { useEffect, useState } from 'react'
 import type { PaginatedResponse, ProjectResponse } from '../types/app'
@@ -23,6 +24,7 @@ export function ProjectsPage({
   onOpenMenu: () => void
 }) {
   const navigator = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [projectsPage, setProjectsPage] = useState<PaginatedResponse<ProjectResponse>>(
     createEmptyPaginatedResponse<ProjectResponse>(0, GRID_PAGE_SIZE),
   )
@@ -30,35 +32,47 @@ export function ProjectsPage({
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const currentUser = readStoredUser()
 
-  useEffect(() => {
-    const loadProjects = async () => {
-      setIsLoading(true)
-      setLoadError(null)
+  async function loadProjects(page: number) {
+    setIsLoading(true)
+    setLoadError(null)
 
+    try {
       const response = await fetchAllProjects({
-        page: currentPage,
+        page,
         size: GRID_PAGE_SIZE,
       })
 
       if (response.status === 'success' && response.data) {
         setProjectsPage(response.data)
       } else {
-        setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(currentPage, GRID_PAGE_SIZE))
+        setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(page, GRID_PAGE_SIZE))
         setLoadError(response.message || 'Unable to load projects.')
       }
-
+    } catch (error) {
+      console.error(error)
+      setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(page, GRID_PAGE_SIZE))
+      setLoadError('Unable to load projects.')
+    } finally {
       setIsLoading(false)
     }
-    loadProjects().catch((error) => {
+  }
+
+  useEffect(() => {
+    loadProjects(currentPage).catch((error) => {
       console.error(error)
-      setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(currentPage, GRID_PAGE_SIZE))
-      setLoadError('Unable to load projects.')
-      setIsLoading(false)
     })
   }, [currentPage])
+
+  useEffect(() => {
+    if (searchParams.get('importGithub') === '1' && currentUser?.githubUsername) {
+      setShowImportModal(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, [currentUser?.githubUsername, searchParams, setSearchParams])
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -79,14 +93,27 @@ export function ProjectsPage({
                 </CardDescription>
               </div>
               {currentUser ? (
-                <Button
-                  className="h-12"
-                  variant="primary"
-                  size="lg"
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  <PlusIcon size={16} />
-                </Button>
+                <div className="flex items-center gap-3">
+                  {currentUser.githubUsername ? (
+                    <Button
+                      className="h-12"
+                      variant="outline"
+                      size="lg"
+                      onClick={() => setShowImportModal(true)}
+                    >
+                      <Github size={16} />
+                      Import repos
+                    </Button>
+                  ) : null}
+                  <Button
+                    className="h-12"
+                    variant="primary"
+                    size="lg"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <PlusIcon size={16} />
+                  </Button>
+                </div>
               ) : null}
             </div>
             {feedback ? (
@@ -102,16 +129,16 @@ export function ProjectsPage({
               onCreated={async () => {
                 setFeedback('Project created successfully.')
                 setCurrentPage(0)
-                setIsLoading(true)
-                setLoadError(null)
-                const response = await fetchAllProjects({ page: 0, size: GRID_PAGE_SIZE })
-                if (response.status === 'success' && response.data) {
-                  setProjectsPage(response.data)
-                } else {
-                  setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(0, GRID_PAGE_SIZE))
-                  setLoadError(response.message || 'Unable to load projects.')
-                }
-                setIsLoading(false)
+                await loadProjects(0)
+              }}
+            />
+            <ImportGithubReposModal
+              isOpen={showImportModal}
+              onClose={() => setShowImportModal(false)}
+              onImported={async () => {
+                setFeedback('GitHub repository imported successfully.')
+                setCurrentPage(0)
+                await loadProjects(0)
               }}
             />
 

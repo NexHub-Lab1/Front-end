@@ -8,6 +8,9 @@ export type User = {
   id: number
   username: string
   email: string
+  githubId?: number | null
+  githubUsername?: string | null
+  profileImageUrl?: string | null
 }
 export type ApiResponse<T> = {
   status: 'success' | 'error'
@@ -35,6 +38,15 @@ export type PaginationParams = {
 }
 
 export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile' | '/projects'
+
+export type GithubRepository = {
+  id: number
+  name: string
+  fullName: string
+  description: string | null
+  htmlUrl: string
+  isPrivate: boolean
+}
 
 export type ProjectResponse = {
   id: number,

@@ -53,6 +53,21 @@ export function ProjectsTab() {
     tags: []
   });
 
+  function resetProjectForm() {
+    setCreateErrors({})
+    setTagsInput('')
+    setFeedback(null)
+    setIsSubmitting(false)
+    setProjectForm({
+      name: "",
+      ownerId: 0,
+      description: "",
+      githubRepo: "",
+      status: "",
+      tags: []
+    })
+  }
+
   const reloadProjects = async (pageOverride = currentPage) => {
     setIsLoadingProjects(true)
     const response = await fetchProjectsByCurrentUser({
@@ -163,6 +178,7 @@ export function ProjectsTab() {
         setIsSubmitting(false)
         setFeedback({message: "Project created successfully", type:"success"});
         setShowModal(false)
+        resetProjectForm()
         setCurrentPage(0)
         void reloadProjects(0)
       })
@@ -179,16 +195,7 @@ export function ProjectsTab() {
         isOpen={showModal}
         onClose={() => {
           setShowModal(false)
-          setCreateErrors({})
-          setTagsInput('')
-          setProjectForm({
-            name: "",
-            ownerId: 0,
-            description: "",
-            githubRepo: "",
-            status: "",
-            tags: []
-          })
+          resetProjectForm()
         }}
         title={"Create a new project"}
       >
@@ -282,7 +289,14 @@ export function ProjectsTab() {
             onChange={(event) => setTagsInput(event.target.value)}
           />
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setShowModal(false)
+                resetProjectForm()
+              }}
+            >
               Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={isSubmitting}>
@@ -308,7 +322,10 @@ export function ProjectsTab() {
             className="h-12 mr-10"
             variant="primary"
             size="lg"
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              resetProjectForm()
+              setShowModal(true)
+            }}
           >
             <PlusIcon size={16} />
           </Button>
@@ -347,11 +364,11 @@ export function ProjectsTab() {
                     clickMouse={true}
                   >
                     <CardBody className="flex h-full flex-col gap-4 p-5">
-                      <div className="min-h-20 space-y-2">
-                        <CardTitle className="text-2xl font-medium">
+                      <div className="min-h-[5rem] min-w-0 space-y-2">
+                        <CardTitle className="break-words text-2xl font-medium leading-tight">
                           {project.name}
                         </CardTitle>
-                        <CardDescription>{project.description}</CardDescription>
+                        <CardDescription className="break-words">{project.description}</CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {project.tags.map((tag) => (

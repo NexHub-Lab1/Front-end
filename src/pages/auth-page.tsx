@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowRight, CheckCircle2, LoaderCircle, LogIn, Sparkles, UserPlus } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { ArrowRight, CheckCircle2, Github, LoaderCircle, LogIn, Sparkles, UserPlus } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import type { ApiResponse, AuthMode, AuthUser, User } from '../types/app'
 import { BrandMark } from '../components/app/brand-mark'
@@ -66,6 +66,7 @@ export function AuthPage({
   onAuthSuccess: (user: AuthUser) => void
 }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [loginForm, setLoginForm] = useState(initialLogin)
   const [signupForm, setSignupForm] = useState(initialSignup)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -76,6 +77,18 @@ export function AuthPage({
     email?: string
     password?: string
   }>({})
+
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (!error) {
+      return
+    }
+
+    setFeedback({
+      type: 'error',
+      message: error,
+    })
+  }, [searchParams])
 
   const activeHeading = useMemo(() => {
     return mode === 'login'
@@ -196,6 +209,10 @@ export function AuthPage({
     })
   }
 
+  function handleGithubLogin() {
+    window.location.href = '/api/auth/github/start'
+  }
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="grid min-h-[calc(100vh-3rem)] gap-8 lg:grid-cols-[minmax(320px,1.15fr)_minmax(340px,440px)] lg:items-center">
@@ -308,6 +325,18 @@ export function AuthPage({
               <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>
                 {mode === 'login' ? 'Sign in to NexHub' : 'Create account'}
                 {isSubmitting ? <LoaderCircle size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={handleGithubLogin}
+              >
+                <Github size={18} />
+                Continue with GitHub
               </Button>
             </form>
 

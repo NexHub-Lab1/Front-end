@@ -13,10 +13,36 @@ import {
   AUTH_DELETE_ENDPOINT,
   AUTH_UPDATE_ENDPOINT,
   readStoredUser,
+  readStoredUserToken,
 } from '../../../lib/auth-storage'
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+async function parseApiResponse<T>(response: Response, fallbackMessage: string): Promise<ApiResponse<T>> {
+  const text = await response.text()
+  if (!text) {
+    return {
+      status: 'error',
+      message: response.status === 401 || response.status === 403
+        ? 'Your session expired. Please sign in again.'
+        : fallbackMessage,
+      data: null,
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  try {
+    return JSON.parse(text) as ApiResponse<T>
+  } catch {
+    return {
+      status: 'error',
+      message: fallbackMessage,
+      data: null,
+      timestamp: new Date().toISOString(),
+    }
+  }
 }
 
 export function ProfileTab({
@@ -54,6 +80,7 @@ export function ProfileTab({
   const [deleteErrors, setDeleteErrors] = useState<{
     currentPassword?: string
   }>({})
+  const isGithubUser = Boolean(user?.githubId || user?.githubUsername)
 
   useEffect(() => {
     const storedUser = readStoredUser()
@@ -88,11 +115,13 @@ export function ProfileTab({
       },
       {
         label: 'Security',
-        value: 'Current password is required to save account changes.',
+        value: isGithubUser
+          ? 'Signed in with GitHub. Password changes are disabled.'
+          : 'Current password is required to save account changes.',
         icon: <Shield size={16} className="text-slate-400" />,
       },
     ],
-    [user]
+    [isGithubUser, user]
   )
 
   if (!user) {
@@ -110,13 +139,21 @@ export function ProfileTab({
     setFeedback(null)
 
     try {
+      const token = readStoredUserToken()
       const response = await fetch(AUTH_UPDATE_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...form,
+          currentPassword: isGithubUser ? '' : form.currentPassword,
+          newPassword: isGithubUser ? '' : form.newPassword,
+        }),
       })
 
-      const result = (await response.json()) as ApiResponse<AuthUser>
+      const result = await parseApiResponse<AuthUser>(response, 'Unable to update account')
       const data = result.data
 
       if (!response.ok || result.status === 'error' || !data) {
@@ -159,16 +196,20 @@ export function ProfileTab({
     setFeedback(null)
 
     try {
+      const token = readStoredUserToken()
       const response = await fetch(AUTH_DELETE_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           email: form.currentEmail,
           password: form.currentPassword,
         }),
       })
 
-      const result = (await response.json()) as ApiResponse<null>
+      const result = await parseApiResponse<null>(response, 'Unable to delete account')
       if (!response.ok || result.status === 'error') {
         throw new Error(result.message || 'Unable to delete account')
       }
@@ -201,7 +242,7 @@ export function ProfileTab({
       nextErrors.currentEmail = 'Enter a valid current email.'
     }
 
-    if (!form.currentPassword.trim()) {
+    if (!isGithubUser && !form.currentPassword.trim()) {
       nextErrors.currentPassword = 'Current password is required.'
     }
 
@@ -215,7 +256,9 @@ export function ProfileTab({
       nextErrors.newEmail = 'Enter a valid new email.'
     }
 
-    if (form.newPassword && form.newPassword.length < 8) {
+    if (isGithubUser && form.newPassword.trim()) {
+      nextErrors.newPassword = 'Password changes are disabled for GitHub accounts.'
+    } else if (form.newPassword && form.newPassword.length < 8) {
       nextErrors.newPassword = 'New password must be at least 8 characters.'
     }
 
@@ -232,6 +275,9 @@ export function ProfileTab({
     }
 
     if (field === 'currentPassword') {
+      if (isGithubUser) {
+        return undefined
+      }
       return value.trim() ? undefined : 'Current password is required.'
     }
 
@@ -244,6 +290,10 @@ export function ProfileTab({
         return 'New email is required.'
       }
       return isValidEmail(value) ? undefined : 'Enter a valid new email.'
+    }
+
+    if (isGithubUser) {
+      return value.trim() ? 'Password changes are disabled for GitHub accounts.' : undefined
     }
 
     return !value || value.length >= 8 ? undefined : 'New password must be at least 8 characters.'
@@ -294,7 +344,7 @@ export function ProfileTab({
               <CardTitle className="text-xl">Profile overview</CardTitle>
               <CardDescription className="text-base leading-7 text-slate-600">
                 Your account information is shown here. Use edit profile when you want to update your username,
-                email, or password.
+                email{isGithubUser ? '.' : ', or password.'}
               </CardDescription>
             </CardBody>
           </Card>
@@ -377,25 +427,27 @@ export function ProfileTab({
               }}
             />
 
-            <Input
-              type="password"
-              label="Current password"
-              helperText={editErrors.currentPassword || 'Required to save changes.'}
-              error={Boolean(editErrors.currentPassword)}
-              value={form.currentPassword}
-              onChange={(event) => {
-                setForm((current) => ({
-                  ...current,
-                  currentPassword: event.target.value,
-                }))
-                updateEditError('currentPassword', event.target.value)
-                if (deleteErrors.currentPassword) {
-                  setDeleteErrors({
-                    currentPassword: event.target.value.trim() ? undefined : 'Current password is required.',
-                  })
-                }
-              }}
-            />
+            {!isGithubUser ? (
+              <Input
+                type="password"
+                label="Current password"
+                helperText={editErrors.currentPassword || 'Required to save changes.'}
+                error={Boolean(editErrors.currentPassword)}
+                value={form.currentPassword}
+                onChange={(event) => {
+                  setForm((current) => ({
+                    ...current,
+                    currentPassword: event.target.value,
+                  }))
+                  updateEditError('currentPassword', event.target.value)
+                  if (deleteErrors.currentPassword) {
+                    setDeleteErrors({
+                      currentPassword: event.target.value.trim() ? undefined : 'Current password is required.',
+                    })
+                  }
+                }}
+              />
+            ) : null}
 
             <Input
               label="New username"
@@ -426,20 +478,22 @@ export function ProfileTab({
               }}
             />
 
-            <Input
-              type="password"
-              label="New password"
-              helperText={editErrors.newPassword || 'Leave empty to keep the current one.'}
-              error={Boolean(editErrors.newPassword)}
-              value={form.newPassword}
-              onChange={(event) => {
-                setForm((current) => ({
-                  ...current,
-                  newPassword: event.target.value,
-                }))
-                updateEditError('newPassword', event.target.value)
-              }}
-            />
+            {!isGithubUser ? (
+              <Input
+                type="password"
+                label="New password"
+                helperText={editErrors.newPassword || 'Leave empty to keep the current one.'}
+                error={Boolean(editErrors.newPassword)}
+                value={form.newPassword}
+                onChange={(event) => {
+                  setForm((current) => ({
+                    ...current,
+                    newPassword: event.target.value,
+                  }))
+                  updateEditError('newPassword', event.target.value)
+                }}
+              />
+            ) : null}
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)}>
