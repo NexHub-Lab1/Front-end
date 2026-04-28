@@ -174,7 +174,7 @@ export function ProjectsPage({
                     <Card key={project.id} className="h-full shadow-none" hoverShadow={true}>
                       <CardBody className="flex h-full flex-col gap-4 p-5">
                         <div className="min-w-0 flex-1 space-y-3">
-                          <div className="min-h-[5rem] space-y-1">
+                          <div className="min-h-20 space-y-1">
                             <CardTitle className="text-2xl font-medium">
                               {project.name + ' '}
                               <span className='font-bold text-lg'>| {project.ownerUsername}</span>

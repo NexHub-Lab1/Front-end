@@ -1,145 +1,189 @@
-import { Archive, FolderGit2, Pencil, Sparkles, Star, Trash2, Users, ArrowLeft } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import {
+  Archive,
+  FolderGit2,
+  Pencil,
+  Sparkles,
+  Star,
+  Trash2,
+  Users,
+  ArrowLeft,
+  ArrowDown,
+  ArrowDownRight,
+  ArrowRight,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { AppHeader } from '../components/app/app-header'
-import { StatLine } from '../components/app/stat-line'
-import { readStoredUser } from '../lib/auth-storage'
-import { fetchProjectById, updateProject, deleteProject, archiveProject } from '../lib/project-storage'
-import { fetchTasksByProject } from '../lib/task-storage'
-import { isGithubRepositoryUrl } from '../lib/github-url'
-import type { ProjectResponse, ProjectUpdateForm, TaskResponse } from '../types/app'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
-import { Input } from '../components/ui/input'
-import Modal from '../components/ui/modal'
-import { PaginationControls } from '../components/ui/pagination-controls'
-import { DETAIL_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
-import type { PaginatedResponse } from '../types/app'
+import { AppHeader } from "../components/app/app-header";
+import { StatLine } from "../components/app/stat-line";
+import { readStoredUser } from "../lib/auth-storage";
+import {
+  fetchProjectById,
+  updateProject,
+  deleteProject,
+  archiveProject,
+} from "../lib/project-storage";
+import { fetchTasksByProject } from "../lib/task-storage";
+import { isGithubRepositoryUrl } from "../lib/github-url";
+import type {
+  ProjectResponse,
+  ProjectUpdateForm,
+  TaskResponse,
+} from "../types/app";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardBody,
+  CardDescription,
+  CardTitle,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import Modal from "../components/ui/modal";
+import { PaginationControls } from "../components/ui/pagination-controls";
+import {
+  DETAIL_PAGE_SIZE,
+  createEmptyPaginatedResponse,
+} from "../lib/pagination";
+import type { PaginatedResponse } from "../types/app";
 
 function normalizeRepoUrl(githubRepo?: string) {
   if (!githubRepo) {
-    return null
+    return null;
   }
 
-  if (githubRepo.startsWith('http://') || githubRepo.startsWith('https://')) {
-    return githubRepo
+  if (githubRepo.startsWith("http://") || githubRepo.startsWith("https://")) {
+    return githubRepo;
   }
 
-  return `https://${githubRepo}`
+  return `https://${githubRepo}`;
 }
 
 export function ProjectDetailPage({
   onSignOut,
   onOpenMenu,
 }: {
-  onSignOut: () => void
-  onOpenMenu: () => void
+  onSignOut: () => void;
+  onOpenMenu: () => void;
 }) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { id } = useParams()
-  const [project, setProject] = useState<ProjectResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editFeedback, setEditFeedback] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  const [project, setProject] = useState<ProjectResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editFeedback, setEditFeedback] = useState<string | null>(null);
   const [editErrors, setEditErrors] = useState<{
-    name?: string
-    description?: string
-    githubRepo?: string
-    status?: string
-  }>({})
+    name?: string;
+    description?: string;
+    githubRepo?: string;
+    status?: string;
+  }>({});
   const [editForm, setEditForm] = useState<ProjectUpdateForm>({
     id: 0,
-    name: '',
-    description: '',
-    githubRepo: '',
-    status: '',
+    name: "",
+    description: "",
+    githubRepo: "",
+    status: "",
     tags: [],
-  })
-  const [tagsInput, setTagsInput] = useState('')
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-  const [isArchiveOpen, setIsArchiveOpen] = useState(false)
-  const [projectTasksPage, setProjectTasksPage] = useState<PaginatedResponse<TaskResponse>>(
-    createEmptyPaginatedResponse<TaskResponse>(0, DETAIL_PAGE_SIZE),
-  )
-  const [tasksPageIndex, setTasksPageIndex] = useState(0)
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false)
-  const currentUser = readStoredUser()
+  });
+  const [tagsInput, setTagsInput] = useState("");
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [projectTasksPage, setProjectTasksPage] = useState<
+    PaginatedResponse<TaskResponse>
+  >(createEmptyPaginatedResponse<TaskResponse>(0, DETAIL_PAGE_SIZE));
+  const [tasksPageIndex, setTasksPageIndex] = useState(0);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const currentUser = readStoredUser();
 
   useEffect(() => {
     async function loadProject() {
-      const parsedId = Number(id)
+      const parsedId = Number(id);
 
       if (!id || Number.isNaN(parsedId)) {
-        setError('Project id is invalid')
-        setIsLoading(false)
-        return
+        setError("Project id is invalid");
+        setIsLoading(false);
+        return;
       }
 
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
 
       try {
-        const response = await fetchProjectById(parsedId)
+        const response = await fetchProjectById(parsedId);
 
-        if (response.status === 'error' || !response.data) {
-          throw new Error(response.message || 'Unable to load project')
+        if (response.status === "error" || !response.data) {
+          throw new Error(response.message || "Unable to load project");
         }
 
-        setProject(response.data)
+        setProject(response.data);
       } catch (fetchError) {
-        setProject(null)
-        setError(fetchError instanceof Error ? fetchError.message : 'Unable to load project')
+        setProject(null);
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Unable to load project",
+        );
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
 
-    void loadProject()
-  }, [id])
+    void loadProject();
+  }, [id]);
 
   useEffect(() => {
     if (!project) {
-      return
+      return;
     }
 
-    setTasksPageIndex(0)
-  }, [project?.id])
+    setTasksPageIndex(0);
+  }, [project?.id]);
 
   useEffect(() => {
     if (!project) {
-      return
+      return;
     }
 
     async function loadTasks() {
-      setIsLoadingTasks(true)
+      setIsLoadingTasks(true);
       try {
         const response = await fetchTasksByProject(project!.id, {
           page: tasksPageIndex,
           size: DETAIL_PAGE_SIZE,
-        })
-        if (response.status === 'success' && response.data) {
-          setProjectTasksPage(response.data)
+        });
+        if (response.status === "success" && response.data) {
+          setProjectTasksPage(response.data);
         } else {
-          setProjectTasksPage(createEmptyPaginatedResponse<TaskResponse>(tasksPageIndex, DETAIL_PAGE_SIZE))
+          setProjectTasksPage(
+            createEmptyPaginatedResponse<TaskResponse>(
+              tasksPageIndex,
+              DETAIL_PAGE_SIZE,
+            ),
+          );
         }
       } catch (error) {
-        setProjectTasksPage(createEmptyPaginatedResponse<TaskResponse>(tasksPageIndex, DETAIL_PAGE_SIZE))
+        setProjectTasksPage(
+          createEmptyPaginatedResponse<TaskResponse>(
+            tasksPageIndex,
+            DETAIL_PAGE_SIZE,
+          ),
+        );
       } finally {
-        setIsLoadingTasks(false)
+        setIsLoadingTasks(false);
       }
     }
 
-    void loadTasks()
-  }, [project?.id, tasksPageIndex])
+    void loadTasks();
+  }, [project?.id, tasksPageIndex]);
 
   useEffect(() => {
     if (!project) {
-      return
+      return;
     }
 
     setEditForm({
@@ -149,173 +193,196 @@ export function ProjectDetailPage({
       githubRepo: project.githubRepo.toString(),
       status: project.status.toString(),
       tags: project.tags.map((tag) => tag.toString()),
-    })
-    setTagsInput(project.tags.map((tag) => tag.toString()).join(', '))
-    setEditErrors({})
-  }, [project])
+    });
+    setTagsInput(project.tags.map((tag) => tag.toString()).join(", "));
+    setEditErrors({});
+  }, [project]);
 
-  const repoUrl = useMemo(() => normalizeRepoUrl(project?.githubRepo?.toString()), [project?.githubRepo])
+  const repoUrl = useMemo(
+    () => normalizeRepoUrl(project?.githubRepo?.toString()),
+    [project?.githubRepo],
+  );
   const isOwner = useMemo(() => {
     if (!project || !currentUser) {
-      return false
+      return false;
     }
 
-    return project.ownerId === currentUser.id
-  }, [project, currentUser])
-  const isArchivedProject = project?.status.toString().toLowerCase() === 'archived'
-  const canManageProject = isOwner && !isArchivedProject
-  const canDeleteProject = canManageProject && !isLoadingTasks && projectTasksPage.totalElements === 0
-  const canArchiveProject = canManageProject && !isLoadingTasks && projectTasksPage.totalElements > 0
-  const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
-    ? String(location.state.backTo)
-    : null
+    return project.ownerId === currentUser.id;
+  }, [project, currentUser]);
+  const isArchivedProject =
+    project?.status.toString().toLowerCase() === "archived";
+  const canManageProject = isOwner && !isArchivedProject;
+  const canDeleteProject =
+    canManageProject && !isLoadingTasks && projectTasksPage.totalElements === 0;
+  const canArchiveProject =
+    canManageProject && !isLoadingTasks && projectTasksPage.totalElements > 0;
+  const backTo =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "backTo" in location.state
+      ? String(location.state.backTo)
+      : null;
 
   function handleBack() {
     if (backTo) {
-      navigate(backTo)
-      return
+      navigate(backTo);
+      return;
     }
 
-    navigate(-1)
+    navigate(-1);
   }
 
   function validateEditForm() {
     const nextErrors: {
-      name?: string
-      description?: string
-      githubRepo?: string
-      status?: string
-    } = {}
+      name?: string;
+      description?: string;
+      githubRepo?: string;
+      status?: string;
+    } = {};
 
     if (!editForm.name.trim()) {
-      nextErrors.name = 'Project name is required.'
+      nextErrors.name = "Project name is required.";
     }
 
     if (!editForm.description.trim()) {
-      nextErrors.description = 'Description is required.'
+      nextErrors.description = "Description is required.";
     }
 
     if (!editForm.githubRepo.trim()) {
-      nextErrors.githubRepo = 'GitHub repository is required.'
+      nextErrors.githubRepo = "GitHub repository is required.";
     } else if (!isGithubRepositoryUrl(editForm.githubRepo)) {
-      nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
+      nextErrors.githubRepo = "Enter a valid GitHub repository URL.";
     }
 
     if (!editForm.status.trim()) {
-      nextErrors.status = 'Status is required.'
+      nextErrors.status = "Status is required.";
     }
 
-    setEditErrors(nextErrors)
-    return Object.keys(nextErrors).length === 0
+    setEditErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   }
 
   function validateEditField(field: keyof typeof editErrors, value: string) {
-    if (field === 'name') {
-      return value.trim() ? undefined : 'Project name is required.'
+    if (field === "name") {
+      return value.trim() ? undefined : "Project name is required.";
     }
 
-    if (field === 'description') {
-      return value.trim() ? undefined : 'Description is required.'
+    if (field === "description") {
+      return value.trim() ? undefined : "Description is required.";
     }
 
-    if (field === 'githubRepo') {
+    if (field === "githubRepo") {
       if (!value.trim()) {
-        return 'GitHub repository is required.'
+        return "GitHub repository is required.";
       }
-      return isGithubRepositoryUrl(value) ? undefined : 'Enter a valid GitHub repository URL.'
+      return isGithubRepositoryUrl(value)
+        ? undefined
+        : "Enter a valid GitHub repository URL.";
     }
 
-    return value.trim() ? undefined : 'Status is required.'
+    return value.trim() ? undefined : "Status is required.";
   }
 
   function updateEditError(field: keyof typeof editErrors, value: string) {
     setEditErrors((current) => {
       if (!current[field]) {
-        return current
+        return current;
       }
 
       return {
         ...current,
         [field]: validateEditField(field, value),
-      }
-    })
+      };
+    });
   }
 
   async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
 
     if (!project || isArchivedProject) {
-      return
+      return;
     }
 
     if (!validateEditForm()) {
-      setEditFeedback(null)
-      return
+      setEditFeedback(null);
+      return;
     }
 
-    setIsSubmitting(true)
-    setEditFeedback(null)
+    setIsSubmitting(true);
+    setEditFeedback(null);
 
     try {
       const response = await updateProject({
         ...editForm,
         id: project.id,
         tags: tagsInput
-          .split(',')
+          .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
-      })
+      });
 
-      if (response.status === 'error' || !response.data) {
-        throw new Error(response.message || 'Unable to update project')
+      if (response.status === "error" || !response.data) {
+        throw new Error(response.message || "Unable to update project");
       }
 
-      setProject(response.data)
-      setEditFeedback('Project updated successfully')
-      setIsEditOpen(false)
+      setProject(response.data);
+      setEditFeedback("Project updated successfully");
+      setIsEditOpen(false);
     } catch (submitError) {
-      setEditFeedback(submitError instanceof Error ? submitError.message : 'Unable to update project')
+      setEditFeedback(
+        submitError instanceof Error
+          ? submitError.message
+          : "Unable to update project",
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
   }
 
   async function handleDeleteProject() {
     if (!project || !canManageProject) {
-      return
+      return;
     }
 
-    setEditFeedback(null)
+    setEditFeedback(null);
 
     try {
-      const response = await deleteProject(project.id)
-      if (response.status === 'error') {
-        throw new Error(response.message || 'Unable to delete project')
+      const response = await deleteProject(project.id);
+      if (response.status === "error") {
+        throw new Error(response.message || "Unable to delete project");
       }
 
-      navigate('/profile')
+      navigate("/profile");
     } catch (deleteError) {
-      setEditFeedback(deleteError instanceof Error ? deleteError.message : 'Unable to delete project')
+      setEditFeedback(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Unable to delete project",
+      );
     }
   }
 
   async function handleArchiveProject() {
     if (!project || !canManageProject) {
-      return
+      return;
     }
 
-    setEditFeedback(null)
+    setEditFeedback(null);
 
     try {
-      const response = await archiveProject(project.id)
-      if (response.status === 'error' || !response.data) {
-        throw new Error(response.message || 'Unable to archive project')
+      const response = await archiveProject(project.id);
+      if (response.status === "error" || !response.data) {
+        throw new Error(response.message || "Unable to archive project");
       }
 
-      setProject(response.data)
-      setEditFeedback('Project archived successfully')
+      setProject(response.data);
+      setEditFeedback("Project archived successfully");
     } catch (archiveError) {
-      setEditFeedback(archiveError instanceof Error ? archiveError.message : 'Unable to archive project')
+      setEditFeedback(
+        archiveError instanceof Error
+          ? archiveError.message
+          : "Unable to archive project",
+      );
     }
   }
 
@@ -332,7 +399,9 @@ export function ProjectDetailPage({
           <Card>
             <CardBody className="space-y-3 p-6">
               <CardTitle className="text-3xl">Loading project...</CardTitle>
-              <CardDescription>Please wait while we load the project details.</CardDescription>
+              <CardDescription>
+                Please wait while we load the project details.
+              </CardDescription>
             </CardBody>
           </Card>
         ) : error ? (
@@ -345,18 +414,22 @@ export function ProjectDetailPage({
         ) : project ? (
           <>
             <Card className="overflow-hidden">
-              <CardBody className="space-y-6 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))] p-6">
+              <CardBody className="space-y-6 transition-all bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))] p-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">{project.status}</Badge>
                       {project.ownerUsername ? (
-                        <Badge variant="outline">by {project.ownerUsername.toString()}</Badge>
+                        <Badge variant="outline">
+                          by {project.ownerUsername.toString()}
+                        </Badge>
                       ) : null}
                     </div>
 
                     <div className="space-y-2">
-                      <CardTitle className="text-4xl">{project.name.toString()}</CardTitle>
+                      <CardTitle className="text-4xl">
+                        {project.name.toString()}
+                      </CardTitle>
                       <CardDescription className="max-w-3xl text-base leading-7 text-slate-600">
                         {project.description.toString()}
                       </CardDescription>
@@ -381,7 +454,10 @@ export function ProjectDetailPage({
                       </Button>
                     ) : null}
                     {canManageProject ? (
-                      <Button variant="primary" onClick={() => setIsEditOpen(true)}>
+                      <Button
+                        variant="primary"
+                        onClick={() => setIsEditOpen(true)}
+                      >
                         <Pencil size={16} />
                         Edit project
                       </Button>
@@ -419,34 +495,23 @@ export function ProjectDetailPage({
                     text={`${project.contributorCount} contributors`}
                   />
                 </div>
-              </CardBody>
-            </Card>
-
-            {editFeedback ? (
-              <Card className="border-blue-100 bg-blue-50/70 shadow-none">
-                <CardBody className="flex items-center gap-3 p-4">
-                  <Sparkles size={16} className="text-blue-600" />
-                  <CardDescription className="text-sm text-blue-700">{editFeedback}</CardDescription>
-                </CardBody>
-              </Card>
-            ) : null}
-
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-              <Card className="shadow-none">
-                <CardBody className="space-y-4 p-6">
-                  <CardTitle className="text-xl">About this project</CardTitle>
-                  <CardDescription className="text-base leading-7 text-slate-600">
-                    {project.description.toString()}
-                  </CardDescription>
-                </CardBody>
-              </Card>
-
-              <Card className="shadow-none">
-                <CardBody className="space-y-4 p-6">
-                  <CardTitle className="text-xl">Project details</CardTitle>
-                  <div className="grid gap-3 text-sm text-slate-600">
+                <span
+                  className="flex-row flex justify-start text-sm items-center gap-x-2 cursor-pointer"
+                  onClick={() => setShowDetails(!showDetails)}
+                >
+                  {!showDetails ? (
+                    <ArrowDown size={12} />
+                  ) : (
+                    <ArrowRight size={12} />
+                  )}
+                  Details
+                </span>
+                {showDetails ? (
+                  <div className="grid gap-1 text-sm text-slate-600">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium text-slate-700">Project id</span>
+                      <span className="font-medium text-slate-700">
+                        Project id
+                      </span>
                       <span>{project.id}</span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
@@ -454,18 +519,50 @@ export function ProjectDetailPage({
                       <span>{project.status.toString()}</span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium text-slate-700">Created</span>
-                      <span>{new Date(project.createdAt).toLocaleDateString()}</span>
+                      <span className="font-medium text-slate-700">
+                        Created
+                      </span>
+                      <span>
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium text-slate-700">Last updated</span>
-                      <span>{new Date(project.updatedAt).toLocaleDateString()}</span>
+                      <span className="font-medium text-slate-700">
+                        Last updated
+                      </span>
+                      <span>
+                        {new Date(project.updatedAt).toLocaleDateString()}
+                      </span>
                     </div>
                     <div className="flex items-start justify-between gap-4">
                       <span className="font-medium text-slate-700">Tags</span>
-                      <span className="text-right">{project.tags.join(', ') || 'No tags yet'}</span>
+                      <span className="text-right">
+                        {project.tags.join(", ") || "No tags yet"}
+                      </span>
                     </div>
                   </div>
+                ) : null}
+              </CardBody>
+            </Card>
+
+            {editFeedback ? (
+              <Card className="border-blue-100 bg-blue-50/70 shadow-none">
+                <CardBody className="flex items-center gap-3 p-4">
+                  <Sparkles size={16} className="text-blue-600" />
+                  <CardDescription className="text-sm text-blue-700">
+                    {editFeedback}
+                  </CardDescription>
+                </CardBody>
+              </Card>
+            ) : null}
+
+            <div className="w-full">
+              <Card className="shadow-none">
+                <CardBody className="space-y-4 p-6">
+                  <CardTitle className="text-xl">About this project</CardTitle>
+                  <CardDescription className="text-base leading-7 text-slate-600">
+                    {project.description.toString()}
+                  </CardDescription>
                 </CardBody>
               </Card>
             </div>
@@ -481,36 +578,57 @@ export function ProjectDetailPage({
               ) : projectTasksPage.content.length === 0 ? (
                 <Card className="shadow-none">
                   <CardBody className="p-6 text-center">
-                    <CardDescription>No tasks yet for this project.</CardDescription>
+                    <CardDescription>
+                      No tasks yet for this project.
+                    </CardDescription>
                   </CardBody>
                 </Card>
               ) : (
                 <>
                   <div className="grid lg:grid-cols-3 grid-cols-1 gap-2">
                     {projectTasksPage.content.map((task) => (
-                      <Card key={task.id} hoverShadow={true} className="h-fit cursor-pointer" onClick={() => navigate(`/task/${task.id}`)} clickMouse={true}>
+                      <Card
+                        key={task.id}
+                        hoverShadow={true}
+                        className="h-fit cursor-pointer"
+                        onClick={() => navigate(`/task/${task.id}`)}
+                        clickMouse={true}
+                      >
                         <CardBody className="space-y-4 p-5">
                           <div className="space-y-2">
                             <CardTitle className="text-xl font-medium">
                               {task.title}
                             </CardTitle>
-                            <CardDescription>{task.description}</CardDescription>
+                            <CardDescription>
+                              {task.description}
+                            </CardDescription>
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2">
                             <Badge variant="secondary">{task.status}</Badge>
                           </div>
 
                           <div className="space-y-2 text-sm">
-                            <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
-                            <p><strong>Deliverables:</strong> {task.deliverables}</p>
-                            <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
+                            <p>
+                              <strong>Reward:</strong> {task.rewardAmount}{" "}
+                              {task.rewardCurrency}
+                            </p>
+                            <p>
+                              <strong>Deliverables:</strong> {task.deliverables}
+                            </p>
+                            <p>
+                              <strong>Max Attempts:</strong> {task.maxAttempts}
+                            </p>
                           </div>
 
                           {task.recommendedSkills.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {task.recommendedSkills.map((skill) => (
-                                <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                <Badge
+                                  key={skill}
+                                  variant="outline"
+                                  className="bg-blue-50 text-blue-700 border-blue-200"
+                                >
                                   {skill}
                                 </Badge>
                               ))}
@@ -532,20 +650,23 @@ export function ProjectDetailPage({
               )}
             </div>
 
-            <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit project">
+            <Modal
+              isOpen={isEditOpen}
+              onClose={() => setIsEditOpen(false)}
+              title="Edit project"
+            >
               <form className="grid gap-4" onSubmit={handleEditSubmit}>
                 <Input
                   label="Project name"
                   helperText={editErrors.name}
                   error={Boolean(editErrors.name)}
                   value={editForm.name}
-                  onChange={(event) =>
-                    {
+                  onChange={(event) => {
                     setEditForm((current) => ({
                       ...current,
                       name: event.target.value,
-                    }))
-                    updateEditError('name', event.target.value)
+                    }));
+                    updateEditError("name", event.target.value);
                   }}
                 />
                 <Input
@@ -553,13 +674,12 @@ export function ProjectDetailPage({
                   helperText={editErrors.description}
                   error={Boolean(editErrors.description)}
                   value={editForm.description}
-                  onChange={(event) =>
-                    {
+                  onChange={(event) => {
                     setEditForm((current) => ({
                       ...current,
                       description: event.target.value,
-                    }))
-                    updateEditError('description', event.target.value)
+                    }));
+                    updateEditError("description", event.target.value);
                   }}
                 />
                 <Input
@@ -568,13 +688,12 @@ export function ProjectDetailPage({
                   helperText={editErrors.githubRepo}
                   error={Boolean(editErrors.githubRepo)}
                   value={editForm.githubRepo}
-                  onChange={(event) =>
-                    {
+                  onChange={(event) => {
                     setEditForm((current) => ({
                       ...current,
                       githubRepo: event.target.value,
-                    }))
-                    updateEditError('githubRepo', event.target.value)
+                    }));
+                    updateEditError("githubRepo", event.target.value);
                   }}
                 />
                 <Input
@@ -582,13 +701,12 @@ export function ProjectDetailPage({
                   helperText={editErrors.status}
                   error={Boolean(editErrors.status)}
                   value={editForm.status}
-                  onChange={(event) =>
-                    {
+                  onChange={(event) => {
                     setEditForm((current) => ({
                       ...current,
                       status: event.target.value,
-                    }))
-                    updateEditError('status', event.target.value)
+                    }));
+                    updateEditError("status", event.target.value);
                   }}
                 />
                 <Input
@@ -598,24 +716,43 @@ export function ProjectDetailPage({
                   onChange={(event) => setTagsInput(event.target.value)}
                 />
                 <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setIsEditOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Saving...' : 'Save changes'}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Saving..." : "Save changes"}
                   </Button>
                 </div>
               </form>
             </Modal>
 
-            <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete project">
+            <Modal
+              isOpen={isDeleteOpen}
+              onClose={() => setIsDeleteOpen(false)}
+              title="Delete project"
+            >
               <div className="grid gap-4">
                 <CardDescription className="text-base text-slate-600">
-                  This will remove <span className="font-medium text-slate-900">{project.name.toString()}</span> from
-                  your projects. This action cannot be undone.
+                  This will remove{" "}
+                  <span className="font-medium text-slate-900">
+                    {project.name.toString()}
+                  </span>{" "}
+                  from your projects. This action cannot be undone.
                 </CardDescription>
                 <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="ghost" onClick={() => setIsDeleteOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setIsDeleteOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button
@@ -623,8 +760,8 @@ export function ProjectDetailPage({
                     variant="outline"
                     className="border-red-200 text-red-600 hover:bg-red-50"
                     onClick={async () => {
-                      setIsDeleteOpen(false)
-                      await handleDeleteProject()
+                      setIsDeleteOpen(false);
+                      await handleDeleteProject();
                     }}
                   >
                     <Trash2 size={16} />
@@ -634,14 +771,27 @@ export function ProjectDetailPage({
               </div>
             </Modal>
 
-            <Modal isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} title="Archive project">
+            <Modal
+              isOpen={isArchiveOpen}
+              onClose={() => setIsArchiveOpen(false)}
+              title="Archive project"
+            >
               <div className="grid gap-4">
                 <CardDescription className="text-base text-slate-600">
-                  This project has tasks, so it cannot be safely deleted. Archiving keeps its task history while marking
-                  <span className="font-medium text-slate-900"> {project.name.toString()}</span> as archived.
+                  This project has tasks, so it cannot be safely deleted.
+                  Archiving keeps its task history while marking
+                  <span className="font-medium text-slate-900">
+                    {" "}
+                    {project.name.toString()}
+                  </span>{" "}
+                  as archived.
                 </CardDescription>
                 <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="ghost" onClick={() => setIsArchiveOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setIsArchiveOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button
@@ -649,8 +799,8 @@ export function ProjectDetailPage({
                     variant="outline"
                     className="border-amber-200 text-amber-700 hover:bg-amber-50"
                     onClick={async () => {
-                      setIsArchiveOpen(false)
-                      await handleArchiveProject()
+                      setIsArchiveOpen(false);
+                      await handleArchiveProject();
                     }}
                   >
                     <Archive size={16} />
@@ -663,5 +813,5 @@ export function ProjectDetailPage({
         ) : null}
       </section>
     </main>
-  )
+  );
 }
