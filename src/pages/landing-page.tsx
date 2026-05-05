@@ -12,7 +12,6 @@ import { StatLine } from '../components/app/stat-line'
 import { fetchAllProjects } from '../lib/project-storage'
 import { fetchAllTasks } from '../lib/task-storage'
 import { fetchAllUserDetails } from '../lib/user-storage'
-import { readStoredUser } from '../lib/auth-storage'
 import type { UserDetailsResponse, ProjectResponse, TaskResponse } from '../types/app'
 
 export function LandingPage({
@@ -29,7 +28,6 @@ export function LandingPage({
   const [topTasksError, setTopTasksError] = useState<string | null>(null)
   const [topUsers, setTopUsers] = useState<UserDetailsResponse[] | null>(null)
   const [topUsersError, setTopUsersError] = useState<string | null>(null)
-  const currentUser = readStoredUser()
 
   useEffect(() => {
     async function loadLandingData() {

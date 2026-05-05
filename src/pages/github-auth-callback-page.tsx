@@ -25,6 +25,8 @@ export function GithubAuthCallbackPage({
     const id = searchParams.get('id')
     const username = searchParams.get('username')
     const email = searchParams.get('email')
+    const firstGithubLogin = searchParams.get('firstGithubLogin') === 'true'
+    const githubUsername = searchParams.get('githubUsername')
 
     if (!token || !id || !username || !email) {
       navigate('/auth/login?error=GitHub sign in did not complete correctly.', { replace: true })
@@ -38,13 +40,13 @@ export function GithubAuthCallbackPage({
         username,
         email,
         githubId: searchParams.get('githubId') ? Number(searchParams.get('githubId')) : null,
-        githubUsername: searchParams.get('githubUsername'),
+        githubUsername,
         profileImageUrl: searchParams.get('profileImageUrl'),
       },
     })
 
-    setMessage('GitHub connected. Redirecting to your repositories...')
-    navigate('/projects?importGithub=1', { replace: true })
+    setMessage(firstGithubLogin ? 'GitHub connected. Redirecting to your repositories...' : 'GitHub connected. Redirecting...')
+    navigate(firstGithubLogin && githubUsername ? '/projects?importGithub=1' : '/projects', { replace: true })
   }, [navigate, onAuthSuccess, searchParams])
 
   return (

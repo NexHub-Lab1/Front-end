@@ -54,11 +54,23 @@ function App() {
       <Routes>
         <Route
           path="/auth/login"
-          element={<AuthPage mode="login" onAuthSuccess={handleAuthSuccess} />}
+          element={
+            currentUser ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthPage mode="login" onAuthSuccess={handleAuthSuccess} />
+            )
+          }
         />
         <Route
           path="/auth/signup"
-          element={<AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} />}
+          element={
+            currentUser ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} />
+            )
+          }
         />
         <Route
           path="/auth/github/callback"
