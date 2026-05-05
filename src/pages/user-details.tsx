@@ -8,7 +8,7 @@ import { StatLine } from "../components/app/stat-line"
 import { Button } from "../components/ui/button"
 import { Card, CardBody, CardDescription, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
-import { readStoredUser } from "../lib/auth-storage"
+import { readStoredAuthUser } from "../lib/auth-storage"
 
 export default function UserDetails({
   onSignOut,
@@ -23,7 +23,7 @@ export default function UserDetails({
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [showDetails, setShowDetails] = useState(false)
-    const currentUser = readStoredUser()
+    const currentUser = readStoredAuthUser()?.user
 
     useEffect(() => {
         async function loadUser() {
@@ -111,6 +111,11 @@ export default function UserDetails({
                                             <span className="text-sm">{userDetails.email}</span>
                                         </div>
                                     </div>
+                                    {currentUser && currentUser.id !== userDetails.id ? (
+                                        <Button variant="primary" size="sm" className="shrink-0">
+                                        Follow
+                                        </Button>
+                                    ) : null}
                                 </div>
 
                                 <div className="flex flex-wrap gap-5">

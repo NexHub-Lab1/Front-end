@@ -8,7 +8,6 @@ import {
   Users,
   ArrowLeft,
   ArrowDown,
-  ArrowDownRight,
   ArrowRight,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";

@@ -1,18 +1,19 @@
-import { ArrowRight, BellRing, Star, Trophy, Users } from 'lucide-react'
+import { ArrowRight, BellRing, Star, Users, Flame } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { activityItems, topDevelopers } from '../data/mock-content'
+import { activityItems } from '../data/mock-content'
 import { AppHeader } from '../components/app/app-header'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
-import { DeveloperAvatar } from '../components/app/developer-avatar'
 import { SectionTitle } from '../components/app/section-title'
 import { StatLine } from '../components/app/stat-line'
 import { fetchAllProjects } from '../lib/project-storage'
 import { fetchAllTasks } from '../lib/task-storage'
-import type { ProjectResponse, TaskResponse } from '../types/app'
+import { fetchAllUserDetails } from '../lib/user-storage'
+import { readStoredUser } from '../lib/auth-storage'
+import type { UserDetailsResponse, ProjectResponse, TaskResponse } from '../types/app'
 
 export function LandingPage({
   onSignOut,
@@ -26,11 +27,14 @@ export function LandingPage({
   const [topProjectsError, setTopProjectsError] = useState<string | null>(null)
   const [topTasks, setTopTasks] = useState<TaskResponse[] | null>(null)
   const [topTasksError, setTopTasksError] = useState<string | null>(null)
+  const [topUsers, setTopUsers] = useState<UserDetailsResponse[] | null>(null)
+  const [topUsersError, setTopUsersError] = useState<string | null>(null)
+  const currentUser = readStoredUser()
 
   useEffect(() => {
     async function loadLandingData() {
       try {
-        const [projectsResponse, tasksResponse] = await Promise.all([
+        const [projectsResponse, tasksResponse, usersResponse] = await Promise.all([
           fetchAllProjects({
             page: 0,
             size: 3,
@@ -40,6 +44,7 @@ export function LandingPage({
             size: 3,
             sort: ['rewardAmount,desc'],
           }),
+          fetchAllUserDetails(),
         ])
 
         if (projectsResponse.status === 'success' && projectsResponse.data) {
@@ -55,11 +60,24 @@ export function LandingPage({
           setTopTasks([])
           setTopTasksError(tasksResponse.message || 'Unable to load tasks.')
         }
+
+        if (usersResponse.status === 'success' && usersResponse.data) {
+          // Sort by streak descending and take top 5
+          const sortedUsers = usersResponse.data
+            .sort((a, b) => (b.streakDay || 0) - (a.streakDay || 0))
+            .slice(0, 5)
+          setTopUsers(sortedUsers)
+        } else {
+          setTopUsers([])
+          setTopUsersError(usersResponse.message || 'Unable to load top developers.')
+        }
       } catch {
         setTopProjects([])
         setTopTasks([])
+        setTopUsers([])
         setTopProjectsError('Unable to load projects.')
         setTopTasksError('Unable to load tasks.')
+        setTopUsersError('Unable to load top developers.')
       }
     }
 
@@ -260,28 +278,63 @@ export function LandingPage({
           <CardBody className="p-6">
             <SectionTitle title="Top developers" />
             <div className="space-y-4">
-              {topDevelopers.map((developer) => (
-                <Card key={developer.rank} className="shadow-none">
-                  <CardBody className="flex flex-row gap-4 p-4">
-                    <DeveloperAvatar name={developer.name} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <CardTitle className="truncate text-lg font-medium">{developer.name}</CardTitle>
-                        <span className="text-base font-semibold text-slate-700">{developer.rank}</span>
-                      </div>
-                      <CardDescription className="mt-1">{developer.handle}</CardDescription>
-                      <div className="mt-3 flex flex-wrap gap-4">
-                        <StatLine icon={<Users size={14} className="text-slate-400" />} text={`${developer.followers} followers`} />
-                        <StatLine icon={<Trophy size={14} className="text-indigo-500" />} text={developer.score} />
-                      </div>
-                    </div>
+              {topUsersError ? (
+                <Card className="border-red-100 bg-red-50/70 shadow-none">
+                  <CardBody className="p-5">
+                    <CardDescription className="text-red-700">{topUsersError}</CardDescription>
                   </CardBody>
                 </Card>
-              ))}
+              ) : topUsers === null ? (
+                <Card className="shadow-none">
+                  <CardBody className="p-5">
+                    <CardDescription>Loading developers...</CardDescription>
+                  </CardBody>
+                </Card>
+              ) : topUsers.length === 0 ? (
+                <Card className="shadow-none">
+                  <CardBody className="p-5">
+                    <CardDescription>No developers yet.</CardDescription>
+                  </CardBody>
+                </Card>
+              ) : (
+                topUsers.map((user, index) => (
+                  <Card 
+                    key={user.id} 
+                    className="shadow-none cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate(`/user/${user.id}`)}
+                  >
+                    <CardBody className="flex flex-row gap-4 p-4">
+                      <div className="flex-shrink-0">
+                        {user.image_url ? (
+                          <img
+                            src={user.image_url}
+                            alt={user.username}
+                            className="h-12 w-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="truncate text-lg font-medium">{user.username}</CardTitle>
+                          <span className="text-sm font-semibold text-slate-700">#{index + 1}</span>
+                        </div>
+                        <CardDescription className="mt-1 truncate">{user.email}</CardDescription>
+                        <div className="mt-3 flex flex-wrap gap-4">
+                          <StatLine 
+                            icon={<Flame size={14} className="text-orange-500" />} 
+                            text={`${user.streakDay} streak`} 
+                          />
+                        </div>
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))
+              )}
             </div>
-            <Button variant="primary" size="lg" className="mt-5 w-full">
-              View ranking
-            </Button>
           </CardBody>
         </Card>
       </section>

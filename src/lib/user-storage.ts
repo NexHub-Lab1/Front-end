@@ -3,6 +3,7 @@ import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 
 export const USER_ROOT_ENDPOINT = '/api/users'
 export const GET_USER_DETAILS = (id:number) => `${USER_ROOT_ENDPOINT}/details/${id}`
+export const GET_TOP_DEVS = `${USER_ROOT_ENDPOINT}/all_users_details`
 
 function getAuthHeaders(): HeadersInit {
   const token = readStoredUserToken()
@@ -49,5 +50,14 @@ export async function updateUser(user: User): Promise<ApiResponse<User>> {
     headers: getAuthHeaders(),
     body: JSON.stringify(user),
   })
+  return handleResponse(response)
+}
+
+export async function fetchAllUserDetails(): Promise<ApiResponse<UserDetailsResponse[]>> {
+  const response = await fetch(GET_TOP_DEVS, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  })
+  console.log('fetchAllUserDetails response:', response)
   return handleResponse(response)
 }
