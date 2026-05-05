@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { getUserDetails } from "../lib/user-storage"
+import { followUser, getUserDetails, getFollowedUsers, unfollowUser } from "../lib/user-storage"
 import { type UserDetailsResponse } from "../types/app"
-import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar } from "lucide-react"
+import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar, UserPlus, Loader2, CheckCircle, AlertCircle, UserCheck } from "lucide-react"
 import { AppHeader } from "../components/app/app-header"
 import { StatLine } from "../components/app/stat-line"
 import { Button } from "../components/ui/button"
@@ -23,6 +23,10 @@ export default function UserDetails({
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [showDetails, setShowDetails] = useState(false)
+    const [isFollowLoading, setIsFollowLoading] = useState(false)
+    const [followSuccess, setFollowSuccess] = useState(false)
+    const [followError, setFollowError] = useState<string | null>(null)
+    const [isFollowed, setIsFollowed] = useState(false)
     const currentUser = readStoredAuthUser()?.user
 
     useEffect(() => {
@@ -46,6 +50,17 @@ export default function UserDetails({
                 }
 
                 setUserDetails(response.data)
+
+                // Check if current user has followed this user
+                if (currentUser) {
+                    const followedResponse = await getFollowedUsers(currentUser.id)
+                    if (followedResponse.status === "success" && followedResponse.data) {
+                        const isAlreadyFollowed = followedResponse.data.some(
+                            (user) => user.id === parsedId
+                        )
+                        setIsFollowed(isAlreadyFollowed)
+                    }
+                }
             } catch (fetchError) {
                 setUserDetails(null)
                 setError(
@@ -60,6 +75,40 @@ export default function UserDetails({
 
         void loadUser()
     }, [id])
+
+    const handleFollowClick = async () => {
+        if (!currentUser || !userDetails) return
+
+        setIsFollowLoading(true)
+        setFollowError(null)
+
+        try {
+            if (isFollowed) {
+                // Unfollow
+                const response = await unfollowUser(currentUser.id, userDetails.id)
+                if (response.status === "success") {
+                    setIsFollowed(false)
+                    setFollowSuccess(true)
+                    setTimeout(() => setFollowSuccess(false), 2000)
+                }
+            } else {
+                // Follow
+                const response = await followUser(currentUser.id, userDetails.id)
+                if (response.status === "success") {
+                    setIsFollowed(true)
+                    setFollowSuccess(true)
+                    setTimeout(() => setFollowSuccess(false), 2000)
+                }
+            }
+        } catch (err) {
+            setFollowError(
+                err instanceof Error ? err.message : "Failed to update follow status"
+            )
+            setTimeout(() => setFollowError(null), 3000)
+        } finally {
+            setIsFollowLoading(false)
+        }
+    }
 
     return (
         <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -112,9 +161,43 @@ export default function UserDetails({
                                         </div>
                                     </div>
                                     {currentUser && currentUser.id !== userDetails.id ? (
-                                        <Button variant="primary" size="sm" className="shrink-0">
-                                        Follow
-                                        </Button>
+                                        <div className="flex flex-col gap-2 shrink-0">
+                                            <Button 
+                                                variant={isFollowed ? "secondary" : "primary"}
+                                                size="sm" 
+                                                className="gap-2 shrink-0"
+                                                onClick={handleFollowClick}
+                                                disabled={isFollowLoading}
+                                            >
+                                                {isFollowLoading ? (
+                                                    <>
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                        {isFollowed ? "Unfollowing..." : "Following..."}
+                                                    </>
+                                                ) : followSuccess ? (
+                                                    <>
+                                                        <CheckCircle size={16} />
+                                                        {!isFollowed ? "Unfollowed" : "Followed!"}
+                                                    </>
+                                                ) : isFollowed ? (
+                                                    <>
+                                                        <UserCheck size={16} />
+                                                        Following
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <UserPlus size={16} />
+                                                        Follow
+                                                    </>
+                                                )}
+                                            </Button>
+                                            {followError && (
+                                                <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                                                    <AlertCircle size={14} />
+                                                    {followError}
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : null}
                                 </div>
 
