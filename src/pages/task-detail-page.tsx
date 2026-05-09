@@ -1,9 +1,9 @@
-import { ArrowLeft, Bookmark, Send, UserPlus } from 'lucide-react'
+import { ArrowLeft, Bookmark, CheckCircle, CreditCard, Send, UserPlus, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { TaskResponse, User, TaskAssignmentResponse } from '../types/app'
+import type { PaymentResponse, TaskResponse, User, TaskAssignmentResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -14,6 +14,8 @@ import { fetchTaskById } from '../lib/task-storage'
 import { createSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
+import { createTaskPayment, fetchPaymentsByTask, simulatePaymentResult } from '../lib/payment-storage'
+import { formatMoney, fundingBadgeClassName, isRewardFunded, normalizeFundingStatus } from '../lib/payment-utils'
 
 export function TaskDetailPage({
   currentUser,
@@ -38,57 +40,68 @@ export function TaskDetailPage({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
+  const [taskPayments, setTaskPayments] = useState<PaymentResponse[]>([])
+  const [isPaymentActionLoading, setIsPaymentActionLoading] = useState(false)
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  useEffect(() => {
-    async function loadTask() {
-      const parsedId = Number(id)
+  const latestPayment = taskPayments[0] ?? null
+  const fundingStatus = normalizeFundingStatus(task?.fundingStatus)
 
-      if (!id || Number.isNaN(parsedId)) {
-        setError('Task id is invalid')
-        setIsLoading(false)
-        return
-      }
+  async function loadTaskDetails() {
+    const parsedId = Number(id)
 
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetchTaskById(parsedId)
-        if (response.status === 'error' || !response.data) {
-          throw new Error(response.message || 'Unable to load task')
-        }
-
-        const loadedTask = response.data
-        setTask(loadedTask)
-
-        if (currentUser) {
-          const projectRes = await fetchProjectById(loadedTask.projectId)
-          if (projectRes.status === 'success' && projectRes.data) {
-            setIsOwner(projectRes.data.ownerId === currentUser.id)
-          }
-
-          const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
-            page: 0,
-            size: LOOKUP_PAGE_SIZE,
-            sort: ['assignedAt,desc'],
-          })
-          if (assignmentsRes.data) {
-            const activeAssignment = assignmentsRes.data.content.find(
-              a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
-            )
-            setUserAssignment(activeAssignment || null)
-          }
-        }
-      } catch (fetchError) {
-        setTask(null)
-        setError(fetchError instanceof Error ? fetchError.message : 'Unable to load task')
-      } finally {
-        setIsLoading(false)
-      }
+    if (!id || Number.isNaN(parsedId)) {
+      setError('Task id is invalid')
+      setIsLoading(false)
+      return
     }
 
-    void loadTask()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetchTaskById(parsedId)
+      if (response.status === 'error' || !response.data) {
+        throw new Error(response.message || 'Unable to load task')
+      }
+
+      const loadedTask = response.data
+      setTask(loadedTask)
+
+      if (currentUser) {
+        const projectRes = await fetchProjectById(loadedTask.projectId)
+        if (projectRes.status === 'success' && projectRes.data) {
+          setIsOwner(projectRes.data.ownerId === currentUser.id)
+        }
+
+        const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
+          page: 0,
+          size: LOOKUP_PAGE_SIZE,
+          sort: ['assignedAt,desc'],
+        })
+        if (assignmentsRes.data) {
+          const activeAssignment = assignmentsRes.data.content.find(
+            a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
+          )
+          setUserAssignment(activeAssignment || null)
+        }
+
+        const paymentsRes = await fetchPaymentsByTask(parsedId)
+        if (paymentsRes.status === 'success' && paymentsRes.data) {
+          setTaskPayments(paymentsRes.data)
+        }
+      }
+    } catch (fetchError) {
+      setTask(null)
+      setTaskPayments([])
+      setError(fetchError instanceof Error ? fetchError.message : 'Unable to load task')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadTaskDetails()
   }, [id, currentUser])
 
   const handleAssignTask = async () => {
@@ -127,6 +140,79 @@ export function TaskDetailPage({
       setActionFeedback({ type: 'error', message })
     } finally {
       setIsAssigning(false)
+    }
+  }
+
+  const handleCreatePayment = async () => {
+    if (!currentUser || !task) {
+      return
+    }
+
+    try {
+      setIsPaymentActionLoading(true)
+      setActionFeedback(null)
+
+      const result = await createTaskPayment({
+        taskId: task.id,
+        payerId: currentUser.id,
+      })
+
+      if (result.status === 'success' && result.data) {
+        setTaskPayments([result.data, ...taskPayments])
+        setTask({ ...task, fundingStatus: 'pending' })
+        setActionFeedback({
+          type: 'success',
+          message: 'Payment checkout created. Use the mock gateway buttons below to simulate Mercado Pago locally.',
+        })
+        return
+      }
+
+      setActionFeedback({ type: 'error', message: result.message || 'Unable to create payment.' })
+    } catch (error) {
+      setActionFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unable to create payment.',
+      })
+    } finally {
+      setIsPaymentActionLoading(false)
+    }
+  }
+
+  const handleSimulatePayment = async (status: 'approved' | 'failed') => {
+    if (!latestPayment || !task) {
+      return
+    }
+
+    try {
+      setIsPaymentActionLoading(true)
+      setActionFeedback(null)
+
+      const result = await simulatePaymentResult({
+        paymentId: latestPayment.id,
+        status,
+        failureReason: status === 'failed' ? 'Mock Mercado Pago payment failed' : undefined,
+      })
+
+      if (result.status === 'success' && result.data) {
+        setTaskPayments([result.data, ...taskPayments.filter((payment) => payment.id !== result.data?.id)])
+        setTask({ ...task, fundingStatus: status === 'approved' ? 'funded' : 'unfunded' })
+        setActionFeedback({
+          type: status === 'approved' ? 'success' : 'error',
+          message: status === 'approved'
+            ? 'Payment approved. The reward is now locked in escrow.'
+            : 'Payment failed. The task is still unfunded.',
+        })
+        return
+      }
+
+      setActionFeedback({ type: 'error', message: result.message || 'Unable to process payment result.' })
+    } catch (error) {
+      setActionFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unable to process payment result.',
+      })
+    } finally {
+      setIsPaymentActionLoading(false)
     }
   }
 
@@ -213,6 +299,14 @@ export function TaskDetailPage({
       }
     }
 
+    if (task && !isRewardFunded(task.fundingStatus)) {
+      return {
+        text: 'Waiting for funding',
+        disabled: true,
+        tooltip: 'This task must be funded before developers can assign themselves',
+      }
+    }
+
     if (userAssignment) {
       return {
         text: 'Already Assigned',
@@ -247,6 +341,13 @@ export function TaskDetailPage({
       return {
         disabled: true,
         tooltip: 'You must be assigned to this task before submitting',
+      }
+    }
+
+    if (task && !isRewardFunded(task.fundingStatus)) {
+      return {
+        disabled: true,
+        tooltip: 'This task must be funded before submissions are accepted',
       }
     }
 
@@ -302,6 +403,9 @@ export function TaskDetailPage({
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">{task.status}</Badge>
+                      <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                        {fundingStatus}
+                      </Badge>
                       <Badge variant="outline">{task.projectName}</Badge>
                       {userAssignment && (
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -385,6 +489,88 @@ export function TaskDetailPage({
                     </p>
                   </div>
                 )}
+
+                {isOwner ? (
+                  <Card className="border-slate-200 bg-white/80 shadow-none">
+                    <CardBody className="space-y-4 p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-slate-900">Task funding</p>
+                          <CardDescription>
+                            Fund this reward before developers start working. Approved payments are held in escrow until you approve a submission.
+                          </CardDescription>
+                        </div>
+                        <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                          {fundingStatus}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <p className="text-xs uppercase tracking-wide text-slate-400">Reward</p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {formatMoney(task.rewardAmount, task.rewardCurrency)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <p className="text-xs uppercase tracking-wide text-slate-400">Latest payment</p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {latestPayment ? latestPayment.status : 'none'}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <p className="text-xs uppercase tracking-wide text-slate-400">Provider</p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {latestPayment ? latestPayment.provider : 'mercadopago'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {!['pending', 'funded', 'released'].includes(fundingStatus) ? (
+                          <Button
+                            variant="primary"
+                            onClick={handleCreatePayment}
+                            disabled={isPaymentActionLoading}
+                          >
+                            <CreditCard size={16} />
+                            {isPaymentActionLoading ? 'Creating...' : 'Fund task'}
+                          </Button>
+                        ) : null}
+
+                        {latestPayment?.checkoutUrl ? (
+                          <Button asChild variant="outline">
+                            <a href={latestPayment.checkoutUrl} target="_blank" rel="noopener noreferrer">
+                              Open checkout
+                            </a>
+                          </Button>
+                        ) : null}
+
+                        {latestPayment?.status?.toLowerCase() === 'pending' ? (
+                          <>
+                            <Button
+                              variant="secondary"
+                              onClick={() => void handleSimulatePayment('approved')}
+                              disabled={isPaymentActionLoading}
+                            >
+                              <CheckCircle size={16} />
+                              Simulate approved
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="border-red-200 text-red-600 hover:bg-red-50"
+                              onClick={() => void handleSimulatePayment('failed')}
+                              disabled={isPaymentActionLoading}
+                            >
+                              <XCircle size={16} />
+                              Simulate failed
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    </CardBody>
+                  </Card>
+                ) : null}
 
                 {userAssignment && (
                   <div className="bg-green-50 border border-green-200 rounded-md p-4">

@@ -22,6 +22,8 @@ export type User = {
   githubId?: number | null
   githubUsername?: string | null
   profileImageUrl?: string | null
+  availableBalance?: number | null
+  escrowBalance?: number | null
 }
 export type ApiResponse<T> = {
   status: 'success' | 'error'
@@ -141,10 +143,67 @@ export type TaskResponse = {
   rewardCurrency: string,
   deadline: Date,
   status: string,
+  fundingStatus?: string | null,
   maxAttempts: number,
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[]
+}
+
+export type TaskPaymentRequest = {
+  taskId: number
+  payerId: number
+}
+
+export type PaymentSimulationRequest = {
+  paymentId: number
+  status: 'approved' | 'failed'
+  failureReason?: string
+}
+
+export type PaymentResponse = {
+  id: number
+  taskId: number
+  taskTitle: string
+  payerId: number
+  payerUsername: string
+  amount: number
+  currency: string
+  provider: string
+  providerPaymentId: string
+  externalReference: string
+  checkoutUrl: string
+  status: string
+  failureReason: string | null
+  createdAt: Date
+  updatedAt: Date
+  approvedAt: Date | null
+  failedAt: Date | null
+  releasedAt: Date | null
+  refundedAt: Date | null
+}
+
+export type BalanceResponse = {
+  userId: number
+  username: string
+  availableBalance: number
+  escrowBalance: number
+}
+
+export type WalletTransactionResponse = {
+  id: number
+  userId: number
+  username: string
+  paymentId: number | null
+  taskId: number | null
+  taskTitle: string | null
+  type: string
+  amount: number
+  currency: string
+  availableBalanceAfter: number
+  escrowBalanceAfter: number
+  description: string | null
+  createdAt: Date
 }
 
 export type TaskAssignmentRequest = {

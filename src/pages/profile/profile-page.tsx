@@ -10,9 +10,10 @@ import { TasksTab } from './profile-tabs/tasks'
 import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
+import { WalletTab } from './profile-tabs/wallet'
 import { readStoredUser } from '../../lib/auth-storage'
 
-const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions'] as const
+const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions', 'wallet'] as const
 
 type ProfileTabKey = (typeof profileTabKeys)[number]
 
@@ -42,6 +43,7 @@ export function ProfilePage({
     'assigned-tasks': <AssignedTasksTab />,
     'to-review': <ToReviewTab />,
     submissions: <SubmissionsTab />,
+    wallet: <WalletTab />,
   }
 
   const [activeTabKey, setActiveTabKey] = useState<ProfileTabKey>(() => {
