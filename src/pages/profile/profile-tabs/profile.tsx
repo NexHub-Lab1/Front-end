@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Pencil, Shield, UserRound } from 'lucide-react'
+import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Pencil, Plus, Shield, UserRound, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -18,6 +18,10 @@ import {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+function normalizeSkill(value: string) {
+  return value.trim().replace(/\s+/g, ' ')
 }
 
 async function parseApiResponse<T>(response: Response, fallbackMessage: string): Promise<ApiResponse<T>> {
@@ -61,7 +65,9 @@ export function ProfileTab({
     newUsername: user?.username ?? '',
     newEmail: user?.email ?? '',
     newPassword: '',
+    skills: user?.skills ?? [],
   })
+  const [skillInput, setSkillInput] = useState('')
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -76,6 +82,7 @@ export function ProfileTab({
     newUsername?: string
     newEmail?: string
     newPassword?: string
+    skills?: string
   }>({})
   const [deleteErrors, setDeleteErrors] = useState<{
     currentPassword?: string
@@ -96,7 +103,9 @@ export function ProfileTab({
       newUsername: storedUser.username,
       newEmail: storedUser.email,
       newPassword: '',
+      skills: storedUser.skills ?? [],
     })
+    setSkillInput('')
     setEditErrors({})
     setDeleteErrors({})
   }, [navigate])
@@ -168,7 +177,9 @@ export function ProfileTab({
         newUsername: data.user.username,
         newEmail: data.user.email,
         newPassword: '',
+        skills: data.user.skills ?? [],
       })
+      setSkillInput('')
       setFeedback({ type: 'success', message: result.message })
       setIsEditOpen(false)
     } catch (error) {
@@ -234,6 +245,7 @@ export function ProfileTab({
       newUsername?: string
       newEmail?: string
       newPassword?: string
+      skills?: string
     } = {}
 
     if (!form.currentEmail.trim()) {
@@ -312,6 +324,50 @@ export function ProfileTab({
     })
   }
 
+  function handleAddSkill() {
+    const nextSkill = normalizeSkill(skillInput)
+
+    if (!nextSkill) {
+      setEditErrors((current) => ({
+        ...current,
+        skills: 'Type a skill before adding it.',
+      }))
+      return
+    }
+
+    const alreadyAdded = form.skills.some(
+      (skill) => skill.toLowerCase() === nextSkill.toLowerCase()
+    )
+    if (alreadyAdded) {
+      setEditErrors((current) => ({
+        ...current,
+        skills: 'That skill is already in your profile.',
+      }))
+      return
+    }
+
+    setForm((current) => ({
+      ...current,
+      skills: [...current.skills, nextSkill],
+    }))
+    setSkillInput('')
+    setEditErrors((current) => ({
+      ...current,
+      skills: undefined,
+    }))
+  }
+
+  function handleRemoveSkill(skillToRemove: string) {
+    setForm((current) => ({
+      ...current,
+      skills: current.skills.filter((skill) => skill !== skillToRemove),
+    }))
+    setEditErrors((current) => ({
+      ...current,
+      skills: undefined,
+    }))
+  }
+
   return (
     <Card>
       <CardBody className="space-y-6 p-6">
@@ -366,6 +422,28 @@ export function ProfileTab({
             </CardBody>
           </Card>
         </div>
+
+        <Card className="shadow-none">
+          <CardBody className="space-y-4 p-6">
+            <div className="space-y-2">
+              <CardTitle className="text-xl">Skills</CardTitle>
+              <CardDescription>
+                These tags help NexHub understand what kind of tasks fit your profile.
+              </CardDescription>
+            </div>
+            {user.skills && user.skills.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {user.skills.map((skill) => (
+                  <Badge key={skill} variant="secondary">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <CardDescription>No skills added yet.</CardDescription>
+            )}
+          </CardBody>
+        </Card>
 
         {feedback ? (
           <Card
@@ -494,6 +572,58 @@ export function ProfileTab({
                 }}
               />
             ) : null}
+
+            <div className="grid gap-2">
+              <span className="text-sm font-medium text-slate-700">Skills</span>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex-1">
+                  <Input
+                    value={skillInput}
+                    placeholder="Add a skill, for example React"
+                    helperText={editErrors.skills}
+                    error={Boolean(editErrors.skills)}
+                    onChange={(event) => {
+                      setSkillInput(event.target.value)
+                      if (editErrors.skills) {
+                        setEditErrors((current) => ({
+                          ...current,
+                          skills: undefined,
+                        }))
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        handleAddSkill()
+                      }
+                    }}
+                  />
+                </div>
+                <Button type="button" variant="outline" onClick={handleAddSkill}>
+                  <Plus size={16} />
+                  Add skill
+                </Button>
+              </div>
+              {form.skills.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {form.skills.map((skill) => (
+                    <Badge key={skill} variant="secondary" className="gap-2 pr-1">
+                      <span>{skill}</span>
+                      <button
+                        type="button"
+                        className="rounded-full p-0.5 text-blue-700 hover:bg-blue-100"
+                        aria-label={`Remove ${skill}`}
+                        onClick={() => handleRemoveSkill(skill)}
+                      >
+                        <X size={12} />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <CardDescription>Add skills to improve future task recommendations.</CardDescription>
+              )}
+            </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)}>

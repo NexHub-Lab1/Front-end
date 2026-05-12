@@ -5,6 +5,7 @@ export type UserDetailsResponse = {
   username: string
   email: string
   bio: string
+  skills: string[]
   streakDay: number
   image_url: string
   last_active_at: Date
@@ -22,6 +23,7 @@ export type User = {
   githubId?: number | null
   githubUsername?: string | null
   profileImageUrl?: string | null
+  skills?: string[]
 }
 export type ApiResponse<T> = {
   status: 'success' | 'error'
@@ -62,18 +64,18 @@ export type GithubRepository = {
 export type ProjectResponse = {
   id: number,
   ownerId: number,
-  ownerUsername: String,
-  name: String,
-  description: String,
-  githubRepo: String,
-  status: String,
+  ownerUsername: string,
+  name: string,
+  description: string,
+  githubRepo: string,
+  status: string,
   createdAt: Date,
   updatedAt: Date,
   lastActiveAt: Date,
   completedTasksCount: number,
   starsCount: number,
   contributorCount: number,
-  tags: String[]
+  tags: string[]
 }
 
 export type ProjectForm = {

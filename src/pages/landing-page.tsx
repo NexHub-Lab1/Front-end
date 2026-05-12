@@ -6,7 +6,6 @@ import {
   FolderKanban,
   GitPullRequestArrow,
   ShieldCheck,
-  Sparkles,
   Star,
   Users,
   Zap,
@@ -158,10 +157,6 @@ export function LandingPage({
         <Card className="overflow-hidden border-blue-100/80 bg-white/85 shadow-[0_24px_80px_rgba(37,99,235,0.12)] backdrop-blur">
           <CardBody className="relative min-h-[470px] space-y-8 p-7 sm:p-9 lg:p-10">
             <div className="absolute right-8 top-8 hidden h-24 w-24 rounded-full bg-blue-100 blur-2xl sm:block" />
-            <div className="relative inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
-              <Sparkles size={14} />
-              Open-source work, funded before it starts
-            </div>
 
             <div className="relative max-w-4xl space-y-5">
               <h1 className="text-5xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-6xl lg:text-7xl">
@@ -186,11 +181,7 @@ export function LandingPage({
                 <Button variant="ghost" size="lg" onClick={() => navigate('/auth/signup')}>
                   Create account
                 </Button>
-              ) : (
-                <Button variant="ghost" size="lg" onClick={() => navigate('/profile')}>
-                  Open profile
-                </Button>
-              )}
+              ) : null}
             </div>
 
             <div className="relative grid gap-3 sm:grid-cols-3">

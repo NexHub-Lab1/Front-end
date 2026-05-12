@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -12,7 +12,6 @@ export function GithubAuthCallbackPage({
 }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [message, setMessage] = useState('Finishing GitHub sign in...')
 
   useEffect(() => {
     const error = searchParams.get('error')
@@ -42,10 +41,10 @@ export function GithubAuthCallbackPage({
         githubId: searchParams.get('githubId') ? Number(searchParams.get('githubId')) : null,
         githubUsername,
         profileImageUrl: searchParams.get('profileImageUrl'),
+        skills: [],
       },
     })
 
-    setMessage(firstGithubLogin ? 'GitHub connected. Redirecting to your repositories...' : 'GitHub connected. Redirecting...')
     navigate(firstGithubLogin && githubUsername ? '/projects?importGithub=1' : '/projects', { replace: true })
   }, [navigate, onAuthSuccess, searchParams])
 
@@ -55,7 +54,7 @@ export function GithubAuthCallbackPage({
         <CardBody className="flex flex-col items-center gap-4 p-8 text-center">
           <LoaderCircle size={28} className="animate-spin text-indigo-600" />
           <CardTitle>Connecting GitHub</CardTitle>
-          <CardDescription>{message}</CardDescription>
+          <CardDescription>Finishing GitHub sign in...</CardDescription>
         </CardBody>
       </Card>
     </main>
