@@ -141,6 +141,7 @@ export type TaskResponse = {
   rewardCurrency: string,
   deadline: Date,
   status: string,
+  fundingStatus?: string | null,
   maxAttempts: number,
   createdAt: Date,
   updatedAt: Date,
