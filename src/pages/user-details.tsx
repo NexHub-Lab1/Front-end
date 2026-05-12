@@ -28,6 +28,7 @@ export default function UserDetails({
     const [followError, setFollowError] = useState<string | null>(null)
     const [isFollowed, setIsFollowed] = useState(false)
     const currentUser = readStoredAuthUser()?.user
+    const currentUserId = currentUser?.id
 
     useEffect(() => {
         async function loadUser() {
@@ -52,8 +53,8 @@ export default function UserDetails({
                 setUserDetails(response.data)
 
                 // Check if current user has followed this user
-                if (currentUser) {
-                    const followedResponse = await getFollowedUsers(currentUser.id)
+                if (currentUserId) {
+                    const followedResponse = await getFollowedUsers(currentUserId)
                     if (followedResponse.status === "success" && followedResponse.data) {
                         const isAlreadyFollowed = followedResponse.data.some(
                             (user) => user.id === parsedId
@@ -74,7 +75,7 @@ export default function UserDetails({
         }
 
         void loadUser()
-    }, [id])
+    }, [currentUserId, id])
 
     const handleFollowClick = async () => {
         if (!currentUser || !userDetails) return
@@ -278,6 +279,20 @@ export default function UserDetails({
                                     <CardDescription className="text-base leading-7 text-slate-600">
                                         {userDetails.bio || "This developer hasn't added a bio yet."}
                                     </CardDescription>
+                                    <div className="space-y-2">
+                                        <CardTitle className="text-lg">Skills</CardTitle>
+                                        {userDetails.skills.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {userDetails.skills.map((skill) => (
+                                                    <Badge key={skill} variant="secondary">
+                                                        {skill}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <CardDescription>No skills added yet.</CardDescription>
+                                        )}
+                                    </div>
                                 </CardBody>
                             </Card>
                         </div>
