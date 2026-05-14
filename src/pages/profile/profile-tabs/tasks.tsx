@@ -8,18 +8,17 @@ import { Ban, Check, Cross, PlusIcon, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
-import type { TaskRequest, TaskResponse, ProjectResponse } from "../../../types/app";
+import type { TaskRequest, TaskResponse, ProjectLookupDTO, User } from "../../../types/app";
 
 import { createTask, fetchTasksByOwner, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
-import { fetchProjectsByCurrentUser } from "../../../lib/project-storage";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
 import { PaginationControls } from "../../../components/ui/pagination-controls";
-import { readStoredUser } from "../../../lib/auth-storage";
-import { LOOKUP_PAGE_SIZE, PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
+import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
 import type { PaginatedResponse } from "../../../types/app";
+import { readStoredProfileDashboard } from "../../../lib/dashboard-storage";
 
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
@@ -34,16 +33,21 @@ const EMPTY_TASK_FORM: TaskRequest = {
   recommendedSkills: []
 }
 
-export function TasksTab() {
-
+export function TasksTab({ 
+    user 
+}: { 
+    user: User 
+}) {
   const navigate = useNavigate()
-  const currentUser = readStoredUser()
-  const [tasksPage, setTasksPage] = useState<PaginatedResponse<TaskResponse>>(
-    createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE)
-  );
+  const [lookupProjects, setLookupProjects] = useState<ProjectLookupDTO[]>(() => {
+    return readStoredProfileDashboard()?.projectLookups || [];
+  });
+  const [tasksPage, setTasksPage] = useState<PaginatedResponse<TaskResponse>>(() => {
+    const dashboard = readStoredProfileDashboard();
+    return dashboard?.tasks || createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE);
+  });
   const [currentPage, setCurrentPage] = useState(0);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
-  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
@@ -63,55 +67,59 @@ export function TasksTab() {
     message: string;
   } | null>(null);
   const [skillsInput, setSkillsInput] = useState('')
+  const hasMounted = useRef(false)
 
-  const [taskForm, setTaskForm] = useState<TaskRequest>(EMPTY_TASK_FORM);
+  const [taskForm, setTaskForm] = useState<TaskRequest>({
+    ...EMPTY_TASK_FORM,
+    projectId: 0
+  });
 
-  const loadProjects = async () => {
-    const response = await fetchProjectsByCurrentUser({
-      page: 0,
-      size: LOOKUP_PAGE_SIZE,
-    });
-    if (response.status === 'success' && response.data) {
-      const activeProjects = response.data.content.filter(
-        (project) => project.status.toString().toLowerCase() !== 'archived'
-      )
-      setProjects(activeProjects)
-      return activeProjects
-    }
-
-    setProjects([])
-    return []
-  }
-
-  const reloadTasks = async (pageOverride = currentPage) => {
-    if (!currentUser) {
-      setTasksPage(createEmptyPaginatedResponse<TaskResponse>(pageOverride, PROFILE_PAGE_SIZE))
-      setIsLoadingTasks(false)
-      return
-    }
+  const reloadTasks = useCallback(async (pageOverride = currentPage) => {
+    if (!user?.id) return;
 
     setIsLoadingTasks(true)
-    const response = await fetchTasksByOwner(currentUser.id, {
-      page: pageOverride,
-      size: PROFILE_PAGE_SIZE,
-    });
+    try {
+      const response = await fetchTasksByOwner(user.id, {
+        page: pageOverride,
+        size: PROFILE_PAGE_SIZE,
+      });
 
-    if (response.status === 'success' && response.data) {
-      setTasksPage(response.data)
-    } else {
+      if (response.status === 'success' && response.data) {
+        setTasksPage(response.data)
+      } else {
+        setTasksPage(createEmptyPaginatedResponse<TaskResponse>(pageOverride, PROFILE_PAGE_SIZE))
+      }
+    } catch (error) {
+      console.error('Failed to reload tasks', error)
       setTasksPage(createEmptyPaginatedResponse<TaskResponse>(pageOverride, PROFILE_PAGE_SIZE))
+    } finally {
+      setIsLoadingTasks(false)
     }
-    setIsLoadingTasks(false)
-  }
+  }, [user.id, currentPage]);
 
   useEffect(() => {
-    async function loadProfileTasks() {
-      await loadProjects()
-      await reloadTasks()
+    const syncFromDashboard = () => {
+      const dashboard = readStoredProfileDashboard();
+      if (dashboard?.tasks && currentPage === 0) {
+        setTasksPage(dashboard.tasks);
+      }
+      if (dashboard?.projectLookups) {
+        setLookupProjects(dashboard.projectLookups);
+      }
+    };
+
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      if (tasksPage.content.length === 0 || currentPage > 0) {
+        void reloadTasks();
+      }
+    } else {
+      void reloadTasks();
     }
 
-    void loadProfileTasks();
-  }, [currentPage]);
+    window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
+    return () => window.removeEventListener('nexhub-dashboard-updated', syncFromDashboard);
+  }, [reloadTasks, currentPage]);
 
   function validateTaskForm() {
     const nextErrors: {
@@ -139,7 +147,7 @@ export function TasksTab() {
     }
 
     if (taskForm.projectId <= 0) {
-      nextErrors.projectId = 'Project ID is required.'
+      nextErrors.projectId = 'Project is required.'
     }
 
     setCreateErrors(nextErrors)
@@ -163,7 +171,7 @@ export function TasksTab() {
       return Number(value) > 0 ? undefined : 'Reward amount must be greater than 0.'
     }
 
-    return Number(value) > 0 ? undefined : 'Project ID is required.'
+    return Number(value) > 0 ? undefined : 'Project is required.'
   }
 
   function updateTaskError(field: keyof typeof createErrors, value: string | number) {
@@ -215,7 +223,6 @@ export function TasksTab() {
         return
       }
 
-      console.log(res.data)
       setFeedback({message: isEditMode ? "Task updated successfully" : "Task created successfully", type:"success"});
       setShowModal(false)
       setIsEditMode(false)
@@ -230,7 +237,6 @@ export function TasksTab() {
   }
 
   async function handleDeleteTask(taskId: number) {
-
     try {
       const res = await deleteTask(taskId)
       if (res.status === 'error') {
@@ -341,7 +347,7 @@ export function TasksTab() {
               }`}
             >
               <option value={0}>Select a project...</option>
-              {projects.map((project) => (
+              {lookupProjects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
@@ -436,7 +442,6 @@ export function TasksTab() {
               value={skillsInput}
               onChange={(event) => setSkillsInput(event.target.value)}
             />
-            <p className="text-xs text-slate-500 mt-1">Separate skills with commas.</p>
           </div>
 
           <div className="md:col-span-2">
@@ -553,22 +558,22 @@ export function TasksTab() {
             </div>
           </Modal>
         ) : null}
-        <section className="mt-10 h-full">
+        <section className="mt-10 h-full overflow-hidden">
           {isLoadingTasks ? (
-            <Card>
+            <Card className="shadow-none border-none">
               <CardBody className="p-6 text-center">
                 <CardDescription>Loading your tasks...</CardDescription>
               </CardBody>
             </Card>
           ) : tasksPage.content.length === 0 ? (
-            <Card>
+            <Card className="shadow-none border-none">
               <CardBody className="p-6 text-center">
                 <CardDescription>No tasks yet. Create one to get started!</CardDescription>
               </CardBody>
             </Card>
           ) : (
             <>
-              <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-scroll">
+              <div className="grid lg:grid-cols-3 h-full grid-cols-1 gap-2 overflow-y-auto pr-1 pb-4">
                 {tasksPage.content.map((task) => (
                   <Card
                     key={task.id}
@@ -579,34 +584,36 @@ export function TasksTab() {
                   >
                     <CardBody className="space-y-4 p-5">
                       <div className="space-y-2">
-                        <CardTitle className="text-xl font-medium">
+                        <CardTitle className="text-xl font-medium truncate" title={task.title}>
                           {task.title}
                         </CardTitle>
-                        <CardDescription>{task.description}</CardDescription>
+                        <CardDescription className="line-clamp-2">{task.description}</CardDescription>
                       </div>
                       
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">{task.status}</Badge>
-                        <Badge variant="outline">{task.projectName}</Badge>
+                        <Badge variant="outline" className="truncate max-w-[150px]">{task.projectName}</Badge>
                       </div>
 
-                      <div className="space-y-2 text-sm">
-                        <p><strong>Reward:</strong> {task.rewardAmount} {task.rewardCurrency}</p>
-                        <p><strong>Deliverables:</strong> {task.deliverables}</p>
-                        <p><strong>Max Attempts:</strong> {task.maxAttempts}</p>
+                      <div className="space-y-2 text-sm text-slate-600">
+                        <p><span className="font-medium text-slate-800">Reward:</span> {task.rewardAmount} {task.rewardCurrency}</p>
+                        <p><span className="font-medium text-slate-800">Max Attempts:</span> {task.maxAttempts}</p>
                       </div>
 
                       {task.recommendedSkills.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {task.recommendedSkills.map((skill) => (
-                            <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          {task.recommendedSkills.slice(0, 3).map((skill) => (
+                            <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 text-[10px]">
                               {skill}
                             </Badge>
                           ))}
+                          {task.recommendedSkills.length > 3 && (
+                            <Badge variant="outline" className="text-[10px]">+{task.recommendedSkills.length - 3}</Badge>
+                          )}
                         </div>
                       )}
 
-                      <div className="flex flex-wrap gap-2 pt-4">
+                      <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-100">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -640,7 +647,7 @@ export function TasksTab() {
                             e.stopPropagation()
                             setTaskToDelete(task)
                           }}
-                          className="flex-1"
+                          className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 size={14} />
                           Delete
