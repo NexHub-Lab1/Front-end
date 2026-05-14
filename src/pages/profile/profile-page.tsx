@@ -1,7 +1,9 @@
+import { Sparkles, Star } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppHeader } from '../../components/app/app-header'
 import { DeveloperAvatar } from '../../components/app/developer-avatar'
+import { StatLine } from '../../components/app/stat-line'
 import { Card, CardBody, CardDescription, CardTitle } from '../../components/ui/card'
 import type { AuthUser, User, ProfileDashboardDTO } from '../../types/app'
 import { ProfileTab } from './profile-tabs/profile'
@@ -125,30 +127,57 @@ export function ProfilePage({
       <AppHeader user={currentUser} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 h-[80vh] grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card>
-          <CardBody className="flex flex-col h-full gap-4 p-6">
-            <div className="flex items-center gap-4">
-              <DeveloperAvatar name={currentUser.username} />
-              <div>
-                <CardTitle className="text-2xl">{currentUser.username}</CardTitle>
-                <CardDescription>{currentUser.email}</CardDescription>
-              </div>
-            </div>
-            <hr />
-            <section className="flex flex-col gap-2">
-              {profileTabKeys.map((key) => (
-                <div
-                  key={key}
-                  className={
-                    'transition-all text-black hover:shadow-indigo-400 shadow-lg rounded-xl border-2 flex items-center h-12 cursor-pointer ' +
-                    (key === activeTabKey ? 'border-indigo-500' : 'border-gray-200')
-                  }
-                  onClick={() => changeActiveTab(key as ProfileTabKey)}
-                >
-                  <span className="pl-4">{capitalize(key)}</span>
+        <Card className="overflow-hidden">
+          <CardBody className="flex flex-col h-full gap-4 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))]">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <DeveloperAvatar name={currentUser.username} />
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+                    {currentUser.username}
+                  </CardTitle>
+                  <CardDescription className="text-sm font-medium text-slate-500">
+                    {currentUser.email}
+                  </CardDescription>
                 </div>
-              ))}
-            </section>
+              </div>
+
+              {dashboardData?.stats && (
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <StatLine 
+                    icon={<Sparkles size={16} className="text-amber-500" />} 
+                    text={`${dashboardData.stats.reputationScore} Rep`} 
+                  />
+                  <StatLine 
+                    icon={<Star size={16} className="text-blue-500" />} 
+                    text={`${dashboardData.stats.totalPoints} Pts`} 
+                  />
+                </div>
+              )}
+            </div>
+
+            <hr className="border-slate-100" />
+
+            <nav className="flex flex-col gap-2">
+              {profileTabKeys.map((key) => {
+                const isActive = key === activeTabKey
+                return (
+                  <div
+                    key={key}
+                    className={
+                      `group transition-all flex items-center h-12 px-4 rounded-xl cursor-pointer font-medium
+                      ${isActive 
+                        ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50 border border-blue-100' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent'
+                      }`
+                    }
+                    onClick={() => changeActiveTab(key as ProfileTabKey)}
+                  >
+                    {capitalize(key)}
+                  </div>
+                )
+              })}
+            </nav>
           </CardBody>
         </Card>
 
