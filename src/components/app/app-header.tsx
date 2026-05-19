@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { BrandMark } from './brand-mark'
 import { readStoredUser } from '../../lib/auth-storage'
+import { NotificationBell } from './notification-bell'
 
 export function AppHeader({
   onOpenMenu,
@@ -23,6 +24,7 @@ export function AppHeader({
         <nav className="flex items-center justify-end gap-2 sm:gap-3">
           {user ? (
             <>
+              <NotificationBell />
               <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/profile')}>
                 <User size={16} />
                 {user.username}
