@@ -369,78 +369,103 @@ export function ProfileTab({
   }
 
   return (
-    <Card>
-      <CardBody className="space-y-6 p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-center gap-4">
-            <DeveloperAvatar name={user.username} />
-            <div className="space-y-1">
-              <Badge variant="secondary" className="px-3 py-1.5 text-sm">
-                My profile
-              </Badge>
-              <CardTitle className="text-3xl">{user.username}</CardTitle>
-              <CardDescription className="text-base">{user.email}</CardDescription>
-            </div>
+    <Card className="overflow-hidden">
+      <CardBody className="space-y-8 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold uppercase tracking-wider">
+              Account Overview
+            </Badge>
+            <CardTitle className="text-3xl font-bold text-slate-900">Profile Settings</CardTitle>
+            <CardDescription className="text-base text-slate-500">
+              Manage your personal information and platform presence.
+            </CardDescription>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button variant="primary" onClick={() => setIsEditOpen(true)}>
-              <Pencil size={16} />
+            <Button variant="primary" onClick={() => setIsEditOpen(true)} className="shadow-md shadow-blue-200/50">
+              <Pencil size={16} className="mr-2" />
               Edit profile
             </Button>
-            <Button type="button" variant="outline" onClick={onSignOut}>
+            <Button type="button" variant="outline" onClick={onSignOut} className="bg-white/50 backdrop-blur-sm">
               Sign out
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
-          <Card className="shadow-none">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+            <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors">
+              <CardBody className="p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Username</span>
+                <span className="text-lg font-bold text-slate-900 truncate">{user.username}</span>
+              </CardBody>
+            </Card>
+            <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors">
+              <CardBody className="p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Address</span>
+                <span className="text-lg font-bold text-slate-900 truncate">{user.email}</span>
+              </CardBody>
+            </Card>
+            <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors col-span-2 md:col-span-1">
+              <CardBody className="p-4 flex flex-col gap-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Auth Provider</span>
+                <span className="text-lg font-bold text-slate-900">{isGithubUser ? 'GitHub' : 'Credentials'}</span>
+              </CardBody>
+            </Card>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="shadow-none bg-white/60 border-slate-100">
             <CardBody className="space-y-4 p-6">
-              <CardTitle className="text-xl">Profile overview</CardTitle>
-              <CardDescription className="text-base leading-7 text-slate-600">
-                Your account information is shown here. Use edit profile when you want to update your username,
-                email{isGithubUser ? '.' : ', or password.'}
+              <div className="flex items-center gap-2">
+                 <Shield size={20} className="text-blue-500" />
+                 <CardTitle className="text-xl">Security & Privacy</CardTitle>
+              </div>
+              <CardDescription className="text-sm leading-6 text-slate-600">
+                {isGithubUser
+                  ? 'Your account is linked with GitHub. Security is managed through your GitHub account settings.'
+                  : 'To keep your account secure, ensure you use a strong password. You can change your password by clicking the Edit Profile button above.'}
               </CardDescription>
             </CardBody>
           </Card>
 
-          <Card className="shadow-none">
+          <Card className="shadow-none bg-white/60 border-slate-100">
             <CardBody className="space-y-4 p-6">
-              <CardTitle className="text-xl">Current information</CardTitle>
-              <div className="grid gap-3 text-sm text-slate-600">
-                {profileRows.map((row) => (
-                  <div key={row.label} className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-2 font-medium text-slate-700">
-                      {row.icon}
-                      <span>{row.label}</span>
-                    </div>
-                    <span className="max-w-[220px] text-right">{row.value}</span>
-                  </div>
-                ))}
+              <div className="flex items-center gap-2">
+                 <LoaderCircle size={20} className="text-blue-500" />
+                 <CardTitle className="text-xl">Platform Status</CardTitle>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-sm font-medium text-slate-700">Active Contributor</span>
+              </div>
+              <CardDescription className="text-xs text-slate-500">
+                Account created: {new Date().toLocaleDateString()} {/* Placeholder for real date */}
+              </CardDescription>
             </CardBody>
           </Card>
         </div>
 
-        <Card className="shadow-none">
+        <Card className="shadow-none bg-white/60 border-slate-100">
           <CardBody className="space-y-4 p-6">
             <div className="space-y-2">
-              <CardTitle className="text-xl">Skills</CardTitle>
-              <CardDescription>
-                These tags help NexHub understand what kind of tasks fit your profile.
+              <CardTitle className="text-xl">Expertise & Skills</CardTitle>
+              <CardDescription className="text-sm">
+                These tags showcase your technical strengths and help personalize your experience.
               </CardDescription>
             </div>
             {user.skills && user.skills.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 {user.skills.map((skill) => (
-                  <Badge key={skill} variant="secondary">
+                  <Badge key={skill} variant="secondary" className="bg-blue-100/50 text-blue-700 border-blue-100 hover:bg-blue-100">
                     {skill}
                   </Badge>
                 ))}
               </div>
             ) : (
-              <CardDescription>No skills added yet.</CardDescription>
+              <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center">
+                 <CardDescription>No skills highlighted yet. Add some to stand out!</CardDescription>
+              </div>
             )}
           </CardBody>
         </Card>

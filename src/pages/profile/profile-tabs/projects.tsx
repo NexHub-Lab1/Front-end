@@ -8,10 +8,10 @@ import { Check, Cross, PlusIcon, Star, Users } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
-import type { ProjectForm, ProjectResponse } from "../../../types/app";
+import type { ProjectForm, ProjectResponse, User } from "../../../types/app";
 
 import { createProject, fetchProjectsByCurrentUser } from "../../../lib/project-storage";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, useCallback, useRef } from "react";
 import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
@@ -20,15 +20,20 @@ import { useNavigate } from "react-router-dom";
 import { isGithubRepositoryUrl } from "../../../lib/github-url";
 import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
 import type { PaginatedResponse } from "../../../types/app";
+import { readStoredProfileDashboard } from "../../../lib/dashboard-storage";
 
-export function ProjectsTab() {
-
+export function ProjectsTab({ 
+    user 
+}: { 
+    user: User 
+}) {
   const navigate = useNavigate()
-  const [projectsPage, setProjectsPage] = useState<PaginatedResponse<ProjectResponse>>(
-    createEmptyPaginatedResponse<ProjectResponse>(0, PROFILE_PAGE_SIZE)
-  );
+  const [projectsPage, setProjectsPage] = useState<PaginatedResponse<ProjectResponse>>(() => {
+    const dashboard = readStoredProfileDashboard();
+    return dashboard?.projects || createEmptyPaginatedResponse<ProjectResponse>(0, PROFILE_PAGE_SIZE);
+  });
   const [currentPage, setCurrentPage] = useState(0);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [createErrors, setCreateErrors] = useState<{
     name?: string
@@ -43,10 +48,11 @@ export function ProjectsTab() {
     message: string;
   } | null>(null);
   const [tagsInput, setTagsInput] = useState('')
+  const hasMounted = useRef(false)
 
   const [projectForm, setProjectForm] = useState<ProjectForm>({
     name: "",
-    ownerId: 0,
+    ownerId: user?.id || 0,
     description: "",
     githubRepo: "",
     status: "",
@@ -60,7 +66,7 @@ export function ProjectsTab() {
     setIsSubmitting(false)
     setProjectForm({
       name: "",
-      ownerId: 0,
+      ownerId: user?.id || 0,
       description: "",
       githubRepo: "",
       status: "",
@@ -68,24 +74,50 @@ export function ProjectsTab() {
     })
   }
 
-  const reloadProjects = async (pageOverride = currentPage) => {
+  const reloadProjects = useCallback(async (pageOverride = currentPage) => {
+    if (!user?.id) return;
+    
     setIsLoadingProjects(true)
-    const response = await fetchProjectsByCurrentUser({
-      page: pageOverride,
-      size: PROFILE_PAGE_SIZE,
-    });
+    try {
+      const response = await fetchProjectsByCurrentUser({
+        page: pageOverride,
+        size: PROFILE_PAGE_SIZE,
+      });
 
-    if (response.status === 'success' && response.data) {
-      setProjectsPage(response.data)
-    } else {
+      if (response.status === 'success' && response.data) {
+        setProjectsPage(response.data)
+      } else {
+        setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(pageOverride, PROFILE_PAGE_SIZE))
+      }
+    } catch (error) {
+      console.error('Failed to reload projects', error)
       setProjectsPage(createEmptyPaginatedResponse<ProjectResponse>(pageOverride, PROFILE_PAGE_SIZE))
+    } finally {
+      setIsLoadingProjects(false)
     }
-    setIsLoadingProjects(false)
-  }
+  }, [user.id, currentPage]);
 
   useEffect(() => {
-    void reloadProjects();
-  }, [currentPage]);
+    const syncFromDashboard = () => {
+      const dashboard = readStoredProfileDashboard();
+      if (dashboard?.projects && currentPage === 0) {
+        setProjectsPage(dashboard.projects);
+      }
+    };
+
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      // If we don't have content and it's page 0, we can skip if dashboard loaded it
+      if (projectsPage.content.length === 0 || currentPage > 0) {
+        void reloadProjects();
+      }
+    } else {
+      void reloadProjects();
+    }
+
+    window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
+    return () => window.removeEventListener('nexhub-dashboard-updated', syncFromDashboard);
+  }, [reloadProjects, currentPage]);
 
   function validateProjectForm() {
     const nextErrors: {
@@ -160,32 +192,31 @@ export function ProjectsTab() {
     setIsSubmitting(true);
     setFeedback(null);
 
-    await createProject({
-      ...projectForm,
-      tags: tagsInput
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-    })
-      .then((res) => {
-        setIsSubmitting(false)
-        if (res.status === 'error' || !res.data) {
-          setFeedback({message: res.message || "Error", type:"error"})
-          return
-        }
-        
-        console.log(res.data)
-        setIsSubmitting(false)
-        setFeedback({message: "Project created successfully", type:"success"});
-        setShowModal(false)
-        resetProjectForm()
-        setCurrentPage(0)
-        void reloadProjects(0)
+    try {
+      const res = await createProject({
+        ...projectForm,
+        tags: tagsInput
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
       })
-      .catch((res) => console.log(res))
+      
+      setIsSubmitting(false)
+      if (res.status === 'error' || !res.data) {
+        setFeedback({message: res.message || "Error", type:"error"})
+        return
+      }
+      
+      setFeedback({message: "Project created successfully", type:"success"});
+      setShowModal(false)
+      resetProjectForm()
+      setCurrentPage(0)
+      void reloadProjects(0)
+    } catch (error) {
+      setFeedback({message: "Error creating project", type:"error"})
+      setIsSubmitting(false)
+    }
   }
-
-
 
   const displayModal = () => {
     if (!showModal) return null;
@@ -339,22 +370,22 @@ export function ProjectsTab() {
           </Card>
         ) : null}
         {displayModal()}
-        <section className="mt-10 h-full">
+        <section className="mt-10 h-full overflow-hidden">
           {isLoadingProjects ? (
-            <Card className="shadow-none">
+            <Card className="shadow-none border-none">
               <CardBody className="p-6 text-center">
                 <CardDescription>Loading your projects...</CardDescription>
               </CardBody>
             </Card>
           ) : projectsPage.content.length === 0 ? (
-            <Card className="shadow-none">
+            <Card className="shadow-none border-none">
               <CardBody className="p-6 text-center">
                 <CardDescription>No projects yet. Create one to get started.</CardDescription>
               </CardBody>
             </Card>
           ) : (
             <>
-              <div className="grid h-full auto-rows-fr grid-cols-1 gap-4 overflow-y-auto pr-1 lg:grid-cols-3">
+              <div className="grid h-full auto-rows-fr grid-cols-1 gap-4 overflow-y-auto pr-1 lg:grid-cols-3 pb-4">
                 {projectsPage.content.map((project) => (
                   <Card
                     className="h-fit"
@@ -368,14 +399,14 @@ export function ProjectsTab() {
                         <CardTitle className="break-words text-2xl font-medium leading-tight">
                           {project.name}
                         </CardTitle>
-                        <CardDescription className="break-words">{project.description}</CardDescription>
+                        <CardDescription className="line-clamp-2">{project.description}</CardDescription>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {project.tags.map((tag) => (
-                          <Badge variant='outline' key={String(tag)}>{tag}</Badge>
+                        {project.tags.slice(0, 3).map((tag) => (
+                          <Badge variant='outline' key={String(tag)} className="text-[10px]">{tag}</Badge>
                         ))}
                       </div>
-                      <div className="mt-auto flex flex-wrap gap-4">
+                      <div className="mt-auto flex flex-wrap gap-4 pt-4 border-t border-slate-100">
                         <StatLine
                           icon={<Star size={14} className="text-amber-400" />}
                           text={`${project.starsCount} stars`}

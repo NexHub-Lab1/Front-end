@@ -1,16 +1,18 @@
-import { useEffect, useState, type ReactElement } from 'react'
+import { Sparkles, Star } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppHeader } from '../../components/app/app-header'
 import { DeveloperAvatar } from '../../components/app/developer-avatar'
+import { StatLine } from '../../components/app/stat-line'
 import { Card, CardBody, CardDescription, CardTitle } from '../../components/ui/card'
-import type { AuthUser } from '../../types/app'
+import type { AuthUser, User, ProfileDashboardDTO } from '../../types/app'
 import { ProfileTab } from './profile-tabs/profile'
 import { ProjectsTab } from './profile-tabs/projects'
 import { TasksTab } from './profile-tabs/tasks'
 import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
-import { readStoredUser } from '../../lib/auth-storage'
+import { fetchProfileDashboard, readStoredProfileDashboard } from '../../lib/dashboard-storage'
 
 const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions'] as const
 
@@ -21,33 +23,52 @@ function isProfileTabKey(value: string | null): value is ProfileTabKey {
 }
 
 export function ProfilePage({
+  currentUser,
   onUserUpdate,
   onSignOut,
   onOpenMenu,
 }: {
+  currentUser: User
   onUserUpdate: (user: AuthUser) => void
   onSignOut: () => void
   onOpenMenu: () => void
 }) {
-  const user = readStoredUser()
   const [searchParams, setSearchParams] = useSearchParams()
-  if (!user) return (
-    <div>No user registered, please login or sign up.</div>
-  )
-
-  const renderedTabs: Record<ProfileTabKey, ReactElement> = {
-    profile: <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />,
-    projects: <ProjectsTab />,
-    tasks: <TasksTab />,
-    'assigned-tasks': <AssignedTasksTab />,
-    'to-review': <ToReviewTab />,
-    submissions: <SubmissionsTab />,
-  }
+  const [dashboardData, setDashboardData] = useState<ProfileDashboardDTO | null>(readStoredProfileDashboard())
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(!dashboardData)
 
   const [activeTabKey, setActiveTabKey] = useState<ProfileTabKey>(() => {
     const tabParam = searchParams.get('tab')
     return isProfileTabKey(tabParam) ? tabParam : 'profile'
   })
+
+  const loadDashboard = useCallback(async () => {
+    if (!currentUser?.id) return;
+    
+    // Only show spinner if we don't have any data yet
+    // We use a functional update or a ref to check the latest data without depending on it
+    setIsLoadingDashboard(prevLoading => {
+      // If we already have data, don't trigger the "Loading..." full-screen state
+      return dashboardData ? false : true;
+    });
+    
+    try {
+      const response = await fetchProfileDashboard(currentUser.id)
+      if (response.status === 'success' && response.data) {
+        setDashboardData(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to load profile dashboard', error)
+    } finally {
+      setIsLoadingDashboard(false)
+    }
+    // We intentionally omit dashboardData from here to prevent an infinite loop
+    // because dashboardData is updated by this very function.
+  }, [currentUser?.id])
+
+  useEffect(() => {
+    void loadDashboard()
+  }, [loadDashboard])
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
@@ -55,16 +76,15 @@ export function ProfilePage({
       if (tabParam !== activeTabKey) {
         setActiveTabKey(tabParam)
       }
-      return
+    } else {
+      setSearchParams({ tab: activeTabKey }, { replace: true })
     }
-
-    setSearchParams({ tab: activeTabKey }, { replace: true })
   }, [activeTabKey, searchParams, setSearchParams])
 
   function capitalize(str: string) {
     return str
       .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
   }
 
@@ -73,42 +93,96 @@ export function ProfilePage({
     setSearchParams({ tab: tabKey })
   }
 
-  function showTabs() {
-    return profileTabKeys.map((key) => {
-      return (
-        <div key={key} className={
-          "transition-all text-black hover:shadow-indigo-400 shadow-lg rounded-xl border-2  flex items-center h-12 "
-          + (key === activeTabKey ? "border-indigo-500" : "border-gray-200")
-          } onClick={() => changeActiveTab(key as ProfileTabKey)}>
-          <span className="pl-4">{capitalize(key)}</span>
-        </div>
-      )
-    })
+  function renderActiveTab() {
+    if (isLoadingDashboard && !dashboardData) {
+        return (
+            <Card className="w-full">
+                <CardBody className="p-12 text-center">
+                    <CardDescription>Preparing your dashboard...</CardDescription>
+                </CardBody>
+            </Card>
+        )
+    }
+
+    switch (activeTabKey) {
+      case 'profile':
+        return <ProfileTab user={currentUser} stats={dashboardData?.stats} onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
+      case 'projects':
+        return <ProjectsTab user={currentUser} />
+      case 'tasks':
+        return <TasksTab user={currentUser} />
+      case 'assigned-tasks':
+        return <AssignedTasksTab user={currentUser} />
+      case 'to-review':
+        return <ToReviewTab user={currentUser} />
+      case 'submissions':
+        return <SubmissionsTab user={currentUser} />
+      default:
+        return <ProfileTab user={currentUser} stats={dashboardData?.stats} onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
+    }
   }
 
   return (
-      <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-        <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
+    <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+      <AppHeader user={currentUser} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
-        <section className="mx-auto mt-6 h-[80vh] grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <Card>
-            <CardBody className="flex flex-col h-full gap-4 p-6">
+      <section className="mx-auto mt-6 h-[80vh] grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className="overflow-hidden">
+          <CardBody className="flex flex-col h-full gap-4 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))]">
+            <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <DeveloperAvatar name={user.username} />
-                <div>
-                  <CardTitle className="text-2xl">{user.username}</CardTitle>
-                  <CardDescription>{user.email}</CardDescription>
+                <DeveloperAvatar name={currentUser.username} />
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+                    {currentUser.username}
+                  </CardTitle>
+                  <CardDescription className="text-sm font-medium text-slate-500">
+                    {currentUser.email}
+                  </CardDescription>
                 </div>
               </div>
-              <hr />
-              <section className="flex flex-col gap-2">
-                {showTabs()}
-              </section>
-            </CardBody>
-          </Card>
 
-          {renderedTabs[activeTabKey]}
-        </section>
-      </main>
-    )
+              {dashboardData?.stats && (
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <StatLine 
+                    icon={<Sparkles size={16} className="text-amber-500" />} 
+                    text={`${dashboardData.stats.reputationScore} Rep`} 
+                  />
+                  <StatLine 
+                    icon={<Star size={16} className="text-blue-500" />} 
+                    text={`${dashboardData.stats.totalPoints} Pts`} 
+                  />
+                </div>
+              )}
+            </div>
+
+            <hr className="border-slate-100" />
+
+            <nav className="flex flex-col gap-2">
+              {profileTabKeys.map((key) => {
+                const isActive = key === activeTabKey
+                return (
+                  <div
+                    key={key}
+                    className={
+                      `group transition-all flex items-center h-12 px-4 rounded-xl cursor-pointer font-medium
+                      ${isActive 
+                        ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50 border border-blue-100' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent'
+                      }`
+                    }
+                    onClick={() => changeActiveTab(key as ProfileTabKey)}
+                  >
+                    {capitalize(key)}
+                  </div>
+                )
+              })}
+            </nav>
+          </CardBody>
+        </Card>
+
+        {renderActiveTab()}
+      </section>
+    </main>
+  )
 }

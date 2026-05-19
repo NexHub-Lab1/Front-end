@@ -81,6 +81,7 @@ function App() {
           element={
             currentUser ? (
               <ProfilePage
+                currentUser={currentUser}
                 onUserUpdate={handleUserUpdate}
                 onSignOut={handleSignOut}
                 onOpenMenu={() => setIsMenuOpen(true)}

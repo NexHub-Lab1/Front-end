@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { AlertCircle, Check, RefreshCw, X } from 'lucide-react'
 
 import { Badge } from '../../../components/ui/badge'
@@ -6,18 +6,22 @@ import { Button } from '../../../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
 import Modal from '../../../components/ui/modal'
 import { PaginationControls } from '../../../components/ui/pagination-controls'
-import { readStoredUser } from '../../../lib/auth-storage'
 import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from '../../../lib/pagination'
 import { fetchSubmissionsToReview, updateSubmission } from '../../../lib/submission-storage'
-import type { PaginatedResponse, TaskSubmissionResponse } from '../../../types/app'
+import type { PaginatedResponse, TaskSubmissionResponse, User } from '../../../types/app'
+import { readStoredProfileDashboard } from '../../../lib/dashboard-storage'
 
-export function ToReviewTab() {
-  const currentUser = readStoredUser()
-  const [submissionsPage, setSubmissionsPage] = useState<PaginatedResponse<TaskSubmissionResponse>>(
-    createEmptyPaginatedResponse<TaskSubmissionResponse>(0, PROFILE_PAGE_SIZE),
-  )
+export function ToReviewTab({ 
+    user 
+}: { 
+    user: User 
+}) {
+  const [submissionsPage, setSubmissionsPage] = useState<PaginatedResponse<TaskSubmissionResponse>>(() => {
+    const dashboard = readStoredProfileDashboard();
+    return dashboard?.toReview || createEmptyPaginatedResponse<TaskSubmissionResponse>(0, PROFILE_PAGE_SIZE);
+  })
   const [currentPage, setCurrentPage] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [selectedSubmission, setSelectedSubmission] = useState<TaskSubmissionResponse | null>(null)
@@ -25,18 +29,16 @@ export function ToReviewTab() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
   const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const hasMounted = useRef(false)
 
-  const loadSubmissionsToReview = async (pageOverride = currentPage) => {
+  const loadSubmissionsToReview = useCallback(async (pageOverride = currentPage) => {
+    if (!user?.id) return;
+
     try {
       setIsLoading(true)
       setLoadError(null)
 
-      if (!currentUser) {
-        setSubmissionsPage(createEmptyPaginatedResponse<TaskSubmissionResponse>(pageOverride, PROFILE_PAGE_SIZE))
-        return
-      }
-
-      const response = await fetchSubmissionsToReview(currentUser.id, {
+      const response = await fetchSubmissionsToReview(user.id, {
         page: pageOverride,
         size: PROFILE_PAGE_SIZE,
         sort: ['submittedAt,desc'],
@@ -50,16 +52,34 @@ export function ToReviewTab() {
 
       setSubmissionsPage(response.data)
     } catch (error) {
+      console.error('Failed to load submissions to review', error)
       setSubmissionsPage(createEmptyPaginatedResponse<TaskSubmissionResponse>(pageOverride, PROFILE_PAGE_SIZE))
       setLoadError(error instanceof Error ? error.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user.id, currentPage]);
 
   useEffect(() => {
-    void loadSubmissionsToReview()
-  }, [currentPage])
+    const syncFromDashboard = () => {
+      const dashboard = readStoredProfileDashboard();
+      if (dashboard?.toReview && currentPage === 0) {
+        setSubmissionsPage(dashboard.toReview);
+      }
+    };
+
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      if (submissionsPage.content.length === 0 || currentPage > 0) {
+        void loadSubmissionsToReview();
+      }
+    } else {
+      void loadSubmissionsToReview();
+    }
+
+    window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
+    return () => window.removeEventListener('nexhub-dashboard-updated', syncFromDashboard);
+  }, [loadSubmissionsToReview, currentPage]);
 
   const handleReview = (submission: TaskSubmissionResponse, approved: boolean) => {
     setSelectedSubmission(submission)
@@ -69,7 +89,7 @@ export function ToReviewTab() {
   }
 
   const submitReview = async () => {
-    if (!selectedSubmission || !currentUser) return
+    if (!selectedSubmission || !user?.id) return
 
     const approved = reviewAction === 'approve'
 
@@ -82,7 +102,7 @@ export function ToReviewTab() {
         pullRequestUrl: selectedSubmission.pullRequestUrl,
         status: approved ? 'APPROVED' : 'REJECTED',
         reviewComments: reviewComments.trim() || (approved ? 'Approved' : 'Rejected'),
-        reviewerId: currentUser.id,
+        reviewerId: user.id,
       })
 
       if (result.status === 'success') {
@@ -110,10 +130,10 @@ export function ToReviewTab() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading && submissionsPage.content.length === 0) {
     return (
-      <Card>
-        <CardBody className="p-6 space-y-3">
+      <Card className="border-none shadow-none">
+        <CardBody className="p-10 text-center space-y-3">
           <CardTitle className="text-2xl">Loading...</CardTitle>
           <CardDescription>Fetching submissions to review...</CardDescription>
         </CardBody>
@@ -123,13 +143,13 @@ export function ToReviewTab() {
 
   if (loadError) {
     return (
-      <Card>
-        <CardBody className="p-6 space-y-4">
-          <div className="flex items-center gap-2 text-red-600">
-            <AlertCircle size={20} />
+      <Card className="border-red-100 bg-red-50/70 shadow-none">
+        <CardBody className="p-8 text-center space-y-4">
+          <div className="flex flex-col items-center gap-2 text-red-600">
+            <AlertCircle size={32} />
             <CardTitle className="text-2xl">Error Loading Submissions</CardTitle>
           </div>
-          <CardDescription className="text-red-700">{loadError}</CardDescription>
+          <CardDescription className="text-red-700 max-w-sm mx-auto">{loadError}</CardDescription>
           <Button
             variant="outline"
             onClick={() => void loadSubmissionsToReview(currentPage)}
@@ -157,23 +177,29 @@ export function ToReviewTab() {
             variant="outline"
             size="sm"
             onClick={() => void loadSubmissionsToReview(currentPage)}
+            disabled={isLoading}
           >
-            <RefreshCw size={14} className="mr-2" />
+            <RefreshCw size={14} className={isLoading ? "animate-spin mr-2" : "mr-2"} />
             Refresh
           </Button>
         </div>
 
         {reviewFeedback ? (
           <Card
-            className={`shadow-none ${
+            className={`shadow-none border-2 ${
               reviewFeedback.type === 'success'
-                ? 'border-green-200 bg-green-50'
-                : 'border-red-200 bg-red-50'
+                ? 'border-green-100 bg-green-50'
+                : 'border-red-100 bg-red-50'
             }`}
           >
-            <CardBody className="p-4">
+            <CardBody className="p-4 flex items-center gap-3">
+              {reviewFeedback.type === 'success' ? (
+                <Check size={18} className="text-green-600" />
+              ) : (
+                <X size={18} className="text-red-600" />
+              )}
               <CardDescription
-                className={reviewFeedback.type === 'success' ? 'text-green-700' : 'text-red-700'}
+                className={reviewFeedback.type === 'success' ? 'text-green-800 font-medium' : 'text-red-800 font-medium'}
               >
                 {reviewFeedback.message}
               </CardDescription>
@@ -181,8 +207,8 @@ export function ToReviewTab() {
           </Card>
         ) : null}
 
-        {submissionsPage.content.length === 0 ? (
-          <div className="py-8 text-center">
+        {submissionsPage.content.length === 0 && !isLoading ? (
+          <div className="py-12 text-center border-2 border-dashed rounded-xl">
             <CardDescription className="text-base">
               No submissions to review at the moment.
             </CardDescription>
@@ -193,47 +219,44 @@ export function ToReviewTab() {
               {submissionsPage.content.map((submission) => (
                 <div
                   key={submission.id}
-                  className="rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md"
+                  className="rounded-lg border border-slate-200 p-4 transition-all hover:shadow-md hover:border-blue-200"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-semibold text-base">{submission.taskTitle}</h3>
-                        <p className="text-sm text-gray-600">{submission.projectName}</p>
+                        <h3 className="font-semibold text-lg line-clamp-1">{submission.taskTitle}</h3>
+                        <p className="text-sm text-slate-500 line-clamp-1">{submission.projectName}</p>
                       </div>
-                      <Badge variant="secondary" className="border-yellow-200 bg-yellow-50 text-yellow-700">
+                      <Badge variant="secondary" className="border-amber-100 bg-amber-50 text-amber-700">
                         {submission.status}
                       </Badge>
                     </div>
 
-                    <div className="space-y-1 text-sm">
-                      <p className="text-gray-600">
-                        <span className="font-medium">Submitted by:</span> {submission.username}
+                    <div className="space-y-2 text-sm border-t border-slate-50 pt-3">
+                      <p className="text-slate-600 flex items-center gap-2">
+                        <span className="font-medium text-slate-800">By:</span> {submission.username}
                       </p>
-                      <p className="text-gray-600">
-                        <span className="font-medium">PR:</span>{' '}
+                      <p className="text-slate-600">
+                        <span className="font-medium text-slate-800">Submitted:</span>{' '}
+                        {new Date(submission.submittedAt).toLocaleDateString()}
+                      </p>
+                      <p className="text-slate-600">
+                        <span className="font-medium text-slate-800">Attempt:</span> {submission.attemptsUsed}
+                      </p>
+                      <div className="bg-slate-50 rounded-md p-2 mt-1">
+                        <p className="font-medium text-slate-700 text-xs mb-1 uppercase tracking-tight">Pull Request</p>
                         <a
                           href={submission.pullRequestUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="break-all text-blue-600 hover:underline"
+                          className="break-all text-blue-600 hover:underline font-mono text-[11px]"
                         >
-                          {submission.pullRequestUrl.length > 50
-                            ? submission.pullRequestUrl.substring(0, 50) + '...'
-                            : submission.pullRequestUrl}
+                          {submission.pullRequestUrl}
                         </a>
-                      </p>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Submitted:</span>{' '}
-                        {new Date(submission.submittedAt).toLocaleDateString()} at{' '}
-                        {new Date(submission.submittedAt).toLocaleTimeString()}
-                      </p>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Attempt:</span> {submission.attemptsUsed}
-                      </p>
+                      </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-2">
                       <Button
                         variant="primary"
                         size="sm"
@@ -247,7 +270,7 @@ export function ToReviewTab() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleReview(submission, false)}
-                        className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                        className="flex-1 border-red-100 text-red-600 hover:bg-red-50 hover:border-red-200"
                       >
                         <X size={14} className="mr-1" />
                         Reject
@@ -281,31 +304,13 @@ export function ToReviewTab() {
           title={`Review Submission`}
         >
           <div className="space-y-4">
-            <div className="space-y-2 rounded-lg bg-gray-50 p-4">
-              <p className="text-sm">
-                <span className="font-medium">Task:</span> {selectedSubmission.taskTitle}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Project:</span> {selectedSubmission.projectName}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Submitted by:</span> {selectedSubmission.username}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">PR URL:</span>{' '}
-                <a
-                  href={selectedSubmission.pullRequestUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  View Pull Request
-                </a>
-              </p>
+            <div className="space-y-2 rounded-lg bg-slate-50 p-4 border border-slate-100">
+              <p className="text-sm"><span className="font-semibold text-slate-700">Task:</span> {selectedSubmission.taskTitle}</p>
+              <p className="text-sm"><span className="font-semibold text-slate-700">PR:</span> <a href={selectedSubmission.pullRequestUrl} target="_blank" className="text-blue-600 hover:underline">{selectedSubmission.pullRequestUrl}</a></p>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium">
+              <label className="block text-sm font-medium text-slate-800">
                 Review Comments {reviewAction === 'reject' && <span className="text-red-600">*</span>}
               </label>
               <textarea
@@ -315,25 +320,25 @@ export function ToReviewTab() {
                   ? "Add your feedback (optional)"
                   : "Please explain why you're rejecting this submission"}
                 rows={4}
-                className={`w-full rounded-md border p-2 text-sm focus:border-transparent focus:ring-2 ${
+                className={`w-full rounded-lg border p-3 text-sm focus:outline-none focus:ring-4 ${
                   reviewAction === 'reject' && !reviewComments.trim()
-                    ? 'border-red-300 focus:ring-red-200'
-                    : 'border-gray-300 focus:ring-blue-500'
+                    ? 'border-red-200 focus:ring-red-100'
+                    : 'border-slate-200 focus:ring-blue-100 focus:border-blue-400'
                 }`}
               />
               {reviewAction === 'reject' && !reviewComments.trim() && (
-                <p className="text-xs text-red-600">Comments are required when rejecting a submission</p>
+                <p className="text-xs text-red-600 font-medium">Comments are required when rejecting a submission</p>
               )}
             </div>
 
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
-              <p className="text-sm text-blue-700">
+            <div className={`rounded-lg border p-4 ${reviewAction === 'approve' ? 'border-green-100 bg-green-50/50' : 'border-amber-100 bg-amber-50/50'}`}>
+              <p className={`text-sm ${reviewAction === 'approve' ? 'text-green-800' : 'text-amber-800'}`}>
                 You are about to <strong>{reviewAction === 'approve' ? 'approve' : 'reject'}</strong> this submission.
                 {reviewAction === 'reject' && ' The contributor will be notified and can submit again if attempts remain.'}
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               <Button
                 variant="primary"
                 onClick={submitReview}
@@ -343,7 +348,7 @@ export function ToReviewTab() {
                 {isSubmitting ? 'Submitting...' : (reviewAction === 'approve' ? 'Approve' : 'Reject')}
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={() => {
                   setShowReviewModal(false)
                   setSelectedSubmission(null)

@@ -1,29 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
 import { PaginationControls } from '../../../components/ui/pagination-controls'
-import { readStoredUser } from '../../../lib/auth-storage'
-import type { PaginatedResponse, TaskSubmissionResponse } from '../../../types/app'
+import type { PaginatedResponse, TaskSubmissionResponse, User } from '../../../types/app'
 import { fetchSubmissionsByUser } from '../../../lib/submission-storage'
 import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from '../../../lib/pagination'
+import { readStoredProfileDashboard } from '../../../lib/dashboard-storage'
 
-export function SubmissionsTab() {
-  const currentUser = readStoredUser()
-  const [submissionsPage, setSubmissionsPage] = useState<PaginatedResponse<TaskSubmissionResponse>>(
-    createEmptyPaginatedResponse<TaskSubmissionResponse>(0, PROFILE_PAGE_SIZE),
-  )
+export function SubmissionsTab({ 
+    user 
+}: { 
+    user: User 
+}) {
+  const [submissionsPage, setSubmissionsPage] = useState<PaginatedResponse<TaskSubmissionResponse>>(() => {
+    const dashboard = readStoredProfileDashboard();
+    return dashboard?.submissions || createEmptyPaginatedResponse<TaskSubmissionResponse>(0, PROFILE_PAGE_SIZE);
+  })
   const [currentPage, setCurrentPage] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const hasMounted = useRef(false)
 
-  const loadUserSubmissions = async (pageOverride = currentPage) => {
+  const loadUserSubmissions = useCallback(async (pageOverride = currentPage) => {
+    if (!user?.id) return;
+
     try {
       setIsLoading(true)
-      if (!currentUser) {
-        setSubmissionsPage(createEmptyPaginatedResponse<TaskSubmissionResponse>(pageOverride, PROFILE_PAGE_SIZE))
-        return
-      }
 
-      const result = await fetchSubmissionsByUser(currentUser.id, {
+      const result = await fetchSubmissionsByUser(user.id, {
         page: pageOverride,
         size: PROFILE_PAGE_SIZE,
         sort: ['submittedAt,desc'],
@@ -39,11 +42,28 @@ export function SubmissionsTab() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user.id, currentPage]);
 
   useEffect(() => {
-    void loadUserSubmissions()
-  }, [currentPage])
+    const syncFromDashboard = () => {
+      const dashboard = readStoredProfileDashboard();
+      if (dashboard?.submissions && currentPage === 0) {
+        setSubmissionsPage(dashboard.submissions);
+      }
+    };
+
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      if (submissionsPage.content.length === 0 || currentPage > 0) {
+        void loadUserSubmissions();
+      }
+    } else {
+      void loadUserSubmissions();
+    }
+
+    window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
+    return () => window.removeEventListener('nexhub-dashboard-updated', syncFromDashboard);
+  }, [loadUserSubmissions, currentPage]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -59,22 +79,11 @@ export function SubmissionsTab() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading && submissionsPage.content.length === 0) {
     return (
-      <Card>
-        <CardBody className="p-6 space-y-3">
+      <Card className="border-none shadow-none">
+        <CardBody className="p-10 text-center space-y-3">
           <CardTitle className="text-2xl">Loading...</CardTitle>
-        </CardBody>
-      </Card>
-    )
-  }
-
-  if (submissionsPage.content.length === 0) {
-    return (
-      <Card>
-        <CardBody className="p-6 space-y-3">
-          <CardTitle className="text-2xl">My Submissions</CardTitle>
-          <CardDescription>You haven't submitted any tasks yet.</CardDescription>
         </CardBody>
       </Card>
     )
@@ -85,83 +94,89 @@ export function SubmissionsTab() {
       <CardBody className="p-6 space-y-6">
         <div>
           <CardTitle className="text-2xl mb-4">My Submissions</CardTitle>
-          <div className="space-y-3">
-            {submissionsPage.content.map((submission) => (
-              <div
-                key={submission.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-base">{submission.taskTitle}</h3>
-                    <p className="text-sm text-gray-600">{submission.projectName}</p>
-                  </div>
-                  <Badge variant="secondary" className={getStatusColor(submission.status)}>
-                    {submission.status}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
-                  <div>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Submitted:</span>{' '}
-                      {new Date(submission.submittedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {submission.reviewedAt && (
+          
+          {submissionsPage.content.length === 0 && !isLoading ? (
+            <div className="py-12 text-center border-2 border-dashed rounded-xl">
+              <CardDescription className="text-base">You haven't submitted any tasks yet.</CardDescription>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {submissionsPage.content.map((submission) => (
+                <div
+                  key={submission.id}
+                  className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-all hover:border-blue-200"
+                >
+                  <div className="flex items-start justify-between mb-4">
                     <div>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Reviewed:</span>{' '}
-                        {new Date(submission.reviewedAt).toLocaleDateString()}
-                      </p>
+                      <h3 className="font-semibold text-lg line-clamp-1">{submission.taskTitle}</h3>
+                      <p className="text-sm text-slate-500 line-clamp-1">{submission.projectName}</p>
                     </div>
-                  )}
-                  <div>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Attempts used:</span> {submission.attemptsUsed}
-                    </p>
+                    <Badge variant="secondary" className={`border-slate-100 ${getStatusColor(submission.status)}`}>
+                      {submission.status}
+                    </Badge>
                   </div>
-                  {submission.reviewerUsername && (
-                    <div>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Reviewed by:</span> {submission.reviewerUsername}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4 border-t border-slate-50 pt-3">
+                    <div className="space-y-1">
+                      <p className="text-slate-600">
+                        <span className="font-medium text-slate-800">Submitted:</span>{' '}
+                        {new Date(submission.submittedAt).toLocaleDateString()}
                       </p>
+                      {submission.reviewedAt && (
+                        <p className="text-slate-600">
+                          <span className="font-medium text-slate-800">Reviewed:</span>{' '}
+                          {new Date(submission.reviewedAt).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm">
-                    <span className="font-medium">Pull Request:</span>{' '}
-                    <a
-                      href={submission.pullRequestUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline break-all"
-                    >
-                      {submission.pullRequestUrl}
-                    </a>
-                  </p>
-
-                  {submission.reviewComments && (
-                    <div className="bg-gray-50 rounded p-3 mt-3">
-                      <p className="text-sm font-medium text-gray-700 mb-1">Reviewer Comments:</p>
-                      <p className="text-sm text-gray-600">{submission.reviewComments}</p>
+                    <div className="space-y-1">
+                      <p className="text-slate-600">
+                        <span className="font-medium text-slate-800">Attempts:</span> {submission.attemptsUsed}
+                      </p>
+                      {submission.reviewerUsername && (
+                        <p className="text-slate-600">
+                          <span className="font-medium text-slate-800">Reviewer:</span> {submission.reviewerUsername}
+                        </p>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="bg-slate-50 rounded-md p-3">
+                      <p className="font-medium text-slate-700 text-xs mb-1 uppercase tracking-tight">Pull Request</p>
+                      <a
+                        href={submission.pullRequestUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline break-all font-mono text-[11px]"
+                      >
+                        {submission.pullRequestUrl}
+                      </a>
+                    </div>
+
+                    {submission.reviewComments && (
+                      <div className="bg-amber-50/50 border border-amber-100 rounded-md p-3">
+                        <p className="text-xs font-semibold text-amber-800 mb-1">Reviewer Feedback:</p>
+                        <p className="text-sm text-slate-700 italic">{submission.reviewComments}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-        <PaginationControls
-          page={submissionsPage.page}
-          totalPages={submissionsPage.totalPages}
-          totalElements={submissionsPage.totalElements}
-          itemLabel="submission"
-          isLoading={isLoading}
-          onPageChange={setCurrentPage}
-        />
+        
+        {submissionsPage.totalPages > 1 && (
+          <PaginationControls
+            page={submissionsPage.page}
+            totalPages={submissionsPage.totalPages}
+            totalElements={submissionsPage.totalElements}
+            itemLabel="submission"
+            isLoading={isLoading}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </CardBody>
     </Card>
   )
