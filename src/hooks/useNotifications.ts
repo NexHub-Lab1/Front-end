@@ -15,8 +15,18 @@ export const useNotifications = () => {
     if (!user || !token) return
     const response = await fetchNotifications()
     if (response.status === 'success' && response.data) {
-      setNotifications(response.data)
-      setUnreadCount(response.data.filter((n) => !n.read).length)
+      // Mock notifications for testing scroll
+      const mockNotifs: Notification[] = [
+        { id: -1, message: 'Welcome to NexHub! Explore your first task.', type: 'INFO', read: false, createdAt: new Date().toISOString() },
+        { id: -2, message: 'Your submission was approved! +50 points.', type: 'SUCCESS', read: false, createdAt: new Date().toISOString() },
+        { id: -3, message: 'Someone mentioned you in a comment.', type: 'INFO', read: true, createdAt: new Date().toISOString() },
+        { id: -4, message: 'Project "NexHub" has a new open task.', type: 'INFO', read: false, createdAt: new Date().toISOString() },
+        { id: -5, message: 'Warning: Your deadline is approaching in 2 hours.', type: 'WARNING', read: false, createdAt: new Date().toISOString() },
+        { id: -6, message: 'GitHub repository synced successfully.', type: 'SUCCESS', read: true, createdAt: new Date().toISOString() },
+        { id: -7, message: 'New follower: "dev_master" started following you.', type: 'INFO', read: false, createdAt: new Date().toISOString() },
+      ];
+      setNotifications([...mockNotifs, ...response.data])
+      setUnreadCount(mockNotifs.filter(n => !n.read).length + response.data.filter((n) => !n.read).length)
     }
   }, [user, token])
 

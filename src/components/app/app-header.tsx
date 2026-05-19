@@ -15,7 +15,7 @@ export function AppHeader({
   const navigate = useNavigate()
   const user = readStoredUser()
   return (
-    <header className="rounded-3xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
+    <header className="sticky top-0 z-40 rounded-3xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
       <div className="grid items-center gap-4 md:grid-cols-[auto_minmax(240px,1fr)_auto]">
         <button type="button" onClick={() => navigate('/')} className="text-left cursor-pointer">
           <BrandMark />

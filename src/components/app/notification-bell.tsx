@@ -45,41 +45,53 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[400px] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-2">
+        <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
             <h3 className="font-semibold text-slate-900">Notifications</h3>
-            {unreadCount > 0 && <span className="text-xs text-slate-500">{unreadCount} unread</span>}
+            {unreadCount > 0 && (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                {unreadCount} new
+              </span>
+            )}
           </div>
 
-          <div className="space-y-1">
+          <div className="max-h-[360px] overflow-y-auto p-2 space-y-1 custom-scrollbar">
             {notifications.length === 0 ? (
-              <p className="p-4 text-center text-sm text-slate-500">No notifications yet</p>
+              <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+                <div className="mb-3 rounded-full bg-slate-100 p-3 text-slate-400">
+                  <Bell size={24} />
+                </div>
+                <p className="text-sm font-medium text-slate-900">No notifications yet</p>
+                <p className="mt-1 text-xs text-slate-500">We'll notify you when something important happens.</p>
+              </div>
             ) : (
               notifications.map((notif) => (
                 <div
                   key={notif.id}
                   onClick={() => !notif.read && markAsRead(notif.id)}
                   className={cn(
-                    'flex gap-3 p-3 rounded-xl cursor-pointer transition-colors',
-                    notif.read ? 'bg-white hover:bg-slate-50' : 'bg-blue-50/50 hover:bg-blue-50'
+                    'flex gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group relative',
+                    notif.read ? 'bg-white hover:bg-slate-50' : 'bg-blue-50/40 hover:bg-blue-50 border-l-2 border-blue-500 rounded-l-none'
                   )}
                 >
                   <div className="mt-1 shrink-0">{getTypeIcon(notif.type)}</div>
                   <div className="flex-1 space-y-1 min-w-0">
                     <p
                       className={cn(
-                        'text-sm leading-tight break-words',
-                        notif.read ? 'text-slate-600' : 'text-slate-900 font-medium'
+                        'text-sm leading-tight break-words transition-colors',
+                        notif.read ? 'text-slate-600' : 'text-slate-900 font-semibold'
                       )}
                     >
                       {notif.message}
                     </p>
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400 group-hover:text-slate-500 transition-colors">
                       <Clock size={10} />
-                      {new Date(notif.createdAt).toLocaleString()}
+                      {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
-                  {!notif.read && <div className="h-2 w-2 rounded-full bg-blue-500 mt-2 shrink-0" />}
+                  {!notif.read && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                  )}
                 </div>
               ))
             )}
