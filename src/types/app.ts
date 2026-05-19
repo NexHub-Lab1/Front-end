@@ -205,3 +205,25 @@ export type TaskSubmissionUpdateRequest = {
   reviewComments: string
   reviewerId: number
 }
+
+export type ProjectLookupDTO = {
+  id: number
+  name: string
+}
+
+export type UserStatsDTO = {
+  totalPoints: number
+  reputationScore: number
+  streakDay: number
+}
+
+export type ProfileDashboardDTO = {
+  userDetails: UserDetailsResponse
+  projectLookups: ProjectLookupDTO[]
+  stats: UserStatsDTO
+  projects: PaginatedResponse<ProjectResponse>
+  tasks: PaginatedResponse<TaskResponse>
+  assignments: PaginatedResponse<TaskAssignmentResponse>
+  submissions: PaginatedResponse<TaskSubmissionResponse>
+  toReview: PaginatedResponse<TaskSubmissionResponse>
+}

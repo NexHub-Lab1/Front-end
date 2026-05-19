@@ -1,8 +1,7 @@
-import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Pencil, Plus, Shield, UserRound, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { ArrowRight, CheckCircle2, LoaderCircle, Pencil, Plus, Shield, X } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { DeveloperAvatar } from '../../../components/app/developer-avatar'
 import { Badge } from '../../../components/ui/badge'
 import { Button } from '../../../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
@@ -109,29 +108,6 @@ export function ProfileTab({
     setEditErrors({})
     setDeleteErrors({})
   }, [navigate])
-
-  const profileRows = useMemo(
-    () => [
-      {
-        label: 'Username',
-        value: user?.username ?? 'Unknown user',
-        icon: <UserRound size={16} className="text-slate-400" />,
-      },
-      {
-        label: 'Email',
-        value: user?.email ?? 'No email registered',
-        icon: <Mail size={16} className="text-slate-400" />,
-      },
-      {
-        label: 'Security',
-        value: isGithubUser
-          ? 'Signed in with GitHub. Password changes are disabled.'
-          : 'Current password is required to save account changes.',
-        icon: <Shield size={16} className="text-slate-400" />,
-      },
-    ],
-    [isGithubUser, user]
-  )
 
   if (!user) {
     return null
@@ -394,32 +370,32 @@ export function ProfileTab({
         </div>
 
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
-            <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors">
-              <CardBody className="p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Username</span>
-                <span className="text-lg font-bold text-slate-900 truncate">{user.username}</span>
-              </CardBody>
-            </Card>
-            <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors">
-              <CardBody className="p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Address</span>
-                <span className="text-lg font-bold text-slate-900 truncate">{user.email}</span>
-              </CardBody>
-            </Card>
-            <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors col-span-2 md:col-span-1">
-              <CardBody className="p-4 flex flex-col gap-1">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Auth Provider</span>
-                <span className="text-lg font-bold text-slate-900">{isGithubUser ? 'GitHub' : 'Credentials'}</span>
-              </CardBody>
-            </Card>
+          <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors">
+            <CardBody className="p-4 flex flex-col gap-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Username</span>
+              <span className="text-lg font-bold text-slate-900 truncate">{user.username}</span>
+            </CardBody>
+          </Card>
+          <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors">
+            <CardBody className="p-4 flex flex-col gap-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Address</span>
+              <span className="text-lg font-bold text-slate-900 truncate">{user.email}</span>
+            </CardBody>
+          </Card>
+          <Card className="bg-white/40 backdrop-blur-sm shadow-none border-slate-100 hover:border-blue-200 transition-colors col-span-2 md:col-span-1">
+            <CardBody className="p-4 flex flex-col gap-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Auth Provider</span>
+              <span className="text-lg font-bold text-slate-900">{isGithubUser ? 'GitHub' : 'Credentials'}</span>
+            </CardBody>
+          </Card>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="shadow-none bg-white/60 border-slate-100">
             <CardBody className="space-y-4 p-6">
               <div className="flex items-center gap-2">
-                 <Shield size={20} className="text-blue-500" />
-                 <CardTitle className="text-xl">Security & Privacy</CardTitle>
+                <Shield size={20} className="text-blue-500" />
+                <CardTitle className="text-xl">Security & Privacy</CardTitle>
               </div>
               <CardDescription className="text-sm leading-6 text-slate-600">
                 {isGithubUser
@@ -432,8 +408,8 @@ export function ProfileTab({
           <Card className="shadow-none bg-white/60 border-slate-100">
             <CardBody className="space-y-4 p-6">
               <div className="flex items-center gap-2">
-                 <LoaderCircle size={20} className="text-blue-500" />
-                 <CardTitle className="text-xl">Platform Status</CardTitle>
+                <LoaderCircle size={20} className="text-blue-500" />
+                <CardTitle className="text-xl">Platform Status</CardTitle>
               </div>
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -464,7 +440,7 @@ export function ProfileTab({
               </div>
             ) : (
               <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center">
-                 <CardDescription>No skills highlighted yet. Add some to stand out!</CardDescription>
+                <CardDescription>No skills highlighted yet. Add some to stand out!</CardDescription>
               </div>
             )}
           </CardBody>
@@ -472,11 +448,10 @@ export function ProfileTab({
 
         {feedback ? (
           <Card
-            className={`shadow-none ${
-              feedback.type === 'success'
-                ? 'border-emerald-200 bg-emerald-50'
-                : 'border-red-200 bg-red-50'
-            }`}
+            className={`shadow-none ${feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50'
+              : 'border-red-200 bg-red-50'
+              }`}
           >
             <CardBody className="flex flex-row items-center gap-3 p-4">
               {feedback.type === 'success' ? (

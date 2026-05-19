@@ -47,7 +47,7 @@ export function ProfilePage({
     
     // Only show spinner if we don't have any data yet
     // We use a functional update or a ref to check the latest data without depending on it
-    setIsLoadingDashboard(prevLoading => {
+    setIsLoadingDashboard(() => {
       // If we already have data, don't trigger the "Loading..." full-screen state
       return dashboardData ? false : true;
     });
@@ -106,7 +106,7 @@ export function ProfilePage({
 
     switch (activeTabKey) {
       case 'profile':
-        return <ProfileTab user={currentUser} stats={dashboardData?.stats} onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
+        return <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
       case 'projects':
         return <ProjectsTab user={currentUser} />
       case 'tasks':
@@ -118,13 +118,13 @@ export function ProfilePage({
       case 'submissions':
         return <SubmissionsTab user={currentUser} />
       default:
-        return <ProfileTab user={currentUser} stats={dashboardData?.stats} onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
+        return <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
     }
   }
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-      <AppHeader user={currentUser} onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
+      <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
       <section className="mx-auto mt-6 h-[80vh] grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="overflow-hidden">

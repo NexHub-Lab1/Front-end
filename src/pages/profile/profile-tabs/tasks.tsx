@@ -33,10 +33,10 @@ const EMPTY_TASK_FORM: TaskRequest = {
   recommendedSkills: []
 }
 
-export function TasksTab({ 
-    user 
-}: { 
-    user: User 
+export function TasksTab({
+  user
+}: {
+  user: User
 }) {
   const navigate = useNavigate()
   const [lookupProjects, setLookupProjects] = useState<ProjectLookupDTO[]>(() => {
@@ -218,19 +218,19 @@ export function TasksTab({
       }
 
       if (res.status === 'error' || !res.data) {
-        setFeedback({message: res.message || "Error", type:"error"})
+        setFeedback({ message: res.message || "Error", type: "error" })
         setIsSubmitting(false)
         return
       }
 
-      setFeedback({message: isEditMode ? "Task updated successfully" : "Task created successfully", type:"success"});
+      setFeedback({ message: isEditMode ? "Task updated successfully" : "Task created successfully", type: "success" });
       setShowModal(false)
       setIsEditMode(false)
       setEditingTaskId(null)
       setCurrentPage(0)
       void reloadTasks(0)
     } catch (error) {
-      setFeedback({message: "Error processing task", type:"error"})
+      setFeedback({ message: "Error processing task", type: "error" })
     } finally {
       setIsSubmitting(false)
     }
@@ -240,16 +240,16 @@ export function TasksTab({
     try {
       const res = await deleteTask(taskId)
       if (res.status === 'error') {
-        setFeedback({message: res.message || "Error deleting task", type:"error"})
+        setFeedback({ message: res.message || "Error deleting task", type: "error" })
         return
       }
 
-      setFeedback({message: "Task deleted successfully", type:"success"});
+      setFeedback({ message: "Task deleted successfully", type: "success" });
       setTaskToDelete(null)
       setCurrentPage(0)
       void reloadTasks(0)
     } catch (error) {
-      setFeedback({message: "Error deleting task", type:"error"})
+      setFeedback({ message: "Error deleting task", type: "error" })
     }
   }
 
@@ -257,16 +257,16 @@ export function TasksTab({
     try {
       const res = await cancelTask(taskId)
       if (res.status === 'error') {
-        setFeedback({message: res.message || "Error cancelling task", type:"error"})
+        setFeedback({ message: res.message || "Error cancelling task", type: "error" })
         return
       }
 
-      setFeedback({message: "Task cancelled successfully", type:"success"});
+      setFeedback({ message: "Task cancelled successfully", type: "success" });
       setTaskToCancel(null)
       setCurrentPage(0)
       void reloadTasks(0)
     } catch (error) {
-      setFeedback({message: "Error cancelling task", type:"error"})
+      setFeedback({ message: "Error cancelling task", type: "error" })
     }
   }
 
@@ -340,11 +340,10 @@ export function TasksTab({
                 }))
                 updateTaskError('projectId', projectId)
               }}
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                createErrors.projectId
-                  ? 'border-red-300 focus:ring-red-200'
-                  : 'border-slate-300 focus:ring-blue-200'
-              }`}
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${createErrors.projectId
+                ? 'border-red-300 focus:ring-red-200'
+                : 'border-slate-300 focus:ring-blue-200'
+                }`}
             >
               <option value={0}>Select a project...</option>
               {lookupProjects.map((project) => (
@@ -448,11 +447,10 @@ export function TasksTab({
             <label className="block text-sm font-medium mb-2">Description</label>
             <textarea
               placeholder="Detailed description of the task"
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${
-                createErrors.description
-                  ? 'border-red-300 focus:ring-red-200'
-                  : 'border-slate-300 focus:ring-blue-200'
-              }`}
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${createErrors.description
+                ? 'border-red-300 focus:ring-red-200'
+                : 'border-slate-300 focus:ring-blue-200'
+                }`}
               rows={4}
               value={taskForm.description}
               onChange={(event) => {
@@ -589,7 +587,7 @@ export function TasksTab({
                         </CardTitle>
                         <CardDescription className="line-clamp-2">{task.description}</CardDescription>
                       </div>
-                      
+
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">{task.status}</Badge>
                         <Badge variant="outline" className="truncate max-w-[150px]">{task.projectName}</Badge>
