@@ -1,9 +1,12 @@
 import { Bell, Info, CheckCircle, AlertTriangle, Clock } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../hooks/useNotifications'
 import { cn } from '../../lib/utils'
+import type { Notification } from '../../types/app'
 
 export function NotificationBell() {
+  const navigate = useNavigate()
   const { notifications, unreadCount, markAsRead } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -26,6 +29,43 @@ export function NotificationBell() {
         return <AlertTriangle size={16} className="text-amber-500" />
       default:
         return <Info size={16} className="text-blue-500" />
+    }
+  }
+
+  function getNotificationTarget(notification: Notification) {
+    if (notification.targetPath) {
+      return notification.targetPath
+    }
+
+    // Notifications saved before navigation targets existed still open the relevant workspace.
+    if (notification.message.includes('started following you')) {
+      return '/profile?connections=followers'
+    }
+    if (notification.message.startsWith('You have been assigned to the task:')) {
+      return '/profile?tab=assigned-tasks'
+    }
+    if (notification.message.startsWith('New submission from ')) {
+      return '/profile?tab=to-review'
+    }
+    if (notification.message.startsWith("Your submission for '")) {
+      return '/profile?tab=submissions'
+    }
+
+    return null
+  }
+
+  function handleNotificationClick(notification: Notification) {
+    const target = getNotificationTarget(notification)
+
+    if (target) {
+      setIsOpen(false)
+      navigate(target)
+    }
+
+    if (!notification.read) {
+      void markAsRead(notification.id).catch(() => {
+        // A read-state request failure should not block the destination action.
+      })
     }
   }
 
@@ -66,11 +106,12 @@ export function NotificationBell() {
               </div>
             ) : (
               notifications.map((notif) => (
-                <div
+                <button
                   key={notif.id}
-                  onClick={() => !notif.read && markAsRead(notif.id)}
+                  type="button"
+                  onClick={() => handleNotificationClick(notif)}
                   className={cn(
-                    'flex gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group relative',
+                    'flex w-full gap-3 p-3 rounded-xl cursor-pointer text-left transition-all duration-200 group relative',
                     notif.read ? 'bg-white hover:bg-slate-50' : 'bg-blue-50/40 hover:bg-blue-50 border-l-2 border-blue-500 rounded-l-none'
                   )}
                 >
@@ -92,7 +133,7 @@ export function NotificationBell() {
                   {!notif.read && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
                   )}
-                </div>
+                </button>
               ))
             )}
           </div>

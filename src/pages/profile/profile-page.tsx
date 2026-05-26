@@ -13,6 +13,7 @@ import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
 import { fetchProfileDashboard, readStoredProfileDashboard } from '../../lib/dashboard-storage'
+import { ConnectionList, FollowConnections, type ConnectionView } from '../../components/app/follow-connections'
 
 const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions'] as const
 
@@ -36,6 +37,11 @@ export function ProfilePage({
   const [searchParams, setSearchParams] = useSearchParams()
   const [dashboardData, setDashboardData] = useState<ProfileDashboardDTO | null>(readStoredProfileDashboard())
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(!dashboardData)
+  const selectedConnections = searchParams.get('connections')
+  const connectionView: ConnectionView | null =
+    selectedConnections === 'followers' || selectedConnections === 'following'
+      ? selectedConnections
+      : null
 
   const [activeTabKey, setActiveTabKey] = useState<ProfileTabKey>(() => {
     const tabParam = searchParams.get('tab')
@@ -71,6 +77,10 @@ export function ProfilePage({
   }, [loadDashboard])
 
   useEffect(() => {
+    if (connectionView) {
+      return
+    }
+
     const tabParam = searchParams.get('tab')
     if (isProfileTabKey(tabParam)) {
       if (tabParam !== activeTabKey) {
@@ -79,7 +89,7 @@ export function ProfilePage({
     } else {
       setSearchParams({ tab: activeTabKey }, { replace: true })
     }
-  }, [activeTabKey, searchParams, setSearchParams])
+  }, [activeTabKey, connectionView, searchParams, setSearchParams])
 
   function capitalize(str: string) {
     return str
@@ -94,6 +104,16 @@ export function ProfilePage({
   }
 
   function renderActiveTab() {
+    if (connectionView) {
+      return (
+        <ConnectionList
+          userId={currentUser.id}
+          view={connectionView}
+          onBack={() => setSearchParams({ tab: activeTabKey })}
+        />
+      )
+    }
+
     if (isLoadingDashboard && !dashboardData) {
         return (
             <Card className="w-full">
@@ -154,6 +174,11 @@ export function ProfilePage({
                   />
                 </div>
               )}
+
+              <FollowConnections
+                userId={currentUser.id}
+                onSelect={(view) => setSearchParams({ connections: view })}
+              />
             </div>
 
             <hr className="border-slate-100" />

@@ -62,13 +62,13 @@ function handleResponse(response: Response) {
   return response.json()
 }
 
-export async function login(email: string, password: string): Promise<ApiResponse<AuthUser>> {
+export async function login(emailOrUsername: string, password: string): Promise<ApiResponse<AuthUser>> {
   const response = await fetch(AUTH_LOG_IN_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: emailOrUsername, password }),
   })
   return response.json()
 }

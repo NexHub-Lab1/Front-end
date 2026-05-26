@@ -28,11 +28,11 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
 
-async function requestLogin(email: string, password: string): Promise<AuthUser> {
+async function requestLogin(emailOrUsername: string, password: string): Promise<AuthUser> {
   const response = await fetch(AUTH_LOG_IN_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: emailOrUsername, password }),
   })
 
   const result = (await response.json()) as ApiResponse<AuthUser>
@@ -95,7 +95,7 @@ export function AuthPage({
       ? {
           eyebrow: 'Welcome back',
           title: 'Sign in to keep building on NexHub',
-          description: 'Use your email and password to access your builder account and project workflow.',
+          description: 'Use your email or username and password to access your builder account and project workflow.',
           endpoint: AUTH_LOG_IN_ENDPOINT,
         }
       : {
@@ -163,8 +163,8 @@ export function AuthPage({
     }
 
     if (!activeForm.email.trim()) {
-      nextErrors.email = 'Email is required.'
-    } else if (!isValidEmail(activeForm.email)) {
+      nextErrors.email = mode === 'login' ? 'Email or username is required.' : 'Email is required.'
+    } else if (mode === 'signup' && !isValidEmail(activeForm.email)) {
       nextErrors.email = 'Enter a valid email address.'
     }
 
@@ -185,9 +185,9 @@ export function AuthPage({
 
     if (field === 'email') {
       if (!value.trim()) {
-        return 'Email is required.'
+        return mode === 'login' ? 'Email or username is required.' : 'Email is required.'
       }
-      return isValidEmail(value) ? undefined : 'Enter a valid email address.'
+      return mode === 'login' || isValidEmail(value) ? undefined : 'Enter a valid email address.'
     }
 
     if (!value.trim()) {
@@ -293,16 +293,18 @@ export function AuthPage({
               ) : null}
 
               <Input
-                type="email"
-                label="Email"
-                placeholder="you@nexhub.dev"
+                type={mode === 'login' ? 'text' : 'email'}
+                label={mode === 'login' ? 'Email or username' : 'Email'}
+                placeholder={mode === 'login' ? 'you@nexhub.dev or buildername' : 'you@nexhub.dev'}
                 helperText={authErrors.email}
                 error={Boolean(authErrors.email)}
                 value={mode === 'login' ? loginForm.email : signupForm.email}
                 onChange={(event) => {
-                  mode === 'login'
-                    ? setLoginForm((current) => ({ ...current, email: event.target.value }))
-                    : setSignupForm((current) => ({ ...current, email: event.target.value }))
+                  if (mode === 'login') {
+                    setLoginForm((current) => ({ ...current, email: event.target.value }))
+                  } else {
+                    setSignupForm((current) => ({ ...current, email: event.target.value }))
+                  }
                   updateAuthError('email', event.target.value)
                 }}
               />
@@ -315,9 +317,11 @@ export function AuthPage({
                 error={Boolean(authErrors.password)}
                 value={mode === 'login' ? loginForm.password : signupForm.password}
                 onChange={(event) => {
-                  mode === 'login'
-                    ? setLoginForm((current) => ({ ...current, password: event.target.value }))
-                    : setSignupForm((current) => ({ ...current, password: event.target.value }))
+                  if (mode === 'login') {
+                    setLoginForm((current) => ({ ...current, password: event.target.value }))
+                  } else {
+                    setSignupForm((current) => ({ ...current, password: event.target.value }))
+                  }
                   updateAuthError('password', event.target.value)
                 }}
               />

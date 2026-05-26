@@ -7,6 +7,7 @@ export const GET_TOP_DEVS = `${USER_ROOT_ENDPOINT}/all_users_details`
 export const FOLLOW_USER = `${USER_ROOT_ENDPOINT}/follow`
 export const UNFOLLOW_USER =  `${USER_ROOT_ENDPOINT}/unfollow`
 export const GET_FOLLOWED = (id:number) => `${USER_ROOT_ENDPOINT}/followed/${id}`
+export const GET_FOLLOWERS = (id:number) => `${USER_ROOT_ENDPOINT}/followers/${id}`
 
 function getAuthHeaders(): HeadersInit {
   const token = readStoredUserToken()
@@ -88,6 +89,14 @@ export async function unfollowUser(from: number, to: number): Promise<ApiRespons
 
 export async function getFollowedUsers(userId: number): Promise<ApiResponse<UserDetailsResponse[]>> {
   const response = await fetch(GET_FOLLOWED(userId), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  })
+  return handleResponse(response)
+}
+
+export async function getFollowers(userId: number): Promise<ApiResponse<UserDetailsResponse[]>> {
+  const response = await fetch(GET_FOLLOWERS(userId), {
     method: 'GET',
     headers: getAuthHeaders(),
   })

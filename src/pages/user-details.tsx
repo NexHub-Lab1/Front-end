@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { followUser, getUserDetails, getFollowedUsers, unfollowUser } from "../lib/user-storage"
 import { type UserDetailsResponse } from "../types/app"
 import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar, UserPlus, Loader2, CheckCircle, AlertCircle, UserCheck } from "lucide-react"
@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button"
 import { Card, CardBody, CardDescription, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { readStoredAuthUser } from "../lib/auth-storage"
+import { ConnectionList, FollowConnections, type ConnectionView } from "../components/app/follow-connections"
 
 export default function UserDetails({
   onSignOut,
@@ -19,6 +20,7 @@ export default function UserDetails({
 }) {
     const { id } = useParams()
     const navigate = useNavigate()
+    const [searchParams, setSearchParams] = useSearchParams()
     const [userDetails, setUserDetails] = useState<UserDetailsResponse | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -27,8 +29,14 @@ export default function UserDetails({
     const [followSuccess, setFollowSuccess] = useState(false)
     const [followError, setFollowError] = useState<string | null>(null)
     const [isFollowed, setIsFollowed] = useState(false)
+    const [connectionsRefreshKey, setConnectionsRefreshKey] = useState(0)
     const currentUser = readStoredAuthUser()?.user
     const currentUserId = currentUser?.id
+    const selectedConnections = searchParams.get('connections')
+    const connectionView: ConnectionView | null =
+        selectedConnections === 'followers' || selectedConnections === 'following'
+            ? selectedConnections
+            : null
 
     useEffect(() => {
         async function loadUser() {
@@ -90,6 +98,7 @@ export default function UserDetails({
                 if (response.status === "success") {
                     setIsFollowed(false)
                     setFollowSuccess(true)
+                    setConnectionsRefreshKey((current) => current + 1)
                     setTimeout(() => setFollowSuccess(false), 2000)
                 }
             } else {
@@ -98,6 +107,7 @@ export default function UserDetails({
                 if (response.status === "success") {
                     setIsFollowed(true)
                     setFollowSuccess(true)
+                    setConnectionsRefreshKey((current) => current + 1)
                     setTimeout(() => setFollowSuccess(false), 2000)
                 }
             }
@@ -138,7 +148,7 @@ export default function UserDetails({
                         </CardBody>
                     </Card>
                 ) : userDetails ? (
-                    <>
+                    <div className={connectionView ? "grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start" : "space-y-6"}>
                         <Card className="overflow-hidden">
                             <CardBody className="space-y-6 transition-all bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))] p-6">
                                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -203,6 +213,11 @@ export default function UserDetails({
                                 </div>
 
                                 <div className="flex flex-wrap gap-5">
+                                    <FollowConnections
+                                        userId={userDetails.id}
+                                        refreshKey={connectionsRefreshKey}
+                                        onSelect={(view) => setSearchParams({ connections: view })}
+                                    />
                                     <StatLine
                                         icon={<Flame size={14} className="text-orange-500" />}
                                         text={`${userDetails.streakDay} day streak`}
@@ -272,6 +287,13 @@ export default function UserDetails({
                             </CardBody>
                         </Card>
 
+                        {connectionView ? (
+                            <ConnectionList
+                                userId={userDetails.id}
+                                view={connectionView}
+                                onBack={() => setSearchParams({})}
+                            />
+                        ) : (
                         <div className="w-full">
                             <Card className="shadow-none">
                                 <CardBody className="space-y-4 p-6">
@@ -296,7 +318,8 @@ export default function UserDetails({
                                 </CardBody>
                             </Card>
                         </div>
-                    </>
+                        )}
+                    </div>
                 ) : null}
             </section>
         </main>

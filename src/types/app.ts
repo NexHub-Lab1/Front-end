@@ -234,4 +234,5 @@ export type Notification = {
   type: 'INFO' | 'SUCCESS' | 'WARNING'
   read: boolean
   createdAt: string
+  targetPath: string | null
 }

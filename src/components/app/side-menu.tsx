@@ -142,28 +142,13 @@ export function SideMenu({
         </nav>
 
         <div className="relative border-t border-slate-700/70 px-7 py-5">
-          {user ? (
-            <Button
-              variant="outline"
-              className="h-11 w-full rounded-full border-slate-700 bg-transparent text-white hover:bg-slate-800"
-              onClick={onSignOut}
-            >
-              Sign out
-            </Button>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button variant="primary" className="h-12 rounded-full" onClick={() => navigateAndClose('/auth/signup')}>
-                Join NexHub
-              </Button>
-              <Button
-                variant="outline"
-                className="h-12 rounded-full border-slate-700 bg-transparent text-white hover:bg-slate-800"
-                onClick={() => navigateAndClose('/auth/login')}
-              >
-                Sign in
-              </Button>
-            </div>
-          )}
+          <Button
+            variant="outline"
+            className="h-11 w-full rounded-full border-slate-700 bg-transparent text-white hover:bg-slate-800"
+            onClick={onSignOut}
+          >
+            Sign out
+          </Button>
         </div>
       </aside>
     </>
