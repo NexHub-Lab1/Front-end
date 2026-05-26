@@ -11,7 +11,7 @@ import { Button } from "../../../components/ui/button";
 import type { ProjectForm, ProjectResponse, User } from "../../../types/app";
 
 import { createProject, fetchProjectsByCurrentUser } from "../../../lib/project-storage";
-import { useEffect, useState, type FormEvent, useCallback, useRef } from "react";
+import { useEffect, useState, type FormEvent, useCallback } from "react";
 import { StatLine } from "../../../components/app/stat-line";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
@@ -48,7 +48,6 @@ export function ProjectsTab({
     message: string;
   } | null>(null);
   const [tagsInput, setTagsInput] = useState('')
-  const hasMounted = useRef(false)
 
   const [projectForm, setProjectForm] = useState<ProjectForm>({
     name: "",
@@ -105,14 +104,10 @@ export function ProjectsTab({
       }
     };
 
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      // If we don't have content and it's page 0, we can skip if dashboard loaded it
-      if (projectsPage.content.length === 0 || currentPage > 0) {
-        void reloadProjects();
-      }
-    } else {
+    if (currentPage > 0) {
       void reloadProjects();
+    } else {
+      syncFromDashboard();
     }
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);

@@ -4,14 +4,14 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { Ban, Check, Cross, PlusIcon, Pencil, Trash2 } from "lucide-react";
+import { Check, Cross, PlusIcon, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
 import type { TaskRequest, TaskResponse, ProjectLookupDTO, User } from "../../../types/app";
 
 import { createTask, fetchTasksByOwner, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
-import { useEffect, useState, type FormEvent, useCallback, useRef } from "react";
+import { useEffect, useState, type FormEvent, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
@@ -51,8 +51,7 @@ export function TasksTab({
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-  const [taskToDelete, setTaskToDelete] = useState<TaskResponse | null>(null);
-  const [taskToCancel, setTaskToCancel] = useState<TaskResponse | null>(null);
+  const [taskToRemove, setTaskToRemove] = useState<TaskResponse | null>(null);
   const [createErrors, setCreateErrors] = useState<{
     title?: string
     description?: string
@@ -67,7 +66,6 @@ export function TasksTab({
     message: string;
   } | null>(null);
   const [skillsInput, setSkillsInput] = useState('')
-  const hasMounted = useRef(false)
 
   const [taskForm, setTaskForm] = useState<TaskRequest>({
     ...EMPTY_TASK_FORM,
@@ -108,13 +106,10 @@ export function TasksTab({
       }
     };
 
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      if (tasksPage.content.length === 0 || currentPage > 0) {
-        void reloadTasks();
-      }
-    } else {
+    if (currentPage > 0) {
       void reloadTasks();
+    } else {
+      syncFromDashboard();
     }
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
@@ -236,37 +231,29 @@ export function TasksTab({
     }
   }
 
-  async function handleDeleteTask(taskId: number) {
+  async function handleRemoveTask(taskId: number) {
     try {
       const res = await deleteTask(taskId)
       if (res.status === 'error') {
-        setFeedback({ message: res.message || "Error deleting task", type: "error" })
-        return
+        if (res.message && res.message.includes('has assignments or submissions')) {
+          const cancelRes = await cancelTask(taskId)
+          if (cancelRes.status === 'error') {
+            setFeedback({ message: cancelRes.message || "Error removing task", type: "error" })
+            return
+          }
+          setFeedback({ message: "Task was cancelled to preserve assignment history", type: "success" })
+        } else {
+          setFeedback({ message: res.message || "Error removing task", type: "error" })
+          return
+        }
+      } else {
+        setFeedback({ message: "Task deleted successfully", type: "success" })
       }
-
-      setFeedback({ message: "Task deleted successfully", type: "success" });
-      setTaskToDelete(null)
+      setTaskToRemove(null)
       setCurrentPage(0)
       void reloadTasks(0)
     } catch (error) {
-      setFeedback({ message: "Error deleting task", type: "error" })
-    }
-  }
-
-  async function handleCancelTask(taskId: number) {
-    try {
-      const res = await cancelTask(taskId)
-      if (res.status === 'error') {
-        setFeedback({ message: res.message || "Error cancelling task", type: "error" })
-        return
-      }
-
-      setFeedback({ message: "Task cancelled successfully", type: "success" });
-      setTaskToCancel(null)
-      setCurrentPage(0)
-      void reloadTasks(0)
-    } catch (error) {
-      setFeedback({ message: "Error cancelling task", type: "error" })
+      setFeedback({ message: "Error removing task", type: "error" })
     }
   }
 
@@ -513,44 +500,26 @@ export function TasksTab({
           </Card>
         ) : null}
         {displayModal()}
-        {taskToDelete ? (
+        {taskToRemove ? (
           <Modal
-            isOpen={Boolean(taskToDelete)}
-            onClose={() => setTaskToDelete(null)}
-            title="Delete task"
+            isOpen={Boolean(taskToRemove)}
+            onClose={() => setTaskToRemove(null)}
+            title="Remove task"
           >
             <div className="space-y-4">
               <CardDescription>
-                Are you sure you want to delete <strong>{taskToDelete.title}</strong>? This action cannot be undone.
+                Are you sure you want to remove <strong>{taskToRemove.title}</strong>?
+                <br />
+                <span className="text-xs text-slate-500 mt-2 block">
+                  Note: If this task has active contributors or submission history, it will be automatically cancelled instead of completely deleted to preserve history.
+                </span>
               </CardDescription>
               <div className="flex justify-end gap-3">
-                <Button type="button" variant="ghost" onClick={() => setTaskToDelete(null)}>
+                <Button type="button" variant="ghost" onClick={() => setTaskToRemove(null)}>
                   Cancel
                 </Button>
-                <Button type="button" variant="primary" onClick={() => handleDeleteTask(taskToDelete.id)}>
-                  Delete task
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        ) : null}
-        {taskToCancel ? (
-          <Modal
-            isOpen={Boolean(taskToCancel)}
-            onClose={() => setTaskToCancel(null)}
-            title="Cancel task"
-          >
-            <div className="space-y-4">
-              <CardDescription>
-                Cancel <strong>{taskToCancel.title}</strong>? This keeps assignment and submission history, but marks the
-                task as cancelled.
-              </CardDescription>
-              <div className="flex justify-end gap-3">
-                <Button type="button" variant="ghost" onClick={() => setTaskToCancel(null)}>
-                  Keep task
-                </Button>
-                <Button type="button" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => handleCancelTask(taskToCancel.id)}>
-                  Cancel task
+                <Button type="button" variant="primary" onClick={() => handleRemoveTask(taskToRemove.id)}>
+                  Remove task
                 </Button>
               </div>
             </div>
@@ -630,26 +599,14 @@ export function TasksTab({
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setTaskToCancel(task)
+                              setTaskToRemove(task)
                             }}
-                            className="flex-1"
+                            className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <Ban size={14} />
-                            Cancel
+                            <Trash2 size={14} />
+                            Delete
                           </Button>
                         ) : null}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setTaskToDelete(task)
-                          }}
-                          className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 size={14} />
-                          Delete
-                        </Button>
                       </div>
                     </CardBody>
                   </Card>

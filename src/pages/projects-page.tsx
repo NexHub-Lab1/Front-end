@@ -1,4 +1,4 @@
-import { ArrowLeft, Github, PlusIcon, Search, Star, Users } from 'lucide-react'
+import { ArrowLeft, Github, PlusIcon, Star, Users } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
 import { ImportGithubReposModal } from '../components/app/import-github-repos-modal'
@@ -6,7 +6,6 @@ import { StatLine } from '../components/app/stat-line'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
-import { Input } from '../components/ui/input'
 import { PaginationControls } from '../components/ui/pagination-controls'
 import { CreateProjectModal } from '../components/app/create-project-modal'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -142,13 +141,6 @@ export function ProjectsPage({
               }}
             />
 
-            <div className="relative max-w-3xl">
-              <Search
-                size={18}
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <Input className="pl-11" placeholder="Search projects" aria-label="Search projects" />
-            </div>
             {loadError ? (
               <Card className="border-red-100 bg-red-50/70 shadow-none">
                 <CardBody className="p-5">

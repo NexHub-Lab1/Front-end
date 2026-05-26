@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { AlertCircle, Check, RefreshCw, X } from 'lucide-react'
 
 import { Badge } from '../../../components/ui/badge'
@@ -29,7 +29,6 @@ export function ToReviewTab({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
   const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const hasMounted = useRef(false)
 
   const loadSubmissionsToReview = useCallback(async (pageOverride = currentPage) => {
     if (!user?.id) return;
@@ -68,13 +67,10 @@ export function ToReviewTab({
       }
     };
 
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      if (submissionsPage.content.length === 0 || currentPage > 0) {
-        void loadSubmissionsToReview();
-      }
-    } else {
+    if (currentPage > 0) {
       void loadSubmissionsToReview();
+    } else {
+      syncFromDashboard();
     }
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);

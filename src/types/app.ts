@@ -227,3 +227,11 @@ export type ProfileDashboardDTO = {
   submissions: PaginatedResponse<TaskSubmissionResponse>
   toReview: PaginatedResponse<TaskSubmissionResponse>
 }
+
+export type Notification = {
+  id: number
+  message: string
+  type: 'INFO' | 'SUCCESS' | 'WARNING'
+  read: boolean
+  createdAt: string
+}
