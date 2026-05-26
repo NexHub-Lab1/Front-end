@@ -14,6 +14,9 @@ import { fetchTaskById } from '../lib/task-storage'
 import { createSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
+import { fetchTaskAssignments } from '../lib/chat-storage'
+import { TaskChatPanel } from '../components/app/task-chat-panel'
+
 
 export function TaskDetailPage({
   currentUser,
@@ -39,6 +42,10 @@ export function TaskDetailPage({
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [projectOwnerUsername, setProjectOwnerUsername] = useState<string | null>(null)
+  const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
+  const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentResponse | null>(null)
+
 
   useEffect(() => {
     async function loadTask() {
@@ -63,9 +70,13 @@ export function TaskDetailPage({
         setTask(loadedTask)
 
         if (currentUser) {
+          let userIsOwner = false
           const projectRes = await fetchProjectById(loadedTask.projectId)
           if (projectRes.status === 'success' && projectRes.data) {
-            setIsOwner(projectRes.data.ownerId === currentUser.id)
+            const ownerStatus = projectRes.data.ownerId === currentUser.id
+            setIsOwner(ownerStatus)
+            userIsOwner = ownerStatus
+            setProjectOwnerUsername(projectRes.data.ownerUsername)
           }
 
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
@@ -78,6 +89,17 @@ export function TaskDetailPage({
               a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(activeAssignment || null)
+          }
+
+          if (userIsOwner) {
+            const allAssignmentsRes = await fetchTaskAssignments(parsedId)
+            if (allAssignmentsRes.status === 'success' && allAssignmentsRes.data) {
+              const content = allAssignmentsRes.data.content || []
+              setAssignments(content)
+              if (content.length > 0) {
+                setSelectedAssignment(content[0])
+              }
+            }
           }
         }
       } catch (fetchError) {
@@ -256,6 +278,7 @@ export function TaskDetailPage({
     }
   }
 
+  const showChat = !!(currentUser && (userAssignment || isOwner))
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
   const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
@@ -275,7 +298,7 @@ export function TaskDetailPage({
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
-      <section className="mx-auto mt-6 max-w-5xl space-y-2">
+      <section className={`mx-auto mt-6 space-y-2 transition-all duration-300 ${showChat ? 'max-w-7xl' : 'max-w-5xl'}`}>
         <Button variant="ghost" onClick={handleBack} className="w-fit">
           <ArrowLeft size={16} className="mr-2" />
           Back
@@ -295,156 +318,220 @@ export function TaskDetailPage({
             </CardBody>
           </Card>
         ) : task ? (
-          <>
-            <Card className="overflow-hidden">
-              <CardBody className="space-y-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))] p-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{task.status}</Badge>
-                      <Badge variant="outline">{task.projectName}</Badge>
-                      {userAssignment && (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          Assigned
-                        </Badge>
+          <div className={showChat ? "grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6" : "space-y-6"}>
+            {/* Left Column (Task details) */}
+            <div className="space-y-6">
+              <Card className="overflow-hidden">
+                <CardBody className="space-y-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))] p-6">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{task.status}</Badge>
+                        <Badge variant="outline">{task.projectName}</Badge>
+                        {userAssignment && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            Assigned
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <CardTitle className="text-4xl">{task.title}</CardTitle>
+                        <CardDescription className="max-w-3xl text-base leading-7 text-slate-600">
+                          {task.description}
+                        </CardDescription>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {task.recommendedSkills.map((skill) => (
+                          <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 lg:flex-col">
+                      {!userAssignment && (
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          disabled={assignmentButton.disabled || isAssigning}
+                          onClick={handleAssignTask}
+                          title={assignmentButton.tooltip}
+                        >
+                          <UserPlus size={16} className="mr-2" />
+                          {isAssigning ? 'Assigning...' : assignmentButton.text}
+                        </Button>
                       )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <CardTitle className="text-4xl">{task.title}</CardTitle>
-                      <CardDescription className="max-w-3xl text-base leading-7 text-slate-600">
-                        {task.description}
-                      </CardDescription>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {task.recommendedSkills.map((skill) => (
-                        <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 lg:flex-col">
-                    {!userAssignment && (
                       <Button
-                        variant="secondary"
+                        variant="primary"
                         size="lg"
-                        disabled={assignmentButton.disabled || isAssigning}
-                        onClick={handleAssignTask}
-                        title={assignmentButton.tooltip}
+                        disabled={submitButton.disabled}
+                        onClick={() => setShowSubmitModal(true)}
+                        title={submitButton.tooltip}
                       >
-                        <UserPlus size={16} className="mr-2" />
-                        {isAssigning ? 'Assigning...' : assignmentButton.text}
+                        <Send size={16} className="mr-2" />
+                        Submit
                       </Button>
-                    )}
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      disabled={submitButton.disabled}
-                      onClick={() => setShowSubmitModal(true)}
-                      title={submitButton.tooltip}
-                    >
-                      <Send size={16} className="mr-2" />
-                      Submit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      disabled
-                      className="opacity-50 cursor-not-allowed"
-                      title="WIP: Save for later functionality coming soon"
-                    >
-                      <Bookmark size={16} className="mr-2" />
-                      Save (WIP)
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        disabled
+                        className="opacity-50 cursor-not-allowed"
+                        title="WIP: Save for later functionality coming soon"
+                      >
+                        <Bookmark size={16} className="mr-2" />
+                        Save (WIP)
+                      </Button>
+                    </div>
                   </div>
-                </div>
 
-                {assignError && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-sm text-red-700">{assignError}</p>
-                  </div>
-                )}
+                  {assignError && (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                      <p className="text-sm text-red-700">{assignError}</p>
+                    </div>
+                  )}
 
-                {actionFeedback && (
-                  <div
-                    className={`rounded-md border p-3 ${
-                      actionFeedback.type === 'success'
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-red-200 bg-red-50'
-                    }`}
-                  >
-                    <p
-                      className={`text-sm ${
-                        actionFeedback.type === 'success' ? 'text-green-700' : 'text-red-700'
+                  {actionFeedback && (
+                    <div
+                      className={`rounded-md border p-3 ${
+                        actionFeedback.type === 'success'
+                          ? 'border-green-200 bg-green-50'
+                          : 'border-red-200 bg-red-50'
                       }`}
                     >
-                      {actionFeedback.message}
-                    </p>
-                  </div>
-                )}
+                      <p
+                        className={`text-sm ${
+                          actionFeedback.type === 'success' ? 'text-green-700' : 'text-red-700'
+                        }`}
+                      >
+                        {actionFeedback.message}
+                      </p>
+                    </div>
+                  )}
 
-                {userAssignment && (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-green-900">You are assigned to this task</p>
-                      <div className="text-sm text-green-700 space-y-1">
-                        <p>Assigned on: {new Date(userAssignment.assignedAt).toLocaleDateString()}</p>
-                        <p>Status: {userAssignment.status}</p>
-                        <p>Attempts used: {userAssignment.attemptsUsed} / {task.maxAttempts}</p>
+                  {userAssignment && (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-green-900">You are assigned to this task</p>
+                        <div className="text-sm text-green-700 space-y-1">
+                          <p>Assigned on: {new Date(userAssignment.assignedAt).toLocaleDateString()}</p>
+                          <p>Status: {userAssignment.status}</p>
+                          <p>Attempts used: {userAssignment.attemptsUsed} / {task.maxAttempts}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardBody className="space-y-6 p-6">
+                  <div>
+                    <CardTitle className="text-2xl mb-4">Task Details</CardTitle>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Deliverables</p>
+                        <p className="text-base text-slate-900">{task.deliverables}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Reward</p>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-2xl font-bold text-slate-900">{task.rewardAmount}</p>
+                          <p className="text-sm text-slate-600">{task.rewardCurrency}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Max Attempts</p>
+                        <p className="text-base text-slate-900">{task.maxAttempts}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Deadline</p>
+                        <p className="text-base text-slate-900">
+                          {new Date(task.deadline).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Created</p>
+                        <p className="text-base text-slate-900">
+                          {new Date(task.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Last Updated</p>
+                        <p className="text-base text-slate-900">
+                          {new Date(task.updatedAt).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                   </div>
-                )}
-              </CardBody>
-            </Card>
+                </CardBody>
+              </Card>
+            </div>
 
-            <Card>
-              <CardBody className="space-y-6 p-6">
-                <div>
-                  <CardTitle className="text-2xl mb-4">Task Details</CardTitle>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-500">Deliverables</p>
-                      <p className="text-base text-slate-900">{task.deliverables}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-500">Reward</p>
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-2xl font-bold text-slate-900">{task.rewardAmount}</p>
-                        <p className="text-sm text-slate-600">{task.rewardCurrency}</p>
+            {/* Right Column (Chat Panel) */}
+            {showChat && (
+              <div className="space-y-4">
+                {isOwner ? (
+                  assignments.length > 0 ? (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                      {/* Developer selection dropdown for owner */}
+                      <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+                        <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                          Select Developer Conversation
+                        </label>
+                        <select
+                          value={selectedAssignment?.id || ''}
+                          onChange={(e) => {
+                            const assId = Number(e.target.value)
+                            const found = assignments.find((a) => a.id === assId)
+                            if (found) {
+                              setSelectedAssignment(found)
+                            }
+                          }}
+                          className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700"
+                        >
+                          {assignments.map((ass) => (
+                            <option key={ass.id} value={ass.id}>
+                              {ass.username}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-500">Max Attempts</p>
-                      <p className="text-base text-slate-900">{task.maxAttempts}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-500">Deadline</p>
-                      <p className="text-base text-slate-900">
-                        {new Date(task.deadline).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-500">Created</p>
-                      <p className="text-base text-slate-900">
-                        {new Date(task.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-slate-500">Last Updated</p>
-                      <p className="text-base text-slate-900">
-                        {new Date(task.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
 
-          </>
+                      {selectedAssignment && (
+                        <TaskChatPanel
+                          assignmentId={selectedAssignment.id}
+                          currentUser={currentUser!}
+                          otherUserUsername={selectedAssignment.username}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <Card className="shadow-sm border border-slate-200/80 bg-white/90 backdrop-blur-md p-6 text-center animate-in fade-in duration-300">
+                      <CardBody className="space-y-2">
+                        <CardTitle className="text-base font-semibold text-slate-700">No Developers Assigned</CardTitle>
+                        <CardDescription className="text-xs text-slate-400">
+                          Once a developer assigns themselves to this task, you can chat with them here in real-time.
+                        </CardDescription>
+                      </CardBody>
+                    </Card>
+                  )
+                ) : (
+                  userAssignment && (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                      <TaskChatPanel
+                        assignmentId={userAssignment.id}
+                        currentUser={currentUser!}
+                        otherUserUsername={projectOwnerUsername || 'Project Owner'}
+                      />
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
         ) : null}
       </section>
 
