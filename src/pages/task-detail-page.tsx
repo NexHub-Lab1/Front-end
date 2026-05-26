@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { TaskResponse, User, TaskAssignmentResponse } from '../types/app'
+import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -11,7 +11,8 @@ import Modal from '../components/ui/modal'
 import { Input } from '../components/ui/input'
 import { fetchProjectById } from '../lib/project-storage'
 import { fetchTaskById } from '../lib/task-storage'
-import { createSubmission } from '../lib/submission-storage'
+import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment } from '../lib/submission-storage'
+
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 import { fetchTaskAssignments } from '../lib/chat-storage'
@@ -45,6 +46,8 @@ export function TaskDetailPage({
   const [projectOwnerUsername, setProjectOwnerUsername] = useState<string | null>(null)
   const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentResponse | null>(null)
+  const [submissions, setSubmissions] = useState<TaskSubmissionResponse[]>([])
+
 
 
   useEffect(() => {
@@ -79,16 +82,18 @@ export function TaskDetailPage({
             setProjectOwnerUsername(projectRes.data.ownerUsername)
           }
 
+          let activeAssignment: TaskAssignmentResponse | null = null
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
             page: 0,
             size: LOOKUP_PAGE_SIZE,
             sort: ['assignedAt,desc'],
           })
           if (assignmentsRes.data) {
-            const activeAssignment = assignmentsRes.data.content.find(
+            const found = assignmentsRes.data.content.find(
               a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
-            setUserAssignment(activeAssignment || null)
+            activeAssignment = found || null
+            setUserAssignment(found || null)
           }
 
           if (userIsOwner) {
@@ -100,7 +105,18 @@ export function TaskDetailPage({
                 setSelectedAssignment(content[0])
               }
             }
+
+            const subsRes = await fetchSubmissionsByTask(parsedId, { page: 0, size: 100 })
+            if (subsRes.status === 'success' && subsRes.data) {
+              setSubmissions(subsRes.data.content)
+            }
+          } else if (activeAssignment) {
+            const subsRes = await fetchSubmissionsByAssignment(activeAssignment.id, { page: 0, size: 100 })
+            if (subsRes.status === 'success' && subsRes.data) {
+              setSubmissions(subsRes.data.content)
+            }
           }
+
         }
       } catch (fetchError) {
         setTask(null)
@@ -194,6 +210,12 @@ export function TaskDetailPage({
               a => a.taskId === task?.id && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(updatedAssignment || null)
+
+            const targetAssignmentId = updatedAssignment?.id || userAssignment.id
+            const subsRes = await fetchSubmissionsByAssignment(targetAssignmentId, { page: 0, size: 100 })
+            if (subsRes.status === 'success' && subsRes.data) {
+              setSubmissions(subsRes.data.content)
+            }
           }
         }
       } else {
@@ -448,9 +470,11 @@ export function TaskDetailPage({
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Deadline</p>
-                        <p className="text-base text-slate-900">
-                          {new Date(task.deadline).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-base text-slate-900">
+                            {new Date(task.deadline).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Created</p>
@@ -468,6 +492,103 @@ export function TaskDetailPage({
                   </div>
                 </CardBody>
               </Card>
+
+              {/* Submitted Proposals Card */}
+              {(isOwner || userAssignment) && (
+                <Card>
+                  <CardBody className="space-y-6 p-6">
+                    <div>
+                      <CardTitle className="text-2xl mb-1">Submitted Proposals</CardTitle>
+                      <CardDescription className="text-sm text-slate-500 mb-4">
+                        {isOwner 
+                          ? "Review and track all solution proposals submitted by developers for this task."
+                          : "Track the status of your submitted solution proposals for this task."
+                        }
+                      </CardDescription>
+
+                      {submissions.length === 0 ? (
+                        <div className="text-center py-8 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl">
+                          <p className="text-sm font-semibold text-slate-600">No proposals submitted yet</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {isOwner 
+                              ? "Assigned developers will submit their work here."
+                              : "Click 'Submit' above to submit your pull request link once you're ready."
+                            }
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto border border-slate-200/80 rounded-2xl bg-white">
+                          <table className="w-full text-left border-collapse text-sm">
+                            <thead>
+                              <tr className="bg-slate-50/50 border-b border-slate-200/80 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                                {isOwner && <th className="px-5 py-3">Developer</th>}
+                                <th className="px-5 py-3">Attempt</th>
+                                <th className="px-5 py-3">PR Link</th>
+                                <th className="px-5 py-3">Submitted</th>
+                                <th className="px-5 py-3">Status</th>
+                                <th className="px-5 py-3">Review Details</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                              {submissions.map((sub) => {
+                                const statusLower = sub.status.toLowerCase()
+                                const isCompleted = statusLower === 'completed' || statusLower === 'accepted'
+                                const isRejected = statusLower === 'rejected'
+                                const isPending = statusLower === 'submitted' || statusLower === 'pending'
+                                
+                                let badgeClass = "bg-blue-50 text-blue-700 border-blue-200"
+                                if (isCompleted) badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                if (isRejected) badgeClass = "bg-red-50 text-red-700 border-red-200"
+                                if (isPending) badgeClass = "bg-amber-50 text-amber-700 border-amber-200"
+
+                                return (
+                                  <tr key={sub.id} className="hover:bg-slate-50/30 transition-colors">
+                                    {isOwner && (
+                                      <td className="px-5 py-3 font-semibold text-slate-800">
+                                        {sub.username}
+                                      </td>
+                                    )}
+                                    <td className="px-5 py-3">
+                                      <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                                        Attempt {sub.attemptsUsed}
+                                      </Badge>
+                                    </td>
+                                    <td className="px-5 py-3">
+                                      <a
+                                        href={sub.pullRequestUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
+                                      >
+                                        View PR
+                                      </a>
+                                    </td>
+                                    <td className="px-5 py-3 text-slate-500 text-xs font-normal">
+                                      {new Date(sub.submittedAt).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-5 py-3">
+                                      <Badge className={`border ${badgeClass}`}>
+                                        {sub.status}
+                                      </Badge>
+                                    </td>
+                                    <td className="px-5 py-3 text-xs max-w-[200px] truncate" title={sub.reviewComments || 'No review comments yet.'}>
+                                      {sub.reviewComments ? (
+                                        <span className="text-slate-600 italic">"{sub.reviewComments}"</span>
+                                      ) : (
+                                        <span className="text-slate-400">-</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
             </div>
 
             {/* Right Column (Chat Panel) */}
