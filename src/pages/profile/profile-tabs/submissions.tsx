@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
 import { PaginationControls } from '../../../components/ui/pagination-controls'
@@ -18,7 +18,6 @@ export function SubmissionsTab({
   })
   const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-  const hasMounted = useRef(false)
 
   const loadUserSubmissions = useCallback(async (pageOverride = currentPage) => {
     if (!user?.id) return;
@@ -52,13 +51,10 @@ export function SubmissionsTab({
       }
     };
 
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      if (submissionsPage.content.length === 0 || currentPage > 0) {
-        void loadUserSubmissions();
-      }
-    } else {
+    if (currentPage > 0) {
       void loadUserSubmissions();
+    } else {
+      syncFromDashboard();
     }
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);

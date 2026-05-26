@@ -11,7 +11,7 @@ import { Button } from "../../../components/ui/button";
 import type { TaskRequest, TaskResponse, ProjectLookupDTO, User } from "../../../types/app";
 
 import { createTask, fetchTasksByOwner, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
-import { useEffect, useState, type FormEvent, useCallback, useRef } from "react";
+import { useEffect, useState, type FormEvent, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/ui/modal";
 import { Input } from "../../../components/ui/input";
@@ -67,7 +67,6 @@ export function TasksTab({
     message: string;
   } | null>(null);
   const [skillsInput, setSkillsInput] = useState('')
-  const hasMounted = useRef(false)
 
   const [taskForm, setTaskForm] = useState<TaskRequest>({
     ...EMPTY_TASK_FORM,
@@ -108,13 +107,10 @@ export function TasksTab({
       }
     };
 
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      if (tasksPage.content.length === 0 || currentPage > 0) {
-        void reloadTasks();
-      }
-    } else {
+    if (currentPage > 0) {
       void reloadTasks();
+    } else {
+      syncFromDashboard();
     }
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);

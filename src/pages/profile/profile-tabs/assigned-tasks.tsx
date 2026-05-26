@@ -1,5 +1,5 @@
 import { ArrowRight, RefreshCw } from 'lucide-react'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from '../../../components/ui/badge'
@@ -36,8 +36,6 @@ export function AssignedTasksTab({
   const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
-  
-  const hasMounted = useRef(false)
 
   const loadAssignedTasks = useCallback(async (pageOverride = currentPage) => {
     if (!user?.id) return;
@@ -79,13 +77,10 @@ export function AssignedTasksTab({
       }
     };
 
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      if (assignmentsPage.content.length === 0 || currentPage > 0) {
-        void loadAssignedTasks();
-      }
-    } else {
+    if (currentPage > 0) {
       void loadAssignedTasks();
+    } else {
+      syncFromDashboard();
     }
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
