@@ -13,6 +13,7 @@ import { fetchAllTasks } from '../lib/task-storage'
 import type { PaginatedResponse, TaskResponse } from '../types/app'
 import { GRID_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
 import { readStoredUser } from '../lib/auth-storage'
+import { fundingBadgeClassName, normalizeFundingStatus } from '../lib/payment-utils'
 
 export function TasksPage({
   onSignOut,
@@ -153,6 +154,9 @@ export function TasksPage({
 
                           <div className="flex flex-wrap gap-2">
                             <Badge variant="secondary">{task.status}</Badge>
+                            <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                              {normalizeFundingStatus(task.fundingStatus)}
+                            </Badge>
                             <Badge variant="outline">{task.projectName}</Badge>
                           </div>
 

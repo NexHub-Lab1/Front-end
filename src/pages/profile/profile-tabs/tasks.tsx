@@ -26,7 +26,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   description: "",
   deliverables: "",
   rewardAmount: 0,
-  rewardCurrency: "USD",
+  rewardCurrency: "ARS",
   deadline: new Date(),
   status: "Open",
   maxAttempts: 3,

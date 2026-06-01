@@ -22,13 +22,8 @@ import { fetchAllProjects } from '../lib/project-storage'
 import { fetchAllTasks } from '../lib/task-storage'
 import { fetchAllUserDetails } from '../lib/user-storage'
 import { readStoredUser } from '../lib/auth-storage'
+import { formatMoney, fundingBadgeClassName, normalizeFundingStatus } from '../lib/payment-utils'
 import type { ProjectResponse, TaskResponse, UserDetailsResponse } from '../types/app'
-
-function formatMoney(amount: number, currency: string) {
-  return `${Number(amount).toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} ${currency}`
-}
 
 function sortDevelopersByActivity(users: UserDetailsResponse[]) {
   return [...users]
@@ -36,24 +31,6 @@ function sortDevelopersByActivity(users: UserDetailsResponse[]) {
     .slice(0, 4)
 }
 
-function normalizeFundingStatus(status?: string | null) {
-  return status?.trim().toLowerCase() || 'unfunded'
-}
-
-function fundingBadgeClassName(status?: string | null) {
-  switch (normalizeFundingStatus(status)) {
-    case 'funded':
-      return 'border-green-200 bg-green-50 text-green-700'
-    case 'pending':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
-    case 'released':
-      return 'border-blue-200 bg-blue-50 text-blue-700'
-    case 'refunded':
-      return 'border-slate-200 bg-slate-50 text-slate-700'
-    default:
-      return 'border-slate-200 bg-slate-50 text-slate-700'
-  }
-}
 
 function LoadingCard({ label }: { label: string }) {
   return (

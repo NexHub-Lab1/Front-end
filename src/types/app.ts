@@ -150,6 +150,51 @@ export type TaskResponse = {
   recommendedSkills: string[]
 }
 
+export type PaymentResponse = {
+  id: number
+  taskId: number
+  taskTitle: string
+  payerId: number
+  payerUsername: string
+  amount: number
+  currency: string
+  provider: string
+  providerPreferenceId: string | null
+  providerPaymentId: string | null
+  checkoutUrl: string | null
+  status: string
+  failureReason: string | null
+  createdAt: Date
+  updatedAt: Date
+  approvedAt: Date | null
+  failedAt: Date | null
+  releasedAt: Date | null
+  refundedAt: Date | null
+}
+
+export type BalanceResponse = {
+  userId: number
+  username: string
+  availableBalance: number
+  escrowBalance: number
+}
+
+export type WalletTransactionResponse = {
+  id: number
+  userId: number
+  username: string
+  paymentId: number
+  taskId: number
+  taskTitle: string
+  type: string
+  amount: number
+  currency: string
+  availableBalanceAfter: number
+  escrowBalanceAfter: number
+  description: string | null
+  createdAt: Date
+}
+
 export type TaskAssignmentRequest = {
   taskId: number
   userId: number
