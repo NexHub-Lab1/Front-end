@@ -36,6 +36,7 @@ export function TaskDetailPage({
   const [error, setError] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [userAssignment, setUserAssignment] = useState<TaskAssignmentResponse | null>(null)
+  const [anyAssignment, setAnyAssignment] = useState<TaskAssignmentResponse | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [prUrl, setPrUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -142,18 +143,23 @@ export function TaskDetailPage({
             setProjectOwnerUsername(projectRes.data.ownerUsername)
           }
 
-          let activeAssignment: TaskAssignmentResponse | null = null
+          let foundAnyAssignment: TaskAssignmentResponse | null = null
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
             page: 0,
             size: LOOKUP_PAGE_SIZE,
             sort: ['assignedAt,desc'],
           })
           if (assignmentsRes.data) {
-            const found = assignmentsRes.data.content.find(
+            const foundActive = assignmentsRes.data.content.find(
               a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
-            activeAssignment = found || null
-            setUserAssignment(found || null)
+            setUserAssignment(foundActive || null)
+
+            const foundAny = assignmentsRes.data.content.find(
+              a => a.taskId === parsedId
+            )
+            foundAnyAssignment = foundAny || null
+            setAnyAssignment(foundAny || null)
           }
 
           if (userIsOwner) {
@@ -170,8 +176,8 @@ export function TaskDetailPage({
             if (subsRes.status === 'success' && subsRes.data) {
               setSubmissions(subsRes.data.content)
             }
-          } else if (activeAssignment) {
-            const subsRes = await fetchSubmissionsByAssignment(activeAssignment.id, { page: 0, size: 100 })
+          } else if (foundAnyAssignment) {
+            const subsRes = await fetchSubmissionsByAssignment(foundAnyAssignment.id, { page: 0, size: 100 })
             if (subsRes.status === 'success' && subsRes.data) {
               setSubmissions(subsRes.data.content)
             }
@@ -211,6 +217,7 @@ export function TaskDetailPage({
 
       if (result.status === 'success' && result.data) {
         setUserAssignment(result.data)
+        setAnyAssignment(result.data)
         setActionFeedback({
           type: 'success',
           message: 'Task assigned successfully. You can now submit your pull request.',
@@ -554,7 +561,7 @@ export function TaskDetailPage({
               </Card>
 
               {/* Submitted Proposals Card */}
-              {(isOwner || userAssignment) && (
+              {(isOwner || anyAssignment) && (
                 <Card>
                   <CardBody className="space-y-6 p-6">
                     <div>
