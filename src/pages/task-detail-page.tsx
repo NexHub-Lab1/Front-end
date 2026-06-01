@@ -1,4 +1,4 @@
-import { ArrowLeft, Bookmark, Send, UserPlus } from 'lucide-react'
+import { ArrowLeft, Bookmark, Send, UserPlus, Check, X, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
@@ -11,7 +11,7 @@ import Modal from '../components/ui/modal'
 import { Input } from '../components/ui/input'
 import { fetchProjectById } from '../lib/project-storage'
 import { fetchTaskById } from '../lib/task-storage'
-import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment } from '../lib/submission-storage'
+import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment, updateSubmission } from '../lib/submission-storage'
 
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
@@ -47,6 +47,66 @@ export function TaskDetailPage({
   const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentResponse | null>(null)
   const [submissions, setSubmissions] = useState<TaskSubmissionResponse[]>([])
+
+  // State for fast proposal review
+  const [selectedSubmission, setSelectedSubmission] = useState<TaskSubmissionResponse | null>(null)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewComments, setReviewComments] = useState('')
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+
+  const handleOpenReviewModal = (submission: TaskSubmissionResponse) => {
+    setSelectedSubmission(submission)
+    setReviewComments(submission.reviewComments || '')
+    setReviewError(null)
+    setShowReviewModal(true)
+  }
+
+  const submitReview = async (approved: boolean) => {
+    if (!selectedSubmission || !currentUser || !task) return
+
+    if (!approved && !reviewComments.trim()) {
+      setReviewError('Comments are required when rejecting a submission')
+      return
+    }
+
+    try {
+      setIsSubmittingReview(true)
+      setReviewError(null)
+      setActionFeedback(null)
+
+      const result = await updateSubmission({
+        id: selectedSubmission.id,
+        pullRequestUrl: selectedSubmission.pullRequestUrl,
+        status: approved ? 'APPROVED' : 'REJECTED',
+        reviewComments: reviewComments.trim() || (approved ? 'Approved' : 'Rejected'),
+        reviewerId: currentUser.id,
+      })
+
+      if (result.status === 'success') {
+        setShowReviewModal(false)
+        setSelectedSubmission(null)
+        setReviewComments('')
+        
+        // Reload submissions list
+        const subsRes = await fetchSubmissionsByTask(task.id, { page: 0, size: 100 })
+        if (subsRes.status === 'success' && subsRes.data) {
+          setSubmissions(subsRes.data.content)
+        }
+
+        setActionFeedback({
+          type: 'success',
+          message: `Submission ${approved ? 'approved' : 'rejected'} successfully.`,
+        })
+      } else {
+        setReviewError(result.message || 'Failed to submit review')
+      }
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'An error occurred')
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
 
 
 
@@ -527,12 +587,13 @@ export function TaskDetailPage({
                                 <th className="px-5 py-3">Submitted</th>
                                 <th className="px-5 py-3">Status</th>
                                 <th className="px-5 py-3">Review Details</th>
+                                {isOwner && <th className="px-5 py-3 text-right">Actions</th>}
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
                               {submissions.map((sub) => {
                                 const statusLower = sub.status.toLowerCase()
-                                const isCompleted = statusLower === 'completed' || statusLower === 'accepted'
+                                const isCompleted = statusLower === 'completed' || statusLower === 'accepted' || statusLower === 'approved'
                                 const isRejected = statusLower === 'rejected'
                                 const isPending = statusLower === 'submitted' || statusLower === 'pending'
                                 
@@ -542,7 +603,19 @@ export function TaskDetailPage({
                                 if (isPending) badgeClass = "bg-amber-50 text-amber-700 border-amber-200"
 
                                 return (
-                                  <tr key={sub.id} className="hover:bg-slate-50/30 transition-colors">
+                                  <tr
+                                    key={sub.id}
+                                    onClick={() => {
+                                      if (isOwner) {
+                                        handleOpenReviewModal(sub)
+                                      }
+                                    }}
+                                    className={`transition-colors ${
+                                      isOwner
+                                        ? 'cursor-pointer hover:bg-slate-100/50'
+                                        : 'hover:bg-slate-50/30'
+                                    }`}
+                                  >
                                     {isOwner && (
                                       <td className="px-5 py-3 font-semibold text-slate-800">
                                         {sub.username}
@@ -558,6 +631,7 @@ export function TaskDetailPage({
                                         href={sub.pullRequestUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
                                         className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
                                       >
                                         View PR
@@ -578,6 +652,21 @@ export function TaskDetailPage({
                                         <span className="text-slate-400">-</span>
                                       )}
                                     </td>
+                                    {isOwner && (
+                                      <td className="px-5 py-3 text-right">
+                                        <Button
+                                          variant={isPending ? "primary" : "outline"}
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleOpenReviewModal(sub)
+                                          }}
+                                          className="h-7 px-3 text-xs font-semibold"
+                                        >
+                                          {isPending ? "Review" : "View Details"}
+                                        </Button>
+                                      </td>
+                                    )}
                                   </tr>
                                 )
                               })}
@@ -711,6 +800,170 @@ export function TaskDetailPage({
                 Cancel
               </Button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {showReviewModal && selectedSubmission && (
+        <Modal
+          isOpen={showReviewModal}
+          onClose={() => {
+            setShowReviewModal(false)
+            setSelectedSubmission(null)
+            setReviewComments('')
+            setReviewError(null)
+          }}
+          title="Review Solution Proposal"
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg bg-slate-50 p-4 border border-slate-100 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <div>
+                  <span className="font-semibold text-slate-700">Developer:</span>{" "}
+                  <span className="text-slate-900 font-semibold">{selectedSubmission.username}</span>
+                </div>
+                <div>
+                  <Badge variant="outline" className="bg-slate-100 text-slate-600">
+                    Attempt {selectedSubmission.attemptsUsed}
+                  </Badge>
+                </div>
+              </div>
+              <div className="text-sm">
+                <span className="font-semibold text-slate-700">Submitted:</span>{" "}
+                <span className="text-slate-600">
+                  {new Date(selectedSubmission.submittedAt).toLocaleString()}
+                </span>
+              </div>
+              <div className="text-sm flex items-center gap-2">
+                <span className="font-semibold text-slate-700">PR Link:</span>{" "}
+                <a
+                  href={selectedSubmission.pullRequestUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-blue-600 hover:text-blue-700 font-mono text-xs hover:underline truncate max-w-[400px]"
+                >
+                  {selectedSubmission.pullRequestUrl}
+                </a>
+              </div>
+              <div className="text-sm flex items-center gap-2">
+                <span className="font-semibold text-slate-700">Current Status:</span>{" "}
+                <Badge
+                  className={`border ${
+                    selectedSubmission.status.toLowerCase() === 'completed' ||
+                    selectedSubmission.status.toLowerCase() === 'accepted' ||
+                    selectedSubmission.status.toLowerCase() === 'approved'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : selectedSubmission.status.toLowerCase() === 'rejected'
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}
+                >
+                  {selectedSubmission.status}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Check if it is pending review */}
+            {(selectedSubmission.status.toLowerCase() === 'submitted' ||
+              selectedSubmission.status.toLowerCase() === 'pending') ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Review Feedback Comments <span className="text-red-500 font-normal">(Required only for Rejections)</span>
+                  </label>
+                  <textarea
+                    value={reviewComments}
+                    onChange={(e) => {
+                      setReviewComments(e.target.value)
+                      if (reviewError) setReviewError(null)
+                    }}
+                    placeholder="Enter your feedback, suggestions, or comments here..."
+                    rows={4}
+                    className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400"
+                    disabled={isSubmittingReview}
+                  />
+                </div>
+
+                {reviewError && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <p className="text-sm text-red-700">{reviewError}</p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <Button
+                    variant="primary"
+                    onClick={() => submitReview(true)}
+                    disabled={isSubmittingReview}
+                    className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white flex items-center gap-1.5"
+                  >
+                    {isSubmittingReview ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Check size={16} />
+                    )}
+                    Approve Proposal
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => submitReview(false)}
+                    disabled={isSubmittingReview || !reviewComments.trim()}
+                    title={!reviewComments.trim() ? "Comments are required for rejection" : "Reject proposal"}
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
+                  >
+                    {isSubmittingReview ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <X size={16} />
+                    )}
+                    Reject Proposal
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowReviewModal(false)
+                      setSelectedSubmission(null)
+                      setReviewComments('')
+                      setReviewError(null)
+                    }}
+                    disabled={isSubmittingReview}
+                    className="ml-auto"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Already reviewed proposal
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-700">Review Comments</h4>
+                  <div className="bg-slate-50/70 border border-slate-200/60 rounded-lg p-3.5 italic text-slate-700 text-sm">
+                    {selectedSubmission.reviewComments ? `"${selectedSubmission.reviewComments}"` : "No review comments provided."}
+                  </div>
+                </div>
+                {selectedSubmission.reviewedAt && (
+                  <div className="text-xs text-slate-400">
+                    Reviewed on: {new Date(selectedSubmission.reviewedAt).toLocaleString()}
+                    {selectedSubmission.reviewerUsername && ` by ${selectedSubmission.reviewerUsername}`}
+                  </div>
+                )}
+                <div className="flex justify-end pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowReviewModal(false)
+                      setSelectedSubmission(null)
+                      setReviewComments('')
+                      setReviewError(null)
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
       )}
