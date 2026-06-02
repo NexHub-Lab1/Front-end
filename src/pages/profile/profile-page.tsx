@@ -12,10 +12,11 @@ import { TasksTab } from './profile-tabs/tasks'
 import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
+import { ChatsTab } from './profile-tabs/chats'
 import { fetchProfileDashboard, readStoredProfileDashboard } from '../../lib/dashboard-storage'
 import { ConnectionList, FollowConnections, type ConnectionView } from '../../components/app/follow-connections'
 
-const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions'] as const
+const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions', 'chats'] as const
 
 type ProfileTabKey = (typeof profileTabKeys)[number]
 
@@ -137,6 +138,8 @@ export function ProfilePage({
         return <ToReviewTab user={currentUser} />
       case 'submissions':
         return <SubmissionsTab user={currentUser} />
+      case 'chats':
+        return <ChatsTab user={currentUser} />
       default:
         return <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
     }
