@@ -24,6 +24,7 @@ export type User = {
   githubUsername?: string | null
   profileImageUrl?: string | null
   skills?: string[]
+  emailNotificationsEnabled?: boolean
 }
 export type ApiResponse<T> = {
   status: 'success' | 'error'
