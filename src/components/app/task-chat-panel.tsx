@@ -12,12 +12,14 @@ interface TaskChatPanelProps {
   assignmentId: number
   currentUser: User
   otherUserUsername: string
+  className?: string
 }
 
 export function TaskChatPanel({
   assignmentId,
   currentUser,
   otherUserUsername,
+  className = "h-[550px]",
 }: TaskChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessageResponse[]>([])
   const [content, setContent] = useState('')
@@ -125,7 +127,7 @@ export function TaskChatPanel({
   }
 
   return (
-    <Card className="flex flex-col h-[550px] shadow-lg border border-slate-200/80 bg-white/90 backdrop-blur-md overflow-hidden">
+    <Card className={`flex flex-col shadow-lg border border-slate-200/80 bg-white/90 backdrop-blur-md overflow-hidden ${className}`}>
       <CardBody className="flex flex-col h-full p-0">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">

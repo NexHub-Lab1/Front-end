@@ -55,6 +55,7 @@ export function TaskDetailPage({
   const [reviewComments, setReviewComments] = useState('')
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
+  const [selectedDeveloperFilter, setSelectedDeveloperFilter] = useState<string | null>(null)
 
   const handleOpenReviewModal = (submission: TaskSubmissionResponse) => {
     setSelectedSubmission(submission)
@@ -559,7 +560,6 @@ export function TaskDetailPage({
                   </div>
                 </CardBody>
               </Card>
-
               {/* Submitted Proposals Card */}
               {(isOwner || anyAssignment) && (
                 <Card>
@@ -583,18 +583,200 @@ export function TaskDetailPage({
                             }
                           </p>
                         </div>
+                      ) : isOwner ? (
+                        selectedDeveloperFilter === null ? (
+                          /* Grouped Developer View */
+                          <div className="overflow-x-auto border border-slate-200/80 rounded-2xl bg-white">
+                            <table className="w-full text-left border-collapse text-sm">
+                              <thead>
+                                <tr className="bg-slate-50/50 border-b border-slate-200/80 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                                  <th className="px-5 py-3">Developer</th>
+                                  <th className="px-5 py-3">Submissions</th>
+                                  <th className="px-5 py-3">Latest Status</th>
+                                  <th className="px-5 py-3 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                {Object.values(
+                                  submissions.reduce((acc, sub) => {
+                                    const key = sub.username
+                                    if (!acc[key]) {
+                                      acc[key] = {
+                                        username: sub.username,
+                                        submissionsCount: 0,
+                                        latestSubmissionDate: sub.submittedAt,
+                                        latestStatus: sub.status,
+                                      }
+                                    }
+                                    acc[key].submissionsCount += 1
+                                    if (new Date(sub.submittedAt) > new Date(acc[key].latestSubmissionDate)) {
+                                      acc[key].latestSubmissionDate = sub.submittedAt
+                                      acc[key].latestStatus = sub.status
+                                    }
+                                    return acc
+                                  }, {} as Record<string, { username: string, submissionsCount: number, latestSubmissionDate: Date, latestStatus: string }>)
+                                ).map((dev) => {
+                                  const statusLower = dev.latestStatus.toLowerCase()
+                                  const isCompleted = statusLower === 'completed' || statusLower === 'accepted' || statusLower === 'approved'
+                                  const isRejected = statusLower === 'rejected'
+                                  const isPending = statusLower === 'submitted' || statusLower === 'pending'
+                                  
+                                  let badgeClass = "bg-blue-50 text-blue-700 border-blue-200"
+                                  if (isCompleted) badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  if (isRejected) badgeClass = "bg-red-50 text-red-700 border-red-200"
+                                  if (isPending) badgeClass = "bg-amber-50 text-amber-700 border-amber-200"
+
+                                  return (
+                                    <tr
+                                      key={dev.username}
+                                      onClick={() => setSelectedDeveloperFilter(dev.username)}
+                                      className="cursor-pointer hover:bg-slate-100/50 transition-colors"
+                                    >
+                                      <td className="px-5 py-3 font-semibold text-slate-800">
+                                        {dev.username}
+                                      </td>
+                                      <td className="px-5 py-3">
+                                        <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                                          {dev.submissionsCount} {dev.submissionsCount === 1 ? 'submission' : 'submissions'}
+                                        </Badge>
+                                      </td>
+                                      <td className="px-5 py-3">
+                                        <Badge className={`border ${badgeClass}`}>
+                                          {dev.latestStatus}
+                                        </Badge>
+                                      </td>
+                                      <td className="px-5 py-3 text-right">
+                                        <Button
+                                          variant="primary"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSelectedDeveloperFilter(dev.username)
+                                          }}
+                                          className="h-7 px-3 text-xs font-semibold"
+                                        >
+                                          View Attempts
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          /* Attempts View for Selected Developer */
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedDeveloperFilter(null)}
+                                className="text-xs font-semibold border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1.5"
+                              >
+                                <ArrowLeft size={14} />
+                                Back to Developers
+                              </Button>
+                              <p className="text-xs font-semibold text-slate-500">
+                                Showing attempts for <span className="text-slate-800 font-bold">{selectedDeveloperFilter}</span>
+                              </p>
+                            </div>
+
+                            <div className="overflow-x-auto border border-slate-200/80 rounded-2xl bg-white">
+                              <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                  <tr className="bg-slate-50/50 border-b border-slate-200/80 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                                    <th className="px-5 py-3">Attempt</th>
+                                    <th className="px-5 py-3">PR Link</th>
+                                    <th className="px-5 py-3">Submitted</th>
+                                    <th className="px-5 py-3">Status</th>
+                                    <th className="px-5 py-3">Review Details</th>
+                                    <th className="px-5 py-3 text-right">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                  {submissions
+                                    .filter((s) => s.username === selectedDeveloperFilter)
+                                    .map((sub) => {
+                                      const statusLower = sub.status.toLowerCase()
+                                      const isCompleted = statusLower === 'completed' || statusLower === 'accepted' || statusLower === 'approved'
+                                      const isRejected = statusLower === 'rejected'
+                                      const isPending = statusLower === 'submitted' || statusLower === 'pending'
+                                      
+                                      let badgeClass = "bg-blue-50 text-blue-700 border-blue-200"
+                                      if (isCompleted) badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      if (isRejected) badgeClass = "bg-red-50 text-red-700 border-red-200"
+                                      if (isPending) badgeClass = "bg-amber-50 text-amber-700 border-amber-200"
+
+                                      return (
+                                        <tr
+                                          key={sub.id}
+                                          onClick={() => handleOpenReviewModal(sub)}
+                                          className="cursor-pointer hover:bg-slate-100/50 transition-colors"
+                                        >
+                                          <td className="px-5 py-3">
+                                            <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                                              Attempt {sub.attemptsUsed}
+                                            </Badge>
+                                          </td>
+                                          <td className="px-5 py-3">
+                                            <a
+                                              href={sub.pullRequestUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
+                                            >
+                                              View PR
+                                            </a>
+                                          </td>
+                                          <td className="px-5 py-3 text-slate-500 text-xs font-normal">
+                                            {new Date(sub.submittedAt).toLocaleDateString()}
+                                          </td>
+                                          <td className="px-5 py-3">
+                                            <Badge className={`border ${badgeClass}`}>
+                                              {sub.status}
+                                            </Badge>
+                                          </td>
+                                          <td className="px-5 py-3 text-xs max-w-[200px] truncate" title={sub.reviewComments || 'No review comments yet.'}>
+                                            {sub.reviewComments ? (
+                                              <span className="text-slate-600 italic">"{sub.reviewComments}"</span>
+                                            ) : (
+                                              <span className="text-slate-400">-</span>
+                                            )}
+                                          </td>
+                                          <td className="px-5 py-3 text-right">
+                                            <Button
+                                              variant={isPending ? "primary" : "outline"}
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleOpenReviewModal(sub)
+                                              }}
+                                              className="h-7 px-3 text-xs font-semibold"
+                                            >
+                                              {isPending ? "Review" : "View Details"}
+                                            </Button>
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )
                       ) : (
+                        /* Direct Developer's Attempts Table */
                         <div className="overflow-x-auto border border-slate-200/80 rounded-2xl bg-white">
                           <table className="w-full text-left border-collapse text-sm">
                             <thead>
                               <tr className="bg-slate-50/50 border-b border-slate-200/80 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
-                                {isOwner && <th className="px-5 py-3">Developer</th>}
                                 <th className="px-5 py-3">Attempt</th>
                                 <th className="px-5 py-3">PR Link</th>
                                 <th className="px-5 py-3">Submitted</th>
                                 <th className="px-5 py-3">Status</th>
                                 <th className="px-5 py-3">Review Details</th>
-                                {isOwner && <th className="px-5 py-3 text-right">Actions</th>}
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
@@ -610,24 +792,7 @@ export function TaskDetailPage({
                                 if (isPending) badgeClass = "bg-amber-50 text-amber-700 border-amber-200"
 
                                 return (
-                                  <tr
-                                    key={sub.id}
-                                    onClick={() => {
-                                      if (isOwner) {
-                                        handleOpenReviewModal(sub)
-                                      }
-                                    }}
-                                    className={`transition-colors ${
-                                      isOwner
-                                        ? 'cursor-pointer hover:bg-slate-100/50'
-                                        : 'hover:bg-slate-50/30'
-                                    }`}
-                                  >
-                                    {isOwner && (
-                                      <td className="px-5 py-3 font-semibold text-slate-800">
-                                        {sub.username}
-                                      </td>
-                                    )}
+                                  <tr key={sub.id} className="hover:bg-slate-50/30 transition-colors">
                                     <td className="px-5 py-3">
                                       <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
                                         Attempt {sub.attemptsUsed}
@@ -638,7 +803,6 @@ export function TaskDetailPage({
                                         href={sub.pullRequestUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
                                         className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
                                       >
                                         View PR
@@ -659,21 +823,6 @@ export function TaskDetailPage({
                                         <span className="text-slate-400">-</span>
                                       )}
                                     </td>
-                                    {isOwner && (
-                                      <td className="px-5 py-3 text-right">
-                                        <Button
-                                          variant={isPending ? "primary" : "outline"}
-                                          size="sm"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleOpenReviewModal(sub)
-                                          }}
-                                          className="h-7 px-3 text-xs font-semibold"
-                                        >
-                                          {isPending ? "Review" : "View Details"}
-                                        </Button>
-                                      </td>
-                                    )}
                                   </tr>
                                 )
                               })}
@@ -689,10 +838,10 @@ export function TaskDetailPage({
 
             {/* Right Column (Chat Panel) */}
             {showChat && (
-              <div className="space-y-4">
+              <div className="flex flex-col h-full space-y-4">
                 {isOwner ? (
                   assignments.length > 0 ? (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="flex flex-col flex-1 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                       {/* Developer selection dropdown for owner */}
                       <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm">
                         <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
@@ -722,6 +871,7 @@ export function TaskDetailPage({
                           assignmentId={selectedAssignment.id}
                           currentUser={currentUser!}
                           otherUserUsername={selectedAssignment.username}
+                          className="flex-1 min-h-[500px]"
                         />
                       )}
                     </div>
@@ -737,11 +887,12 @@ export function TaskDetailPage({
                   )
                 ) : (
                   userAssignment && (
-                    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="flex flex-col flex-1 animate-in fade-in slide-in-from-right-4 duration-300">
                       <TaskChatPanel
                         assignmentId={userAssignment.id}
                         currentUser={currentUser!}
                         otherUserUsername={projectOwnerUsername || 'Project Owner'}
+                        className="flex-1 min-h-[500px]"
                       />
                     </div>
                   )
