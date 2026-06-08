@@ -446,7 +446,7 @@ export function ProfileTab({
           </CardBody>
         </Card>
 
-        {feedback ? (
+        {!isEditOpen && !isDeleteOpen && feedback ? (
           <Card
             className={`shadow-none ${feedback.type === 'success'
               ? 'border-emerald-200 bg-emerald-50'
@@ -490,6 +490,16 @@ export function ProfileTab({
 
         <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit profile">
           <form className="grid gap-4" onSubmit={handleUpdate}>
+            {feedback && (
+              <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                feedback.type === 'success'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              }`}>
+                {feedback.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <span className="h-2.5 w-2.5 rounded-full bg-red-500" />}
+                <span>{feedback.message}</span>
+              </div>
+            )}
             <Input
               type="email"
               label="Current email"
@@ -639,6 +649,16 @@ export function ProfileTab({
 
         <Modal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} title="Delete account">
           <div className="grid gap-4">
+            {feedback && (
+              <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                feedback.type === 'success'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              }`}>
+                {feedback.type === 'success' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <span className="h-2.5 w-2.5 rounded-full bg-red-500" />}
+                <span>{feedback.message}</span>
+              </div>
+            )}
             <CardDescription className="text-base text-slate-600">
               Confirm your current password below. Accounts with platform activity are deactivated instead of hard
               deleted, so related project and task history does not break.

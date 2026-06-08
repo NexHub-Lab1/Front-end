@@ -180,7 +180,7 @@ export function ToReviewTab({
           </Button>
         </div>
 
-        {reviewFeedback ? (
+        {!showReviewModal && reviewFeedback ? (
           <Card
             className={`shadow-none border-2 ${
               reviewFeedback.type === 'success'
@@ -300,6 +300,16 @@ export function ToReviewTab({
           title={`Review Submission`}
         >
           <div className="space-y-4">
+            {reviewFeedback && (
+              <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                reviewFeedback.type === 'success'
+                  ? 'border-green-100 bg-green-50 text-green-700'
+                  : 'border-red-100 bg-red-50 text-red-700'
+              }`}>
+                {reviewFeedback.type === 'success' ? <Check size={16} className="text-green-600" /> : <X size={16} className="text-red-600" />}
+                <span>{reviewFeedback.message}</span>
+              </div>
+            )}
             <div className="space-y-2 rounded-lg bg-slate-50 p-4 border border-slate-100">
               <p className="text-sm"><span className="font-semibold text-slate-700">Task:</span> {selectedSubmission.taskTitle}</p>
               <p className="text-sm"><span className="font-semibold text-slate-700">PR:</span> <a href={selectedSubmission.pullRequestUrl} target="_blank" className="text-blue-600 hover:underline">{selectedSubmission.pullRequestUrl}</a></p>

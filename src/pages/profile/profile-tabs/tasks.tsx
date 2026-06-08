@@ -295,6 +295,18 @@ export function TasksTab({
         title={isEditMode ? "Edit task" : "Create a new task"}
       >
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          {feedback && (
+            <div className="md:col-span-2">
+              <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                feedback.type === 'success'
+                  ? 'border-green-100 bg-green-50 text-green-700'
+                  : 'border-red-100 bg-red-50 text-red-700'
+              }`}>
+                {feedback.type === 'success' ? <Check size={16} className="text-green-600" /> : <Cross size={16} className="text-red-600" />}
+                <span>{feedback.message}</span>
+              </div>
+            </div>
+          )}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Task Title</label>
             <Input
@@ -491,7 +503,7 @@ export function TasksTab({
             <PlusIcon size={16} />
           </Button>
         </section>
-        {feedback ? (
+        {!showModal && feedback ? (
           <Card className={`border-${feedback.type === 'success' ? 'green' : 'red'}-100 bg-${feedback.type === 'success' ? 'green' : 'red'}-50/70 shadow-none`}>
             <CardBody className="flex items-center gap-3 p-4">
               {feedback.type === 'success' ? <Check size={16} className="text-green-600" /> : <Cross size={16} className="text-red-600" />}
