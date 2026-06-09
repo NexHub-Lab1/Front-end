@@ -1,23 +1,32 @@
-import { ArrowLeft, Bookmark, Send, UserPlus, Check, X, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Send, UserPlus, Check, X, Loader2, Pencil } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse } from '../types/app'
+import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import Modal from '../components/ui/modal'
 import { Input } from '../components/ui/input'
 import { fetchProjectById } from '../lib/project-storage'
-import { fetchTaskById } from '../lib/task-storage'
+import { fetchTaskById, updateTask } from '../lib/task-storage'
 import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment, updateSubmission } from '../lib/submission-storage'
 
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
-
+const formatMoney = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  } catch (e) {
+    return `${amount.toFixed(2)} ${currency}`
+  }
+}
 
 export function TaskDetailPage({
   currentUser,
@@ -56,6 +65,147 @@ export function TaskDetailPage({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [selectedDeveloperFilter, setSelectedDeveloperFilter] = useState<string | null>(null)
+
+  // State for task editing
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editTaskForm, setEditTaskForm] = useState<TaskRequest>({
+    projectId: 0,
+    title: '',
+    description: '',
+    deliverables: '',
+    rewardAmount: 0,
+    rewardCurrency: 'USD',
+    deadline: new Date(),
+    status: 'OPEN',
+    maxAttempts: 3,
+    recommendedSkills: [],
+  })
+  const [editSkillsInput, setEditSkillsInput] = useState('')
+  const [editErrors, setEditErrors] = useState<{
+    title?: string
+    description?: string
+    deliverables?: string
+    rewardAmount?: string
+  }>({})
+  const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [isUpdatingTask, setIsUpdatingTask] = useState(false)
+
+  const getDeadlineString = (dateVal: Date | string | undefined): string => {
+    if (!dateVal) return ''
+    const d = new Date(dateVal)
+    if (isNaN(d.getTime())) return ''
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const validateEditTaskForm = () => {
+    const nextErrors: typeof editErrors = {}
+
+    if (!editTaskForm.title.trim()) {
+      nextErrors.title = 'Task title is required.'
+    }
+
+    if (!editTaskForm.description.trim()) {
+      nextErrors.description = 'Description is required.'
+    }
+
+    if (!editTaskForm.deliverables.trim()) {
+      nextErrors.deliverables = 'Deliverables are required.'
+    }
+
+    if (editTaskForm.rewardAmount <= 0) {
+      nextErrors.rewardAmount = 'Reward amount must be greater than 0.'
+    }
+
+    setEditErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  const updateEditTaskError = (field: keyof typeof editErrors, value: string | number) => {
+    setEditErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      let errorVal: string | undefined = undefined
+      if (field === 'title' && !String(value).trim()) {
+        errorVal = 'Task title is required.'
+      } else if (field === 'description' && !String(value).trim()) {
+        errorVal = 'Description is required.'
+      } else if (field === 'deliverables' && !String(value).trim()) {
+        errorVal = 'Deliverables are required.'
+      } else if (field === 'rewardAmount' && Number(value) <= 0) {
+        errorVal = 'Reward amount must be greater than 0.'
+      }
+
+      return {
+        ...current,
+        [field]: errorVal,
+      }
+    })
+  }
+
+  const handleOpenEditModal = () => {
+    if (!task) return
+    setEditTaskForm({
+      projectId: task.projectId,
+      title: task.title,
+      description: task.description,
+      deliverables: task.deliverables,
+      rewardAmount: task.rewardAmount,
+      rewardCurrency: task.rewardCurrency || 'USD',
+      deadline: task.deadline,
+      status: task.status,
+      maxAttempts: task.maxAttempts,
+      recommendedSkills: task.recommendedSkills || [],
+    })
+    setEditSkillsInput((task.recommendedSkills || []).join(', '))
+    setEditErrors({})
+    setEditFeedback(null)
+    setShowEditModal(true)
+  }
+
+  const handleEditTaskSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!validateEditTaskForm() || !task) {
+      setEditFeedback(null)
+      return
+    }
+
+    setIsUpdatingTask(true)
+    setEditFeedback(null)
+
+    const updatedData = {
+      ...editTaskForm,
+      recommendedSkills: editSkillsInput
+        .split(',')
+        .map((skill) => skill.trim())
+        .filter(Boolean),
+    }
+
+    try {
+      const res = await updateTask({
+        ...updatedData,
+        id: task.id,
+      })
+
+      if (res.status === 'error' || !res.data) {
+        setEditFeedback({ message: res.message || 'Error updating task', type: 'error' })
+        return
+      }
+
+      setEditFeedback({ message: 'Task updated successfully', type: 'success' })
+      setTask(res.data)
+      setShowEditModal(false)
+    } catch (error) {
+      setEditFeedback({ message: 'Error updating task', type: 'error' })
+    } finally {
+      setIsUpdatingTask(false)
+    }
+  }
 
   const handleOpenReviewModal = (submission: TaskSubmissionResponse) => {
     setSelectedSubmission(submission)
@@ -442,38 +592,41 @@ export function TaskDetailPage({
                     </div>
 
                     <div className="flex gap-2 lg:flex-col">
-                      {!userAssignment && (
+                      {isOwner ? (
                         <Button
-                          variant="secondary"
+                          variant="primary"
                           size="lg"
-                          disabled={assignmentButton.disabled || isAssigning}
-                          onClick={handleAssignTask}
-                          title={assignmentButton.tooltip}
+                          onClick={handleOpenEditModal}
                         >
-                          <UserPlus size={16} className="mr-2" />
-                          {isAssigning ? 'Assigning...' : assignmentButton.text}
+                          <Pencil size={16} className="mr-2" />
+                          Edit Task
                         </Button>
+                      ) : (
+                        <>
+                          {!userAssignment && (
+                            <Button
+                              variant="secondary"
+                              size="lg"
+                              disabled={assignmentButton.disabled || isAssigning}
+                              onClick={handleAssignTask}
+                              title={assignmentButton.tooltip}
+                            >
+                              <UserPlus size={16} className="mr-2" />
+                              {isAssigning ? 'Assigning...' : assignmentButton.text}
+                            </Button>
+                          )}
+                          <Button
+                            variant="primary"
+                            size="lg"
+                            disabled={submitButton.disabled}
+                            onClick={() => setShowSubmitModal(true)}
+                            title={submitButton.tooltip}
+                          >
+                            <Send size={16} className="mr-2" />
+                            Submit
+                          </Button>
+                        </>
                       )}
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        disabled={submitButton.disabled}
-                        onClick={() => setShowSubmitModal(true)}
-                        title={submitButton.tooltip}
-                      >
-                        <Send size={16} className="mr-2" />
-                        Submit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        disabled
-                        className="opacity-50 cursor-not-allowed"
-                        title="WIP: Save for later functionality coming soon"
-                      >
-                        <Bookmark size={16} className="mr-2" />
-                        Save (WIP)
-                      </Button>
                     </div>
                   </div>
 
@@ -528,8 +681,9 @@ export function TaskDetailPage({
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Reward</p>
                         <div className="flex items-baseline gap-2">
-                          <p className="text-2xl font-bold text-slate-900">{task.rewardAmount}</p>
-                          <p className="text-sm text-slate-600">{task.rewardCurrency}</p>
+                          <p className="text-2xl font-bold text-slate-900">
+                            {formatMoney(task.rewardAmount, task.rewardCurrency)}
+                          </p>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -1123,6 +1277,182 @@ export function TaskDetailPage({
               </div>
             )}
           </div>
+        </Modal>
+      )}
+
+      {showEditModal && (
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          title="Edit Task"
+        >
+          <form className="grid gap-4 md:grid-cols-2 text-slate-900" onSubmit={handleEditTaskSubmit}>
+            {editFeedback && (
+              <div className="md:col-span-2">
+                <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                  editFeedback.type === 'success'
+                    ? 'border-green-100 bg-green-50 text-green-700'
+                    : 'border-red-100 bg-red-50 text-red-700'
+                }`}>
+                  {editFeedback.type === 'success' ? (
+                    <Check size={16} className="text-green-600" />
+                  ) : (
+                    <X size={16} className="text-red-600" />
+                  )}
+                  <span>{editFeedback.message}</span>
+                </div>
+              </div>
+            )}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 text-slate-700">Task Title</label>
+              <Input
+                placeholder="Implement feature X"
+                helperText={editErrors.title}
+                error={Boolean(editErrors.title)}
+                value={editTaskForm.title}
+                onChange={(event) => {
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
+                  updateEditTaskError('title', event.target.value)
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">Reward Amount</label>
+              <Input
+                placeholder="100"
+                helperText={editErrors.rewardAmount}
+                error={Boolean(editErrors.rewardAmount)}
+                value={editTaskForm.rewardAmount || ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === '' || /^\d+(\.\d{0,2})?$/.test(value)) {
+                    setEditTaskForm((current) => ({
+                      ...current,
+                      rewardAmount: value === '' ? 0 : Number(value),
+                    }))
+                    updateEditTaskError('rewardAmount', value === '' ? 0 : Number(value))
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-task-status" className="block text-sm font-medium mb-1 text-slate-700">
+                Status
+              </label>
+              <select
+                id="edit-task-status"
+                value={editTaskForm.status}
+                onChange={(event) =>
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    status: event.target.value,
+                  }))
+                }
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="OPEN">OPEN</option>
+                <option value="HIRING">HIRING</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">Max Attempts</label>
+              <Input
+                placeholder="3"
+                value={editTaskForm.maxAttempts || ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === '' || /^\d+$/.test(value)) {
+                    setEditTaskForm((current) => ({
+                      ...current,
+                      maxAttempts: value === '' ? 0 : Number(value),
+                    }))
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">Deadline</label>
+              <Input
+                type="date"
+                value={getDeadlineString(editTaskForm.deadline)}
+                onChange={(event) => {
+                  const val = event.target.value
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    deadline: val ? new Date(val) : new Date(),
+                  }))
+                }}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 text-slate-700">Deliverables</label>
+              <Input
+                placeholder="What needs to be delivered"
+                helperText={editErrors.deliverables}
+                error={Boolean(editErrors.deliverables)}
+                value={editTaskForm.deliverables}
+                onChange={(event) => {
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    deliverables: event.target.value,
+                  }))
+                  updateEditTaskError('deliverables', event.target.value)
+                }}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 text-slate-700">Recommended Skills</label>
+              <Input
+                placeholder="Separate skills with commas."
+                value={editSkillsInput}
+                onChange={(event) => setEditSkillsInput(event.target.value)}
+              />
+              <p className="mt-1 text-xs text-slate-500">Separate skills with commas.</p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 text-slate-700">Description</label>
+              <textarea
+                placeholder="Detailed description of the task"
+                className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none bg-white ${editErrors.description
+                  ? 'border-red-300 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-blue-200'
+                  }`}
+                rows={4}
+                value={editTaskForm.description}
+                onChange={(event) => {
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                  updateEditTaskError('description', event.target.value)
+                }}
+              />
+              {editErrors.description && (
+                <p className="text-xs text-red-600 mt-1">{editErrors.description}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 md:col-span-2">
+              <Button type="button" variant="ghost" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={isUpdatingTask}>
+                {isUpdatingTask ? 'Updating...' : 'Update task'}
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </main>

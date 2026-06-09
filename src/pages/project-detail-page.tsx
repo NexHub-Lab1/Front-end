@@ -9,6 +9,9 @@ import {
   ArrowLeft,
   ArrowDown,
   ArrowRight,
+  Plus,
+  Check,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -22,12 +25,13 @@ import {
   deleteProject,
   archiveProject,
 } from "../lib/project-storage";
-import { fetchTasksByProject } from "../lib/task-storage";
+import { fetchTasksByProject, createTask } from "../lib/task-storage";
 import { isGithubRepositoryUrl } from "../lib/github-url";
 import type {
   ProjectResponse,
   ProjectUpdateForm,
   TaskResponse,
+  TaskRequest,
 } from "../types/app";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -98,6 +102,157 @@ export function ProjectDetailPage({
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const currentUser = readStoredUser();
+
+  // State for creating a new task
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTaskForm, setNewTaskForm] = useState<TaskRequest>({
+    projectId: 0,
+    title: "",
+    description: "",
+    deliverables: "",
+    rewardAmount: 0,
+    rewardCurrency: "USD",
+    deadline: new Date(),
+    status: "OPEN",
+    maxAttempts: 3,
+    recommendedSkills: [],
+  });
+  const [createSkillsInput, setCreateSkillsInput] = useState("");
+  const [createErrors, setCreateErrors] = useState<{
+    title?: string;
+    description?: string;
+    deliverables?: string;
+    rewardAmount?: string;
+  }>({});
+  const [createFeedback, setCreateFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  const getDeadlineString = (dateVal: Date | string | undefined): string => {
+    if (!dateVal) return "";
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const validateCreateTaskForm = () => {
+    const nextErrors: typeof createErrors = {};
+
+    if (!newTaskForm.title.trim()) {
+      nextErrors.title = "Task title is required.";
+    }
+
+    if (!newTaskForm.description.trim()) {
+      nextErrors.description = "Description is required.";
+    }
+
+    if (!newTaskForm.deliverables.trim()) {
+      nextErrors.deliverables = "Deliverables are required.";
+    }
+
+    if (newTaskForm.rewardAmount <= 0) {
+      nextErrors.rewardAmount = "Reward amount must be greater than 0.";
+    }
+
+    setCreateErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const updateCreateTaskError = (
+    field: keyof typeof createErrors,
+    value: string | number,
+  ) => {
+    setCreateErrors((current) => {
+      if (!current[field]) {
+        return current;
+      }
+
+      let errorVal: string | undefined = undefined;
+      if (field === "title" && !String(value).trim()) {
+        errorVal = "Task title is required.";
+      } else if (field === "description" && !String(value).trim()) {
+        errorVal = "Description is required.";
+      } else if (field === "deliverables" && !String(value).trim()) {
+        errorVal = "Deliverables are required.";
+      } else if (field === "rewardAmount" && Number(value) <= 0) {
+        errorVal = "Reward amount must be greater than 0.";
+      }
+
+      return {
+        ...current,
+        [field]: errorVal,
+      };
+    });
+  };
+
+  const handleOpenCreateModal = () => {
+    if (!project) return;
+    setNewTaskForm({
+      projectId: project.id,
+      title: "",
+      description: "",
+      deliverables: "",
+      rewardAmount: 0,
+      rewardCurrency: "USD",
+      deadline: new Date(),
+      status: "OPEN",
+      maxAttempts: 3,
+      recommendedSkills: [],
+    });
+    setCreateSkillsInput("");
+    setCreateErrors({});
+    setCreateFeedback(null);
+    setShowCreateModal(true);
+  };
+
+  const handleCreateTaskSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!validateCreateTaskForm() || !project) {
+      setCreateFeedback(null);
+      return;
+    }
+
+    setIsSubmittingTask(true);
+    setCreateFeedback(null);
+
+    const taskData = {
+      ...newTaskForm,
+      recommendedSkills: createSkillsInput
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean),
+    };
+
+    try {
+      const res = await createTask(taskData);
+
+      if (res.status === "error" || !res.data) {
+        setCreateFeedback({
+          message: res.message || "Error creating task",
+          type: "error",
+        });
+        return;
+      }
+
+      setCreateFeedback({
+        message: "Task created successfully",
+        type: "success",
+      });
+      setReloadTrigger((prev) => prev + 1);
+      setShowCreateModal(false);
+    } catch (error) {
+      setCreateFeedback({ message: "Error creating task", type: "error" });
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  };
 
   useEffect(() => {
     async function loadProject() {
@@ -178,7 +333,7 @@ export function ProjectDetailPage({
     }
 
     void loadTasks();
-  }, [project?.id, tasksPageIndex]);
+  }, [project?.id, tasksPageIndex, reloadTrigger]);
 
   useEffect(() => {
     if (!project) {
@@ -567,7 +722,20 @@ export function ProjectDetailPage({
             </div>
 
             <div className="space-y-4">
-              <CardTitle className="text-xl">Tasks in this project</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-xl">Tasks in this project</CardTitle>
+                {isOwner && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleOpenCreateModal}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Plus size={16} />
+                    Create Task
+                  </Button>
+                )}
+              </div>
               {isLoadingTasks ? (
                 <Card className="shadow-none">
                   <CardBody className="p-6 text-center">
@@ -808,6 +976,183 @@ export function ProjectDetailPage({
                 </div>
               </div>
             </Modal>
+
+            {showCreateModal && (
+              <Modal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                title="Create a new task"
+              >
+                <form className="grid gap-4 md:grid-cols-2 text-slate-900" onSubmit={handleCreateTaskSubmit}>
+                  {createFeedback && (
+                    <div className="md:col-span-2">
+                      <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                        createFeedback.type === 'success'
+                          ? 'border-green-100 bg-green-50 text-green-700'
+                          : 'border-red-100 bg-red-50 text-red-700'
+                      }`}>
+                        {createFeedback.type === 'success' ? (
+                          <Check size={16} className="text-green-600" />
+                        ) : (
+                          <X size={16} className="text-red-600" />
+                        )}
+                        <span>{createFeedback.message}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Task Title</label>
+                    <Input
+                      placeholder="Implement feature X"
+                      helperText={createErrors.title}
+                      error={Boolean(createErrors.title)}
+                      value={newTaskForm.title}
+                      onChange={(event) => {
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          title: event.target.value,
+                        }));
+                        updateCreateTaskError("title", event.target.value);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Reward Amount</label>
+                    <Input
+                      placeholder="100"
+                      helperText={createErrors.rewardAmount}
+                      error={Boolean(createErrors.rewardAmount)}
+                      value={newTaskForm.rewardAmount || ""}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === "" || /^\d+(\.\d{0,2})?$/.test(value)) {
+                          setNewTaskForm((current) => ({
+                            ...current,
+                            rewardAmount: value === "" ? 0 : Number(value),
+                          }));
+                          updateCreateTaskError("rewardAmount", value === "" ? 0 : Number(value));
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="create-task-status" className="block text-sm font-medium mb-1 text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      id="create-task-status"
+                      value={newTaskForm.status}
+                      onChange={(event) =>
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          status: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="OPEN">OPEN</option>
+                      <option value="HIRING">HIRING</option>
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="COMPLETED">COMPLETED</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Max Attempts</label>
+                    <Input
+                      placeholder="3"
+                      value={newTaskForm.maxAttempts || ""}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === "" || /^\d+$/.test(value)) {
+                          setNewTaskForm((current) => ({
+                            ...current,
+                            maxAttempts: value === "" ? 0 : Number(value),
+                          }));
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Deadline</label>
+                    <Input
+                      type="date"
+                      value={getDeadlineString(newTaskForm.deadline)}
+                      onChange={(event) => {
+                        const val = event.target.value;
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          deadline: val ? new Date(val) : new Date(),
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Deliverables</label>
+                    <Input
+                      placeholder="What needs to be delivered"
+                      helperText={createErrors.deliverables}
+                      error={Boolean(createErrors.deliverables)}
+                      value={newTaskForm.deliverables}
+                      onChange={(event) => {
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          deliverables: event.target.value,
+                        }));
+                        updateCreateTaskError("deliverables", event.target.value);
+                      }}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Recommended Skills</label>
+                    <Input
+                      placeholder="Separate skills with commas."
+                      value={createSkillsInput}
+                      onChange={(event) => setCreateSkillsInput(event.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-slate-500">Separate skills with commas.</p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Description</label>
+                    <textarea
+                      placeholder="Detailed description of the task"
+                      className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none bg-white ${
+                        createErrors.description
+                          ? "border-red-300 focus:ring-red-200"
+                          : "border-slate-300 focus:ring-blue-200"
+                      }`}
+                      rows={4}
+                      value={newTaskForm.description}
+                      onChange={(event) => {
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          description: event.target.value,
+                        }));
+                        updateCreateTaskError("description", event.target.value);
+                      }}
+                    />
+                    {createErrors.description && (
+                      <p className="text-xs text-red-600 mt-1">{createErrors.description}</p>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2 md:col-span-2">
+                    <Button type="button" variant="ghost" onClick={() => setShowCreateModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={isSubmittingTask}>
+                      {isSubmittingTask ? "Creating..." : "Create task"}
+                    </Button>
+                  </div>
+                </form>
+              </Modal>
+            )}
           </>
         ) : null}
       </section>
