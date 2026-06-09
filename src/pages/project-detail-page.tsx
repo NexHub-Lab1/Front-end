@@ -574,7 +574,11 @@ export function ProjectDetailPage({
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">{project.status}</Badge>
                       {project.ownerUsername ? (
-                        <Badge variant="outline">
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer hover:bg-slate-100 transition-colors"
+                          onClick={() => navigate(`/user/${project.ownerId}`)}
+                        >
                           by {project.ownerUsername.toString()}
                         </Badge>
                       ) : null}

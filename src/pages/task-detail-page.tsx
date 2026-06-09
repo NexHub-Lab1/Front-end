@@ -54,6 +54,7 @@ export function TaskDetailPage({
   const [assignError, setAssignError] = useState<string | null>(null)
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [projectOwnerUsername, setProjectOwnerUsername] = useState<string | null>(null)
+  const [projectOwnerId, setProjectOwnerId] = useState<number | null>(null)
   const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentResponse | null>(null)
   const [submissions, setSubmissions] = useState<TaskSubmissionResponse[]>([])
@@ -284,15 +285,19 @@ export function TaskDetailPage({
         const loadedTask = response.data
         setTask(loadedTask)
 
-        if (currentUser) {
-          let userIsOwner = false
-          const projectRes = await fetchProjectById(loadedTask.projectId)
-          if (projectRes.status === 'success' && projectRes.data) {
+        let userIsOwner = false
+        const projectRes = await fetchProjectById(loadedTask.projectId)
+        if (projectRes.status === 'success' && projectRes.data) {
+          setProjectOwnerUsername(projectRes.data.ownerUsername)
+          setProjectOwnerId(projectRes.data.ownerId)
+          if (currentUser) {
             const ownerStatus = projectRes.data.ownerId === currentUser.id
             setIsOwner(ownerStatus)
             userIsOwner = ownerStatus
-            setProjectOwnerUsername(projectRes.data.ownerUsername)
           }
+        }
+
+        if (currentUser) {
 
           let foundAnyAssignment: TaskAssignmentResponse | null = null
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
@@ -568,6 +573,15 @@ export function TaskDetailPage({
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">{task.status}</Badge>
                         <Badge variant="outline">{task.projectName}</Badge>
+                        {projectOwnerUsername && projectOwnerId && (
+                          <Badge
+                            variant="outline"
+                            className="cursor-pointer hover:bg-slate-100 transition-colors"
+                            onClick={() => navigate(`/user/${projectOwnerId}`)}
+                          >
+                            by {projectOwnerUsername}
+                          </Badge>
+                        )}
                         {userAssignment && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                             Assigned
