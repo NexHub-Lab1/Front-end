@@ -14,6 +14,17 @@ import type { PaginatedResponse, TaskResponse } from '../types/app'
 import { GRID_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
 import { readStoredUser } from '../lib/auth-storage'
 
+const formatMoney = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  } catch (e) {
+    return `${amount.toFixed(2)} ${currency}`
+  }
+}
+
 export function TasksPage({
   onSignOut,
   onOpenMenu,
@@ -163,7 +174,7 @@ export function TasksPage({
                             />
                             <StatLine
                               icon={<CircleDollarSign size={14} className="text-emerald-500" />}
-                              text={`${task.rewardAmount} ${task.rewardCurrency}`}
+                              text={formatMoney(task.rewardAmount, task.rewardCurrency)}
                             />
                             <StatLine
                               icon={<RotateCcw size={14} className="text-slate-400" />}

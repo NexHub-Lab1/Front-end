@@ -20,6 +20,17 @@ import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pa
 import type { PaginatedResponse } from "../../../types/app";
 import { readStoredProfileDashboard } from "../../../lib/dashboard-storage";
 
+const formatMoney = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  } catch (e) {
+    return `${amount.toFixed(2)} ${currency}`
+  }
+}
+
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
   title: "",
@@ -575,7 +586,7 @@ export function TasksTab({
                       </div>
 
                       <div className="space-y-2 text-sm text-slate-600">
-                        <p><span className="font-medium text-slate-800">Reward:</span> {task.rewardAmount} {task.rewardCurrency}</p>
+                        <p><span className="font-medium text-slate-800">Reward:</span> {formatMoney(task.rewardAmount, task.rewardCurrency)}</p>
                         <p><span className="font-medium text-slate-800">Max Attempts:</span> {task.maxAttempts}</p>
                       </div>
 

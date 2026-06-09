@@ -62,6 +62,17 @@ function normalizeRepoUrl(githubRepo?: string) {
   return `https://${githubRepo}`;
 }
 
+const formatMoney = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  } catch (e) {
+    return `${amount.toFixed(2)} ${currency}`
+  }
+}
+
 export function ProjectDetailPage({
   onSignOut,
   onOpenMenu,
@@ -781,8 +792,8 @@ export function ProjectDetailPage({
 
                           <div className="space-y-2 text-sm">
                             <p>
-                              <strong>Reward:</strong> {task.rewardAmount}{" "}
-                              {task.rewardCurrency}
+                              <strong>Reward:</strong>{" "}
+                              {formatMoney(task.rewardAmount, task.rewardCurrency)}
                             </p>
                             <p>
                               <strong>Deliverables:</strong> {task.deliverables}
