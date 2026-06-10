@@ -165,7 +165,7 @@ export function ChatsTab({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/tasks/${selectedChat.taskId}`)}
+                onClick={() => navigate(`/task/${selectedChat.taskId}`)}
                 className="text-xs h-7 px-3 font-semibold border-blue-200 text-blue-600 hover:bg-blue-50/50 hover:border-blue-300 flex items-center gap-1"
               >
                 Go to Task

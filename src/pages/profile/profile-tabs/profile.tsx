@@ -65,6 +65,7 @@ export function ProfileTab({
     newEmail: user?.email ?? '',
     newPassword: '',
     skills: user?.skills ?? [],
+    emailNotificationsEnabled: user?.emailNotificationsEnabled ?? true,
   })
   const [skillInput, setSkillInput] = useState('')
   const [feedback, setFeedback] = useState<{
@@ -87,7 +88,7 @@ export function ProfileTab({
     currentPassword?: string
   }>({})
   const isGithubUser = Boolean(user?.githubId || user?.githubUsername)
-
+ 
   useEffect(() => {
     const storedUser = readStoredUser()
     if (!storedUser) {
@@ -103,6 +104,7 @@ export function ProfileTab({
       newEmail: storedUser.email,
       newPassword: '',
       skills: storedUser.skills ?? [],
+      emailNotificationsEnabled: storedUser.emailNotificationsEnabled ?? true,
     })
     setSkillInput('')
     setEditErrors({})
@@ -154,6 +156,7 @@ export function ProfileTab({
         newEmail: data.user.email,
         newPassword: '',
         skills: data.user.skills ?? [],
+        emailNotificationsEnabled: data.user.emailNotificationsEnabled ?? true,
       })
       setSkillInput('')
       setFeedback({ type: 'success', message: result.message })
@@ -402,6 +405,15 @@ export function ProfileTab({
                   ? 'Your account is linked with GitHub. Security is managed through your GitHub account settings.'
                   : 'To keep your account secure, ensure you use a strong password. You can change your password by clicking the Edit Profile button above.'}
               </CardDescription>
+              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-sm font-semibold text-slate-700">Email Alerts</span>
+                  <p className="text-xs text-slate-500">Inbox alerts for task actions and follows.</p>
+                </div>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${user.emailNotificationsEnabled !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'}`}>
+                  {user.emailNotificationsEnabled !== false ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
             </CardBody>
           </Card>
 
@@ -633,6 +645,25 @@ export function ProfileTab({
               ) : (
                 <CardDescription>Add skills to improve future task recommendations.</CardDescription>
               )}
+            </div>
+
+            <div className="flex items-center gap-3 py-3 border-t border-slate-100 mt-2">
+              <input
+                id="emailNotificationsEnabled"
+                type="checkbox"
+                checked={form.emailNotificationsEnabled}
+                onChange={(event) => {
+                  setForm((current) => ({
+                    ...current,
+                    emailNotificationsEnabled: event.target.checked,
+                  }))
+                }}
+                className="h-5 w-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <label htmlFor="emailNotificationsEnabled" className="flex flex-col cursor-pointer select-none">
+                <span className="text-sm font-semibold text-slate-800">Enable Email Alerts</span>
+                <span className="text-xs text-slate-500">Receive updates about assignments, submissions, and follower actions in your inbox.</span>
+              </label>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
