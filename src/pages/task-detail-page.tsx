@@ -80,6 +80,7 @@ export function TaskDetailPage({
     deadline: new Date(),
     status: 'OPEN',
     maxAttempts: 3,
+    minReputation: 0,
     recommendedSkills: [],
   })
   const [editSkillsInput, setEditSkillsInput] = useState('')
@@ -162,6 +163,7 @@ export function TaskDetailPage({
       deadline: task.deadline,
       status: task.status,
       maxAttempts: task.maxAttempts,
+      minReputation: task.minReputation,
       recommendedSkills: task.recommendedSkills || [],
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
@@ -469,7 +471,7 @@ export function TaskDetailPage({
 
   const dashboard = readStoredProfileDashboard()
   const userReputation = dashboard?.stats?.reputationScore ?? 0
-  const isReputationTooLow = currentUser && userReputation < 20
+  const isReputationTooLow = currentUser && task && userReputation < task.minReputation
 
   const getAssignmentButtonContent = () => {
     if (!currentUser) {
@@ -492,7 +494,7 @@ export function TaskDetailPage({
       return {
         text: 'Reputation Too Low',
         disabled: true,
-        tooltip: `Your reputation score is too low (${userReputation} Rep). You need at least 20 Rep to claim tasks.`,
+        tooltip: `Your reputation score is too low (${userReputation} Rep). You need at least ${task?.minReputation} Rep to claim this task.`,
       }
     }
 
@@ -721,6 +723,10 @@ export function TaskDetailPage({
                         <p className="text-base text-slate-900">{task.maxAttempts}</p>
                       </div>
                       <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Min Reputation Required</p>
+                        <p className="text-base text-slate-900">{task.minReputation}</p>
+                      </div>
+                      <div className="space-y-2">
                         <p className="text-sm text-slate-500">Deadline</p>
                         <div className="flex items-baseline gap-2">
                           <p className="text-base text-slate-900">
@@ -787,6 +793,7 @@ export function TaskDetailPage({
                                     if (!acc[key]) {
                                       acc[key] = {
                                         username: sub.username,
+                                        userId: sub.userId,
                                         submissionsCount: 0,
                                         latestSubmissionDate: sub.submittedAt,
                                         latestStatus: sub.status,
@@ -798,7 +805,7 @@ export function TaskDetailPage({
                                       acc[key].latestStatus = sub.status
                                     }
                                     return acc
-                                  }, {} as Record<string, { username: string, submissionsCount: number, latestSubmissionDate: Date, latestStatus: string }>)
+                                  }, {} as Record<string, { username: string, userId: number, submissionsCount: number, latestSubmissionDate: Date, latestStatus: string }>)
                                 ).map((dev) => {
                                   const statusLower = dev.latestStatus.toLowerCase()
                                   const isCompleted = statusLower === 'completed' || statusLower === 'accepted' || statusLower === 'approved'
@@ -817,7 +824,15 @@ export function TaskDetailPage({
                                       className="cursor-pointer hover:bg-slate-100/50 transition-colors"
                                     >
                                       <td className="px-5 py-3 font-semibold text-slate-800">
-                                        {dev.username}
+                                        <span
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            navigate(`/user/${dev.userId}`)
+                                          }}
+                                          className="hover:underline hover:text-blue-600 cursor-pointer"
+                                        >
+                                          {dev.username}
+                                        </span>
                                       </td>
                                       <td className="px-5 py-3">
                                         <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
@@ -862,7 +877,18 @@ export function TaskDetailPage({
                                 Back to Developers
                               </Button>
                               <p className="text-xs font-semibold text-slate-500">
-                                Showing attempts for <span className="text-slate-800 font-bold">{selectedDeveloperFilter}</span>
+                                Showing attempts for{' '}
+                                <span
+                                  onClick={() => {
+                                    const sub = submissions.find(s => s.username === selectedDeveloperFilter)
+                                    if (sub) {
+                                      navigate(`/user/${sub.userId}`)
+                                    }
+                                  }}
+                                  className="text-blue-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  {selectedDeveloperFilter}
+                                </span>
                               </p>
                             </div>
 
@@ -1162,7 +1188,16 @@ export function TaskDetailPage({
               <div className="flex justify-between items-center text-sm">
                 <div>
                   <span className="font-semibold text-slate-700">Developer:</span>{" "}
-                  <span className="text-slate-900 font-semibold">{selectedSubmission.username}</span>
+                  <span
+                    onClick={() => {
+                      setShowReviewModal(false)
+                      setSelectedSubmission(null)
+                      navigate(`/user/${selectedSubmission.userId}`)
+                    }}
+                    className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                  >
+                    {selectedSubmission.username}
+                  </span>
                 </div>
                 <div>
                   <Badge variant="outline" className="bg-slate-100 text-slate-600">
@@ -1450,6 +1485,22 @@ export function TaskDetailPage({
                     ...current,
                     deadline: val ? new Date(val) : new Date(),
                   }))
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={editTaskForm.minReputation === undefined ? "" : editTaskForm.minReputation}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    minReputation: value === "" ? 0 : Number(value),
+                  }));
                 }}
               />
             </div>

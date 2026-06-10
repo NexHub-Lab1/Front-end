@@ -126,6 +126,7 @@ export function ProjectDetailPage({
     deadline: new Date(),
     status: "OPEN",
     maxAttempts: 3,
+    minReputation: 0,
     recommendedSkills: [],
   });
   const [createSkillsInput, setCreateSkillsInput] = useState("");
@@ -214,6 +215,7 @@ export function ProjectDetailPage({
       deadline: new Date(),
       status: "OPEN",
       maxAttempts: 3,
+      minReputation: 0,
       recommendedSkills: [],
     });
     setCreateSkillsInput("");
@@ -1101,6 +1103,22 @@ export function ProjectDetailPage({
                         setNewTaskForm((current) => ({
                           ...current,
                           deadline: val ? new Date(val) : new Date(),
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={newTaskForm.minReputation === undefined ? "" : newTaskForm.minReputation}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          minReputation: value === "" ? 0 : Number(value),
                         }));
                       }}
                     />

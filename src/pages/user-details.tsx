@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { followUser, getUserDetails, getFollowedUsers, unfollowUser } from "../lib/user-storage"
 import { type UserDetailsResponse } from "../types/app"
-import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar, UserPlus, Loader2, CheckCircle, AlertCircle, UserCheck } from "lucide-react"
+import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar, UserPlus, Loader2, CheckCircle, AlertCircle, UserCheck, Sparkles, Star } from "lucide-react"
 import { AppHeader } from "../components/app/app-header"
 import { StatLine } from "../components/app/stat-line"
 import { Button } from "../components/ui/button"
@@ -223,6 +223,14 @@ export default function UserDetails({
                                         text={`${userDetails.streakDay} day streak`}
                                     />
                                     <StatLine
+                                        icon={<Sparkles size={14} className="text-amber-500" />}
+                                        text={`${userDetails.reputationScore} Rep`}
+                                    />
+                                    <StatLine
+                                        icon={<Star size={14} className="text-blue-500" />}
+                                        text={`${userDetails.totalPoints} Pts`}
+                                    />
+                                    <StatLine
                                         icon={<Calendar size={14} className="text-slate-400" />}
                                         text={`Member since ${new Date(userDetails.created_at).toLocaleDateString()}`}
                                     />
@@ -259,6 +267,18 @@ export default function UserDetails({
                                                 Email
                                             </span>
                                             <span>{userDetails.email}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="font-medium text-slate-700">
+                                                Reputation Score
+                                            </span>
+                                            <span>{userDetails.reputationScore}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="font-medium text-slate-700">
+                                                Total Points
+                                            </span>
+                                            <span>{userDetails.totalPoints}</span>
                                         </div>
                                         <div className="flex items-center justify-between gap-4">
                                             <span className="font-medium text-slate-700">
