@@ -205,6 +205,7 @@ export type TaskSubmissionUpdateRequest = {
   status: string
   reviewComments: string
   reviewerId: number
+  rejectionReason?: 'SPAM_OR_LOW_EFFORT' | 'BUGS_OR_INCOMPLETE'
 }
 
 export type ProjectLookupDTO = {

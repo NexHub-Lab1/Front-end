@@ -29,6 +29,7 @@ export function ToReviewTab({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
   const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [rejectionReason, setRejectionReason] = useState<'BUGS_OR_INCOMPLETE' | 'SPAM_OR_LOW_EFFORT'>('BUGS_OR_INCOMPLETE')
 
   const loadSubmissionsToReview = useCallback(async (pageOverride = currentPage) => {
     if (!user?.id) return;
@@ -81,6 +82,7 @@ export function ToReviewTab({
     setSelectedSubmission(submission)
     setReviewComments('')
     setReviewAction(approved ? 'approve' : 'reject')
+    setRejectionReason('BUGS_OR_INCOMPLETE')
     setShowReviewModal(true)
   }
 
@@ -99,6 +101,7 @@ export function ToReviewTab({
         status: approved ? 'APPROVED' : 'REJECTED',
         reviewComments: reviewComments.trim() || (approved ? 'Approved' : 'Rejected'),
         reviewerId: user.id,
+        rejectionReason: approved ? undefined : rejectionReason,
       })
 
       if (result.status === 'success') {
@@ -314,6 +317,38 @@ export function ToReviewTab({
               <p className="text-sm"><span className="font-semibold text-slate-700">Task:</span> {selectedSubmission.taskTitle}</p>
               <p className="text-sm"><span className="font-semibold text-slate-700">PR:</span> <a href={selectedSubmission.pullRequestUrl} target="_blank" className="text-blue-600 hover:underline">{selectedSubmission.pullRequestUrl}</a></p>
             </div>
+
+            {reviewAction === 'reject' && (
+              <div className="space-y-2 bg-slate-50 border border-slate-100 rounded-lg p-3">
+                <label className="block text-sm font-medium text-slate-800">
+                  Rejection Reason & Severity
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-1">
+                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="rejectionReason"
+                      value="BUGS_OR_INCOMPLETE"
+                      checked={rejectionReason === 'BUGS_OR_INCOMPLETE'}
+                      onChange={() => setRejectionReason('BUGS_OR_INCOMPLETE')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
+                    />
+                    <span>Bugs / Incomplete <span className="text-slate-400 font-normal">(-10 Rep)</span></span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="rejectionReason"
+                      value="SPAM_OR_LOW_EFFORT"
+                      checked={rejectionReason === 'SPAM_OR_LOW_EFFORT'}
+                      onChange={() => setRejectionReason('SPAM_OR_LOW_EFFORT')}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-slate-300"
+                    />
+                    <span>Spam / Low Effort <span className="text-red-500 font-medium">(-25 Rep, reset streak)</span></span>
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-800">
