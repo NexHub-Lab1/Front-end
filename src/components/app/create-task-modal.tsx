@@ -18,6 +18,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   deadline: new Date(),
   status: 'Open',
   maxAttempts: 3,
+  collaborative: false,
   recommendedSkills: [],
 }
 
@@ -280,6 +281,23 @@ export function CreateTaskModal({
               updateTaskError('deliverables', event.target.value)
             }}
           />
+        </div>
+        <div className="flex items-center gap-2 mt-6">
+          <input
+            id="sidebar-create-task-collaborative"
+            type="checkbox"
+            checked={taskForm.collaborative}
+            onChange={(event) => {
+              setTaskForm((current) => ({
+                ...current,
+                collaborative: event.target.checked,
+              }))
+            }}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="sidebar-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+            Collaborative Task
+          </label>
         </div>
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium">Recommended Skills</label>

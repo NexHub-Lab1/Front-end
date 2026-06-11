@@ -41,6 +41,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   deadline: new Date(),
   status: "Open",
   maxAttempts: 3,
+  collaborative: false,
   recommendedSkills: []
 }
 
@@ -279,6 +280,7 @@ export function TasksTab({
       deadline: task.deadline,
       status: task.status,
       maxAttempts: task.maxAttempts,
+      collaborative: task.collaborative,
       recommendedSkills: task.recommendedSkills
     })
     setSkillsInput(task.recommendedSkills.join(', '))
@@ -442,6 +444,23 @@ export function TasksTab({
                 updateTaskError('deliverables', event.target.value)
               }}
             />
+          </div>
+          <div className="flex items-center gap-2 mt-6">
+            <input
+              id="tab-create-task-collaborative"
+              type="checkbox"
+              checked={taskForm.collaborative}
+              onChange={(event) => {
+                setTaskForm((current) => ({
+                  ...current,
+                  collaborative: event.target.checked,
+                }))
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="tab-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+              Collaborative Task
+            </label>
           </div>
 
           <div className="md:col-span-2">

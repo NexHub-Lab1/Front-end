@@ -127,6 +127,7 @@ export function ProjectDetailPage({
     status: "OPEN",
     maxAttempts: 3,
     minReputation: 0,
+    collaborative: false,
     recommendedSkills: [],
   });
   const [createSkillsInput, setCreateSkillsInput] = useState("");
@@ -217,6 +218,7 @@ export function ProjectDetailPage({
       status: "OPEN",
       maxAttempts: 3,
       minReputation: 0,
+      collaborative: false,
       recommendedSkills: [],
     });
     setCreateSkillsInput("");
@@ -1123,6 +1125,24 @@ export function ProjectDetailPage({
                         }));
                       }}
                     />
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-6">
+                    <input
+                      id="project-create-task-collaborative"
+                      type="checkbox"
+                      checked={newTaskForm.collaborative}
+                      onChange={(event) => {
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          collaborative: event.target.checked,
+                        }));
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="project-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+                      Collaborative Task
+                    </label>
                   </div>
 
                   <div className="md:col-span-2">

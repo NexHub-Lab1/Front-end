@@ -133,6 +133,7 @@ export type TaskRequest = {
   status: string,
   maxAttempts: number,
   minReputation?: number,
+  collaborative: boolean,
   recommendedSkills: string[]
 }
 
@@ -150,6 +151,7 @@ export type TaskResponse = {
   fundingStatus?: string | null,
   maxAttempts: number,
   minReputation: number,
+  collaborative: boolean,
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[]

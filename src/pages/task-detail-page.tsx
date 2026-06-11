@@ -91,6 +91,7 @@ export function TaskDetailPage({
     status: 'OPEN',
     maxAttempts: 3,
     minReputation: 0,
+    collaborative: false,
     recommendedSkills: [],
   })
   const [editSkillsInput, setEditSkillsInput] = useState('')
@@ -175,6 +176,7 @@ export function TaskDetailPage({
       status: task.status,
       maxAttempts: task.maxAttempts,
       minReputation: task.minReputation,
+      collaborative: task.collaborative,
       recommendedSkills: task.recommendedSkills || [],
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
@@ -387,16 +389,16 @@ export function TaskDetailPage({
             setAnyAssignment(foundAny || null)
           }
 
-          if (userIsOwner || hasActiveAssignment) {
-            const allAssignmentsRes = await fetchTaskAssignments(parsedId)
-            if (allAssignmentsRes.status === 'success' && allAssignmentsRes.data) {
-              const content = allAssignmentsRes.data.content || []
-              setAssignments(content)
-              if (userIsOwner && content.length > 0) {
-                setSelectedAssignment(content[0])
-              }
+          const allAssignmentsRes = await fetchTaskAssignments(parsedId)
+          if (allAssignmentsRes.status === 'success' && allAssignmentsRes.data) {
+            const content = allAssignmentsRes.data.content || []
+            setAssignments(content)
+            if (userIsOwner && content.length > 0) {
+              setSelectedAssignment(content[0])
             }
+          }
 
+          if (userIsOwner || hasActiveAssignment) {
             // Fetch task invitations
             const invitesRes = await fetchInvitationsByTask(parsedId)
             if (invitesRes.status === 'success' && invitesRes.data) {
@@ -598,6 +600,19 @@ export function TaskDetailPage({
         text: 'Already Assigned',
         disabled: true,
         tooltip: `You were assigned on ${new Date(userAssignment.assignedAt).toLocaleDateString()}`,
+      }
+    }
+
+    if (task && !task.collaborative) {
+      const hasAnyActive = assignments.some(
+        (a) => a.status.toLowerCase() === 'active'
+      )
+      if (hasAnyActive) {
+        return {
+          text: 'Already Claimed',
+          disabled: true,
+          tooltip: 'This task has already been claimed by another developer.',
+        }
       }
     }
 
@@ -859,7 +874,7 @@ export function TaskDetailPage({
               </Card>
 
               {/* Team & Collaboration Card */}
-              {(isOwner || userAssignment) && (
+              {task.collaborative && (isOwner || userAssignment) && (
                 <Card>
                   <CardBody className="space-y-6 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.06),transparent_35%)]">
                     <div>
@@ -1710,6 +1725,24 @@ export function TaskDetailPage({
                   }));
                 }}
               />
+            </div>
+
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                id="edit-task-collaborative"
+                type="checkbox"
+                checked={editTaskForm.collaborative}
+                onChange={(event) => {
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    collaborative: event.target.checked,
+                  }))
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="edit-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Collaborative Task
+              </label>
             </div>
 
             <div className="md:col-span-2">
