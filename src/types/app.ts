@@ -10,6 +10,8 @@ export type UserDetailsResponse = {
   image_url: string
   last_active_at: Date
   created_at: Date
+  reputationScore: number
+  totalPoints: number
 }
 
 export type AuthUser = {
@@ -130,6 +132,7 @@ export type TaskRequest = {
   deadline: Date,
   status: string,
   maxAttempts: number,
+  minReputation?: number,
   recommendedSkills: string[]
 }
 
@@ -146,6 +149,7 @@ export type TaskResponse = {
   status: string,
   fundingStatus?: string | null,
   maxAttempts: number,
+  minReputation: number,
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[]
@@ -205,6 +209,7 @@ export type TaskSubmissionUpdateRequest = {
   status: string
   reviewComments: string
   reviewerId: number
+  rejectionReason?: 'SPAM_OR_LOW_EFFORT' | 'BUGS_OR_INCOMPLETE'
 }
 
 export type ProjectLookupDTO = {

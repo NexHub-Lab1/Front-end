@@ -17,6 +17,7 @@ import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-stor
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
+import { readStoredProfileDashboard } from '../lib/dashboard-storage'
 const formatMoney = (amount: number, currency: string) => {
   try {
     return new Intl.NumberFormat('en-US', {
@@ -79,6 +80,7 @@ export function TaskDetailPage({
     deadline: new Date(),
     status: 'OPEN',
     maxAttempts: 3,
+    minReputation: 0,
     recommendedSkills: [],
   })
   const [editSkillsInput, setEditSkillsInput] = useState('')
@@ -90,6 +92,8 @@ export function TaskDetailPage({
   }>({})
   const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState<'BUGS_OR_INCOMPLETE' | 'SPAM_OR_LOW_EFFORT'>('BUGS_OR_INCOMPLETE')
+
 
   const getDeadlineString = (dateVal: Date | string | undefined): string => {
     if (!dateVal) return ''
@@ -160,6 +164,7 @@ export function TaskDetailPage({
       deadline: task.deadline,
       status: task.status,
       maxAttempts: task.maxAttempts,
+      minReputation: task.minReputation,
       recommendedSkills: task.recommendedSkills || [],
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
@@ -212,6 +217,7 @@ export function TaskDetailPage({
     setSelectedSubmission(submission)
     setReviewComments(submission.reviewComments || '')
     setReviewError(null)
+    setRejectionReason('BUGS_OR_INCOMPLETE')
     setShowReviewModal(true)
   }
 
@@ -234,6 +240,7 @@ export function TaskDetailPage({
         status: approved ? 'APPROVED' : 'REJECTED',
         reviewComments: reviewComments.trim() || (approved ? 'Approved' : 'Rejected'),
         reviewerId: currentUser.id,
+        rejectionReason: approved ? undefined : rejectionReason,
       })
 
       if (result.status === 'success') {
@@ -463,7 +470,20 @@ export function TaskDetailPage({
     return undefined
   }
 
+  const dashboard = readStoredProfileDashboard()
+  const userReputation = dashboard?.stats?.reputationScore ?? 0
+  const isReputationTooLow = currentUser && task && userReputation < task.minReputation
+  const isDeadlinePassed = task && task.deadline && new Date(task.deadline).getTime() < Date.now()
+
   const getAssignmentButtonContent = () => {
+    if (isDeadlinePassed) {
+      return {
+        text: 'Deadline Passed',
+        disabled: true,
+        tooltip: 'This task can no longer be claimed because the deadline has passed',
+      }
+    }
+
     if (!currentUser) {
       return {
         text: 'Login to assign',
@@ -477,6 +497,14 @@ export function TaskDetailPage({
         text: 'Assign Task',
         disabled: true,
         tooltip: 'Task owners cannot be assigned to their own tasks',
+      }
+    }
+
+    if (isReputationTooLow) {
+      return {
+        text: 'Reputation Too Low',
+        disabled: true,
+        tooltip: `Your reputation score is too low (${userReputation} Rep). You need at least ${task?.minReputation} Rep to claim this task.`,
       }
     }
 
@@ -496,6 +524,13 @@ export function TaskDetailPage({
   }
 
   const getSubmitButtonContent = () => {
+    if (isDeadlinePassed) {
+      return {
+        disabled: true,
+        tooltip: 'This task can no longer accept submissions because the deadline has passed',
+      }
+    }
+
     if (!currentUser) {
       return {
         disabled: true,
@@ -585,6 +620,11 @@ export function TaskDetailPage({
                         {userAssignment && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                             Assigned
+                          </Badge>
+                        )}
+                        {isDeadlinePassed && (
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                            Overdue
                           </Badge>
                         )}
                       </div>
@@ -705,6 +745,10 @@ export function TaskDetailPage({
                         <p className="text-base text-slate-900">{task.maxAttempts}</p>
                       </div>
                       <div className="space-y-2">
+                        <p className="text-sm text-slate-500">Min Reputation Required</p>
+                        <p className="text-base text-slate-900">{task.minReputation}</p>
+                      </div>
+                      <div className="space-y-2">
                         <p className="text-sm text-slate-500">Deadline</p>
                         <div className="flex items-baseline gap-2">
                           <p className="text-base text-slate-900">
@@ -771,6 +815,7 @@ export function TaskDetailPage({
                                     if (!acc[key]) {
                                       acc[key] = {
                                         username: sub.username,
+                                        userId: sub.userId,
                                         submissionsCount: 0,
                                         latestSubmissionDate: sub.submittedAt,
                                         latestStatus: sub.status,
@@ -782,7 +827,7 @@ export function TaskDetailPage({
                                       acc[key].latestStatus = sub.status
                                     }
                                     return acc
-                                  }, {} as Record<string, { username: string, submissionsCount: number, latestSubmissionDate: Date, latestStatus: string }>)
+                                  }, {} as Record<string, { username: string, userId: number, submissionsCount: number, latestSubmissionDate: Date, latestStatus: string }>)
                                 ).map((dev) => {
                                   const statusLower = dev.latestStatus.toLowerCase()
                                   const isCompleted = statusLower === 'completed' || statusLower === 'accepted' || statusLower === 'approved'
@@ -801,7 +846,15 @@ export function TaskDetailPage({
                                       className="cursor-pointer hover:bg-slate-100/50 transition-colors"
                                     >
                                       <td className="px-5 py-3 font-semibold text-slate-800">
-                                        {dev.username}
+                                        <span
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            navigate(`/user/${dev.userId}`)
+                                          }}
+                                          className="hover:underline hover:text-blue-600 cursor-pointer"
+                                        >
+                                          {dev.username}
+                                        </span>
                                       </td>
                                       <td className="px-5 py-3">
                                         <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
@@ -846,7 +899,18 @@ export function TaskDetailPage({
                                 Back to Developers
                               </Button>
                               <p className="text-xs font-semibold text-slate-500">
-                                Showing attempts for <span className="text-slate-800 font-bold">{selectedDeveloperFilter}</span>
+                                Showing attempts for{' '}
+                                <span
+                                  onClick={() => {
+                                    const sub = submissions.find(s => s.username === selectedDeveloperFilter)
+                                    if (sub) {
+                                      navigate(`/user/${sub.userId}`)
+                                    }
+                                  }}
+                                  className="text-blue-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  {selectedDeveloperFilter}
+                                </span>
                               </p>
                             </div>
 
@@ -1146,7 +1210,16 @@ export function TaskDetailPage({
               <div className="flex justify-between items-center text-sm">
                 <div>
                   <span className="font-semibold text-slate-700">Developer:</span>{" "}
-                  <span className="text-slate-900 font-semibold">{selectedSubmission.username}</span>
+                  <span
+                    onClick={() => {
+                      setShowReviewModal(false)
+                      setSelectedSubmission(null)
+                      navigate(`/user/${selectedSubmission.userId}`)
+                    }}
+                    className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                  >
+                    {selectedSubmission.username}
+                  </span>
                 </div>
                 <div>
                   <Badge variant="outline" className="bg-slate-100 text-slate-600">
@@ -1194,6 +1267,36 @@ export function TaskDetailPage({
             {(selectedSubmission.status.toLowerCase() === 'submitted' ||
               selectedSubmission.status.toLowerCase() === 'pending') ? (
               <div className="space-y-4">
+                <div className="space-y-2 bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-900">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Rejection Reason & Severity <span className="text-slate-400 font-normal">(Only applies if rejecting)</span>
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-1">
+                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="rejectionReason"
+                        value="BUGS_OR_INCOMPLETE"
+                        checked={rejectionReason === 'BUGS_OR_INCOMPLETE'}
+                        onChange={() => setRejectionReason('BUGS_OR_INCOMPLETE')}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
+                      />
+                      <span>Bugs / Incomplete <span className="text-slate-400 font-normal">(-10 Rep)</span></span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="rejectionReason"
+                        value="SPAM_OR_LOW_EFFORT"
+                        checked={rejectionReason === 'SPAM_OR_LOW_EFFORT'}
+                        onChange={() => setRejectionReason('SPAM_OR_LOW_EFFORT')}
+                        className="h-4 w-4 text-red-600 focus:ring-red-500 border-slate-300"
+                      />
+                      <span>Spam / Low Effort <span className="text-red-500 font-medium">(-25 Rep, reset streak)</span></span>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">
                     Review Feedback Comments <span className="text-red-500 font-normal">(Required only for Rejections)</span>
@@ -1393,6 +1496,7 @@ export function TaskDetailPage({
               />
             </div>
 
+
             <div>
               <label className="block text-sm font-medium mb-1 text-slate-700">Deadline</label>
               <Input
@@ -1404,6 +1508,22 @@ export function TaskDetailPage({
                     ...current,
                     deadline: val ? new Date(val) : new Date(),
                   }))
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={editTaskForm.minReputation === undefined ? "" : editTaskForm.minReputation}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    minReputation: value === "" ? 0 : Number(value),
+                  }));
                 }}
               />
             </div>
