@@ -116,6 +116,7 @@ export function ProjectDetailPage({
 
   // State for creating a new task
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [allowAnyReputation, setAllowAnyReputation] = useState(true);
   const [newTaskForm, setNewTaskForm] = useState<TaskRequest>({
     projectId: 0,
     title: "",
@@ -127,6 +128,7 @@ export function ProjectDetailPage({
     status: "OPEN",
     maxAttempts: 3,
     minReputation: 0,
+    collaborative: false,
     recommendedSkills: [],
   });
   const [createSkillsInput, setCreateSkillsInput] = useState("");
@@ -217,11 +219,13 @@ export function ProjectDetailPage({
       status: "OPEN",
       maxAttempts: 3,
       minReputation: 0,
+      collaborative: false,
       recommendedSkills: [],
     });
     setCreateSkillsInput("");
     setCreateErrors({});
     setCreateFeedback(null);
+    setAllowAnyReputation(true);
     setShowCreateModal(true);
   };
 
@@ -238,6 +242,7 @@ export function ProjectDetailPage({
 
     const taskData = {
       ...newTaskForm,
+      minReputation: allowAnyReputation ? -500 : (newTaskForm.minReputation || 0),
       recommendedSkills: createSkillsInput
         .split(",")
         .map((skill) => skill.trim())
@@ -1109,20 +1114,69 @@ export function ProjectDetailPage({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={newTaskForm.minReputation === undefined ? "" : newTaskForm.minReputation}
+                  <div className="flex flex-col justify-center gap-2">
+                    <div className="flex items-center gap-2 mt-6">
+                      <input
+                        id="project-create-task-any-rep"
+                        type="checkbox"
+                        checked={allowAnyReputation}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setAllowAnyReputation(checked);
+                          if (checked) {
+                            setNewTaskForm((current) => ({
+                              ...current,
+                              minReputation: -500,
+                            }));
+                          } else {
+                            setNewTaskForm((current) => ({
+                              ...current,
+                              minReputation: 0,
+                            }));
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="project-create-task-any-rep" className="text-sm font-medium text-slate-700 cursor-pointer">
+                        Any reputation score
+                      </label>
+                    </div>
+                  </div>
+
+                  {!allowAnyReputation && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={newTaskForm.minReputation === undefined ? "" : newTaskForm.minReputation}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setNewTaskForm((current) => ({
+                            ...current,
+                            minReputation: value === "" ? 0 : Number(value),
+                          }));
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-6">
+                    <input
+                      id="project-create-task-collaborative"
+                      type="checkbox"
+                      checked={newTaskForm.collaborative}
                       onChange={(event) => {
-                        const value = event.target.value;
                         setNewTaskForm((current) => ({
                           ...current,
-                          minReputation: value === "" ? 0 : Number(value),
+                          collaborative: event.target.checked,
                         }));
                       }}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
+                    <label htmlFor="project-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+                      Collaborative Task
+                    </label>
                   </div>
 
                   <div className="md:col-span-2">

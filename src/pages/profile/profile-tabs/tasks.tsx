@@ -41,6 +41,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   deadline: new Date(),
   status: "Open",
   maxAttempts: 3,
+  collaborative: false,
   recommendedSkills: []
 }
 
@@ -58,6 +59,7 @@ export function TasksTab({
     return dashboard?.tasks || createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE);
   });
   const [currentPage, setCurrentPage] = useState(0);
+  const [allowAnyReputation, setAllowAnyReputation] = useState(true);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -206,6 +208,7 @@ export function TasksTab({
 
     const taskData = {
       ...taskForm,
+      minReputation: allowAnyReputation ? -500 : (taskForm.minReputation || 0),
       recommendedSkills: skillsInput
         .split(',')
         .map((skill) => skill.trim())
@@ -279,9 +282,12 @@ export function TasksTab({
       deadline: task.deadline,
       status: task.status,
       maxAttempts: task.maxAttempts,
+      collaborative: task.collaborative,
+      minReputation: task.minReputation,
       recommendedSkills: task.recommendedSkills
     })
     setSkillsInput(task.recommendedSkills.join(', '))
+    setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
     setEditingTaskId(task.id)
     setIsEditMode(true)
     setShowModal(true)
@@ -293,6 +299,7 @@ export function TasksTab({
     setEditingTaskId(null)
     setCreateErrors({})
     setSkillsInput('')
+    setAllowAnyReputation(true)
     setTaskForm(EMPTY_TASK_FORM)
   }
 
@@ -443,6 +450,68 @@ export function TasksTab({
               }}
             />
           </div>
+          <div className="flex items-center gap-2 mt-6">
+            <input
+              id="tab-create-task-collaborative"
+              type="checkbox"
+              checked={taskForm.collaborative}
+              onChange={(event) => {
+                setTaskForm((current) => ({
+                  ...current,
+                  collaborative: event.target.checked,
+                }))
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="tab-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+              Collaborative Task
+            </label>
+          </div>
+          <div className="flex flex-col justify-center gap-2">
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                id="tab-create-task-any-rep"
+                type="checkbox"
+                checked={allowAnyReputation}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAllowAnyReputation(checked);
+                  if (checked) {
+                    setTaskForm((current) => ({
+                      ...current,
+                      minReputation: -500,
+                    }));
+                  } else {
+                    setTaskForm((current) => ({
+                      ...current,
+                      minReputation: 0,
+                    }));
+                  }
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="tab-create-task-any-rep" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Any reputation score
+              </label>
+            </div>
+          </div>
+          {!allowAnyReputation && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Minimum Reputation Required</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={taskForm.minReputation === undefined ? "" : taskForm.minReputation}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setTaskForm((current) => ({
+                    ...current,
+                    minReputation: value === "" ? 0 : Number(value),
+                  }));
+                }}
+              />
+            </div>
+          )}
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Recommended Skills</label>

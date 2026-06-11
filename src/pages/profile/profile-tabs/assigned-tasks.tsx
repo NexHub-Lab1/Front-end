@@ -7,7 +7,8 @@ import { Button } from '../../../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../../../components/ui/card'
 import { PaginationControls } from '../../../components/ui/pagination-controls'
 import { fetchAssignmentsByUser } from '../../../lib/assignment-storage'
-import type { PaginatedResponse, TaskAssignmentResponse, User } from '../../../types/app'
+import { fetchPendingInvitations, acceptInvitation, rejectInvitation } from '../../../lib/task-invitation-storage'
+import type { PaginatedResponse, TaskAssignmentResponse, User, TaskInvitationResponse } from '../../../types/app'
 import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from '../../../lib/pagination'
 import { readStoredProfileDashboard } from '../../../lib/dashboard-storage'
 
@@ -36,6 +37,18 @@ export function AssignedTasksTab({
   const [currentPage, setCurrentPage] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [pendingInvites, setPendingInvites] = useState<TaskInvitationResponse[]>([])
+
+  const loadInvitations = useCallback(async () => {
+    try {
+      const response = await fetchPendingInvitations({ page: 0, size: 50 })
+      if (response.status === 'success' && response.data) {
+        setPendingInvites(response.data.content)
+      }
+    } catch (error) {
+      console.error('Failed to load pending invitations', error)
+    }
+  }, [])
 
   const loadAssignedTasks = useCallback(async (pageOverride = currentPage) => {
     if (!user?.id) return;
@@ -69,6 +82,39 @@ export function AssignedTasksTab({
     }
   }, [user.id, currentPage]);
 
+  const handleAcceptInvite = async (inviteId: number) => {
+    try {
+      setIsLoading(true)
+      const res = await acceptInvitation(inviteId)
+      if (res.status === 'success') {
+        setPendingInvites(prev => prev.filter(i => i.id !== inviteId))
+        await loadAssignedTasks(currentPage)
+      } else {
+        alert(res.message || 'Failed to accept invitation')
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRejectInvite = async (inviteId: number) => {
+    try {
+      setIsLoading(true)
+      const res = await rejectInvitation(inviteId)
+      if (res.status === 'success') {
+        setPendingInvites(prev => prev.filter(i => i.id !== inviteId))
+      } else {
+        alert(res.message || 'Failed to reject invitation')
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     const syncFromDashboard = () => {
       const dashboard = readStoredProfileDashboard();
@@ -82,10 +128,11 @@ export function AssignedTasksTab({
     } else {
       syncFromDashboard();
     }
+    void loadInvitations();
 
     window.addEventListener('nexhub-dashboard-updated', syncFromDashboard);
     return () => window.removeEventListener('nexhub-dashboard-updated', syncFromDashboard);
-  }, [loadAssignedTasks, currentPage]);
+  }, [loadAssignedTasks, loadInvitations, currentPage]);
 
   return (
     <Card>
@@ -97,11 +144,59 @@ export function AssignedTasksTab({
               Tasks you chose to work on and still need to finish.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void loadAssignedTasks(currentPage)} disabled={isLoading}>
+          <Button variant="outline" size="sm" onClick={() => { void loadAssignedTasks(currentPage); void loadInvitations(); }} disabled={isLoading}>
             <RefreshCw size={14} className={isLoading ? "animate-spin mr-2" : "mr-2"} />
             Refresh
           </Button>
         </section>
+
+        {pendingInvites.length > 0 && (
+          <section className="space-y-3 p-4 bg-blue-50/50 border border-blue-200/60 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+            <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              Cooperation Invitations ({pendingInvites.length})
+            </h3>
+            <p className="text-xs text-slate-500">Other developers have invited you to collaborate on their tasks:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+              {pendingInvites.map((invite) => (
+                <Card key={invite.id} className="shadow-none border border-blue-100 bg-white">
+                  <CardBody className="p-4 space-y-3">
+                    <div className="text-slate-900">
+                      <h4 className="font-semibold text-slate-900 line-clamp-1">{invite.taskTitle}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Project: {invite.projectName}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Invited by <span className="font-semibold text-slate-700">{invite.senderUsername}</span>
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleAcceptInvite(invite.id)}
+                        className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                        disabled={isLoading}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRejectInvite(invite.id)}
+                        className="h-8 text-xs font-semibold border-slate-200 text-slate-600 hover:bg-slate-50"
+                        disabled={isLoading}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
 
         {loadError ? (
           <Card className="border-red-100 bg-red-50/70 shadow-none">

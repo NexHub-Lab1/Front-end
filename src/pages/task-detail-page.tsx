@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest } from '../types/app'
+import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -12,8 +12,9 @@ import { Input } from '../components/ui/input'
 import { fetchProjectById } from '../lib/project-storage'
 import { fetchTaskById, updateTask } from '../lib/task-storage'
 import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment, updateSubmission } from '../lib/submission-storage'
-
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
+import { createInvitation, fetchInvitationsByTask } from '../lib/task-invitation-storage'
+import { fetchAllUserDetails } from '../lib/user-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
@@ -68,6 +69,15 @@ export function TaskDetailPage({
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [selectedDeveloperFilter, setSelectedDeveloperFilter] = useState<string | null>(null)
 
+  // State for task collaboration & invitation
+  const [invitations, setInvitations] = useState<TaskInvitationResponse[]>([])
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteReceiverId, setInviteReceiverId] = useState<number | null>(null)
+  const [isInviting, setIsInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [allUsers, setAllUsers] = useState<User[]>([])
+  const [inviteSearchQuery, setInviteSearchQuery] = useState('')
+
   // State for task editing
   const [showEditModal, setShowEditModal] = useState(false)
   const [editTaskForm, setEditTaskForm] = useState<TaskRequest>({
@@ -81,6 +91,7 @@ export function TaskDetailPage({
     status: 'OPEN',
     maxAttempts: 3,
     minReputation: 0,
+    collaborative: false,
     recommendedSkills: [],
   })
   const [editSkillsInput, setEditSkillsInput] = useState('')
@@ -92,6 +103,7 @@ export function TaskDetailPage({
   }>({})
   const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
+  const [allowAnyReputation, setAllowAnyReputation] = useState(true)
   const [rejectionReason, setRejectionReason] = useState<'BUGS_OR_INCOMPLETE' | 'SPAM_OR_LOW_EFFORT'>('BUGS_OR_INCOMPLETE')
 
 
@@ -165,9 +177,11 @@ export function TaskDetailPage({
       status: task.status,
       maxAttempts: task.maxAttempts,
       minReputation: task.minReputation,
+      collaborative: task.collaborative,
       recommendedSkills: task.recommendedSkills || [],
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
+    setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
     setEditErrors({})
     setEditFeedback(null)
     setShowEditModal(true)
@@ -186,6 +200,7 @@ export function TaskDetailPage({
 
     const updatedData = {
       ...editTaskForm,
+      minReputation: allowAnyReputation ? -500 : (editTaskForm.minReputation || 0),
       recommendedSkills: editSkillsInput
         .split(',')
         .map((skill) => skill.trim())
@@ -271,6 +286,56 @@ export function TaskDetailPage({
 
 
   useEffect(() => {
+    if (showInviteModal) {
+      async function loadUsers() {
+        try {
+          const res = await fetchAllUserDetails()
+          if (res.status === 'success' && res.data) {
+            const mappedUsers: User[] = res.data.map(u => ({
+              id: u.id,
+              username: u.username,
+              email: u.email
+            }))
+            setAllUsers(mappedUsers)
+          }
+        } catch (e) {
+          console.error("Failed to load users for invitation", e)
+        }
+      }
+      void loadUsers()
+    }
+  }, [showInviteModal])
+
+  const handleSendInvitation = async () => {
+    if (!currentUser || !task || !inviteReceiverId) return
+
+    try {
+      setIsInviting(true)
+      setInviteError(null)
+      const res = await createInvitation({
+        taskId: task.id,
+        receiverId: inviteReceiverId,
+      })
+
+      if (res.status === 'success' && res.data) {
+        setInvitations((prev) => [...prev, res.data!])
+        setShowInviteModal(false)
+        setInviteReceiverId(null)
+        setActionFeedback({
+          type: 'success',
+          message: `Invitation sent successfully to ${res.data.receiverUsername}.`,
+        })
+      } else {
+        setInviteError(res.message || 'Failed to send invitation')
+      }
+    } catch (e) {
+      setInviteError(e instanceof Error ? e.message : 'An error occurred')
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  useEffect(() => {
     async function loadTask() {
       const parsedId = Number(id)
 
@@ -306,6 +371,7 @@ export function TaskDetailPage({
 
         if (currentUser) {
 
+          let hasActiveAssignment = false
           let foundAnyAssignment: TaskAssignmentResponse | null = null
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
             page: 0,
@@ -317,6 +383,7 @@ export function TaskDetailPage({
               a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(foundActive || null)
+            hasActiveAssignment = !!foundActive
 
             const foundAny = assignmentsRes.data.content.find(
               a => a.taskId === parsedId
@@ -325,16 +392,24 @@ export function TaskDetailPage({
             setAnyAssignment(foundAny || null)
           }
 
-          if (userIsOwner) {
-            const allAssignmentsRes = await fetchTaskAssignments(parsedId)
-            if (allAssignmentsRes.status === 'success' && allAssignmentsRes.data) {
-              const content = allAssignmentsRes.data.content || []
-              setAssignments(content)
-              if (content.length > 0) {
-                setSelectedAssignment(content[0])
-              }
+          const allAssignmentsRes = await fetchTaskAssignments(parsedId)
+          if (allAssignmentsRes.status === 'success' && allAssignmentsRes.data) {
+            const content = allAssignmentsRes.data.content || []
+            setAssignments(content)
+            if (userIsOwner && content.length > 0) {
+              setSelectedAssignment(content[0])
             }
+          }
 
+          if (userIsOwner || hasActiveAssignment) {
+            // Fetch task invitations
+            const invitesRes = await fetchInvitationsByTask(parsedId)
+            if (invitesRes.status === 'success' && invitesRes.data) {
+              setInvitations(invitesRes.data)
+            }
+          }
+
+          if (userIsOwner) {
             const subsRes = await fetchSubmissionsByTask(parsedId, { page: 0, size: 100 })
             if (subsRes.status === 'success' && subsRes.data) {
               setSubmissions(subsRes.data.content)
@@ -472,8 +547,23 @@ export function TaskDetailPage({
 
   const dashboard = readStoredProfileDashboard()
   const userReputation = dashboard?.stats?.reputationScore ?? 0
-  const isReputationTooLow = currentUser && task && userReputation < task.minReputation
+  const isReputationTooLow = currentUser && task && task.minReputation > -500 && userReputation < task.minReputation
   const isDeadlinePassed = task && task.deadline && new Date(task.deadline).getTime() < Date.now()
+
+  const eligibleUsers = allUsers.filter((u) => {
+    const assigneesUserIds = new Set(assignments.map((a) => a.userId))
+    const invitedUserIds = new Set(invitations.map((i) => i.receiverId))
+    return (
+      u.id !== currentUser?.id &&
+      u.id !== projectOwnerId &&
+      !assigneesUserIds.has(u.id) &&
+      !invitedUserIds.has(u.id)
+    )
+  })
+
+  const filteredEligibleUsers = eligibleUsers.filter((u) =>
+    u.username.toLowerCase().includes(inviteSearchQuery.toLowerCase())
+  )
 
   const getAssignmentButtonContent = () => {
     if (isDeadlinePassed) {
@@ -513,6 +603,19 @@ export function TaskDetailPage({
         text: 'Already Assigned',
         disabled: true,
         tooltip: `You were assigned on ${new Date(userAssignment.assignedAt).toLocaleDateString()}`,
+      }
+    }
+
+    if (task && !task.collaborative) {
+      const hasAnyActive = assignments.some(
+        (a) => a.status.toLowerCase() === 'active'
+      )
+      if (hasAnyActive) {
+        return {
+          text: 'Already Claimed',
+          disabled: true,
+          tooltip: 'This task has already been claimed by another developer.',
+        }
       }
     }
 
@@ -561,6 +664,27 @@ export function TaskDetailPage({
   const showChat = !!(currentUser && (userAssignment || isOwner))
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
+
+  const teamLeadId = userAssignment
+    ? (userAssignment.parentAssignmentId || userAssignment.id)
+    : (isOwner && selectedAssignment)
+      ? (selectedAssignment.parentAssignmentId || selectedAssignment.id)
+      : null
+
+  const leadAssignment = teamLeadId
+    ? assignments.find((ass) => ass.id === teamLeadId)
+    : null
+
+  const leadUserId = leadAssignment ? leadAssignment.userId : null
+
+  const teamAssignments = teamLeadId
+    ? assignments.filter((ass) => ass.id === teamLeadId || ass.parentAssignmentId === teamLeadId)
+    : []
+
+  const teamInvitations = leadUserId
+    ? invitations.filter((invite) => invite.senderId === leadUserId)
+    : []
+
   const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
     ? String(location.state.backTo)
     : null
@@ -746,7 +870,9 @@ export function TaskDetailPage({
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Min Reputation Required</p>
-                        <p className="text-base text-slate-900">{task.minReputation}</p>
+                        <p className="text-base text-slate-900">
+                          {task.minReputation <= -500 ? 'None' : task.minReputation}
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Deadline</p>
@@ -772,6 +898,105 @@ export function TaskDetailPage({
                   </div>
                 </CardBody>
               </Card>
+
+              {/* Team & Collaboration Card */}
+              {task.collaborative && (isOwner || userAssignment) && (
+                <Card>
+                  <CardBody className="space-y-6 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.06),transparent_35%)]">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <CardTitle className="text-2xl">Team & Collaboration</CardTitle>
+                        {userAssignment && !userAssignment.parentAssignmentId && userAssignment.status.toLowerCase() === 'active' && !isDeadlinePassed && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowInviteModal(true)}
+                            className="h-8 border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold"
+                          >
+                            <UserPlus size={14} className="mr-1.5" />
+                            Invite Collaborator
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Assignees List */}
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Assigned Developers</h4>
+                          {teamAssignments.length === 0 ? (
+                            <p className="text-sm text-slate-500 italic">No developers assigned yet.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-3">
+                              {teamAssignments.map((ass) => {
+                                const isLead = !ass.parentAssignmentId
+                                return (
+                                  <div
+                                    key={ass.id}
+                                    className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5"
+                                  >
+                                    <span
+                                      onClick={() => navigate(`/user/${ass.userId}`)}
+                                      className="text-sm font-semibold text-slate-800 hover:underline cursor-pointer"
+                                    >
+                                      {ass.username}
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className={isLead ? "bg-blue-50 text-blue-700 border-blue-200 text-[10px]" : "bg-slate-100 text-slate-600 border-slate-200 text-[10px]"}
+                                    >
+                                      {isLead ? 'Lead' : 'Collaborator'}
+                                    </Badge>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sent Invitations List (only for Lead or Project Owner) */}
+                        {(isOwner || (userAssignment && !userAssignment.parentAssignmentId)) && (
+                          <div className="pt-2 border-t border-slate-100">
+                            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sent Invitations</h4>
+                            {teamInvitations.length === 0 ? (
+                              <p className="text-sm text-slate-500 italic">No invitations sent yet.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {teamInvitations.map((invite) => {
+                                  const statusLower = invite.status.toLowerCase()
+                                  let statusClass = "bg-amber-50 text-amber-700 border-amber-200"
+                                  if (statusLower === 'accepted') statusClass = "bg-green-50 text-green-700 border-green-200"
+                                  if (statusLower === 'rejected') statusClass = "bg-red-50 text-red-700 border-red-200"
+
+                                  return (
+                                    <div
+                                      key={invite.id}
+                                      className="flex items-center justify-between bg-slate-50/50 border border-slate-200/60 rounded-xl px-4 py-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span
+                                          onClick={() => navigate(`/user/${invite.receiverId}`)}
+                                          className="text-sm font-medium text-slate-700 hover:underline cursor-pointer"
+                                        >
+                                          {invite.receiverUsername}
+                                        </span>
+                                        <span className="text-xs text-slate-400">invited by {invite.senderUsername}</span>
+                                      </div>
+                                      <Badge variant="outline" className={`${statusClass} text-[10px]`}>
+                                        {invite.status}
+                                      </Badge>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
               {/* Submitted Proposals Card */}
               {(isOwner || anyAssignment) && (
                 <Card>
@@ -1512,20 +1737,69 @@ export function TaskDetailPage({
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={editTaskForm.minReputation === undefined ? "" : editTaskForm.minReputation}
+            <div className="flex flex-col justify-center gap-2">
+              <div className="flex items-center gap-2 mt-6">
+                <input
+                  id="edit-task-any-rep"
+                  type="checkbox"
+                  checked={allowAnyReputation}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setAllowAnyReputation(checked)
+                    if (checked) {
+                      setEditTaskForm((current) => ({
+                        ...current,
+                        minReputation: -500,
+                      }))
+                    } else {
+                      setEditTaskForm((current) => ({
+                        ...current,
+                        minReputation: 0,
+                      }))
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="edit-task-any-rep" className="text-sm font-medium text-slate-700 cursor-pointer">
+                  Any reputation score
+                </label>
+              </div>
+            </div>
+
+            {!allowAnyReputation && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={editTaskForm.minReputation === undefined ? "" : editTaskForm.minReputation}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setEditTaskForm((current) => ({
+                      ...current,
+                      minReputation: value === "" ? 0 : Number(value),
+                    }));
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                id="edit-task-collaborative"
+                type="checkbox"
+                checked={editTaskForm.collaborative}
                 onChange={(event) => {
-                  const value = event.target.value;
                   setEditTaskForm((current) => ({
                     ...current,
-                    minReputation: value === "" ? 0 : Number(value),
-                  }));
+                    collaborative: event.target.checked,
+                  }))
                 }}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
+              <label htmlFor="edit-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Collaborative Task
+              </label>
             </div>
 
             <div className="md:col-span-2">
@@ -1587,6 +1861,116 @@ export function TaskDetailPage({
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {showInviteModal && (
+        <Modal
+          isOpen={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false)
+            setInviteReceiverId(null)
+            setInviteError(null)
+            setInviteSearchQuery('')
+          }}
+          title="Invite Collaborator"
+        >
+          <div className="space-y-4 text-slate-900">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">Search Developer to Invite</label>
+              <Input
+                type="text"
+                placeholder="Type username to search..."
+                value={inviteSearchQuery}
+                onChange={(e) => setInviteSearchQuery(e.target.value)}
+                disabled={isInviting}
+              />
+            </div>
+
+            {/* Results List */}
+            <div className="border border-slate-200 rounded-lg max-h-[220px] overflow-y-auto divide-y divide-slate-100 bg-white shadow-inner">
+              {filteredEligibleUsers.length === 0 ? (
+                <p className="text-sm text-slate-500 p-4 text-center italic">
+                  {inviteSearchQuery ? `No developers found matching "${inviteSearchQuery}"` : "No developers available to invite"}
+                </p>
+              ) : (
+                filteredEligibleUsers.map((u) => {
+                  const isSelected = inviteReceiverId === u.id
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => setInviteReceiverId(u.id)}
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-blue-50/70 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 text-sm uppercase">
+                          {u.username.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{u.username}</p>
+                          {u.email && <p className="text-xs text-slate-400 font-normal">{u.email}</p>}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <span className="text-blue-600">
+                          <Check size={16} />
+                        </span>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Selected developer indicator */}
+            {inviteReceiverId && (
+              <div className="flex items-center justify-between rounded-xl bg-blue-50/50 border border-blue-200/60 p-3 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+                  <p className="text-sm font-medium text-blue-900">
+                    Selected: <span className="font-bold">{allUsers.find(u => u.id === inviteReceiverId)?.username}</span>
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setInviteReceiverId(null)}
+                  className="h-7 w-7 p-0 rounded-full hover:bg-blue-100/50 text-blue-600"
+                >
+                  <X size={14} />
+                </Button>
+              </div>
+            )}
+
+            {inviteError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-sm text-red-700">{inviteError}</p>
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="primary"
+                onClick={handleSendInvitation}
+                disabled={isInviting || !inviteReceiverId}
+              >
+                {isInviting ? 'Sending Invitation...' : 'Send Invitation'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowInviteModal(false)
+                  setInviteReceiverId(null)
+                  setInviteError(null)
+                  setInviteSearchQuery('')
+                }}
+                disabled={isInviting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </main>
