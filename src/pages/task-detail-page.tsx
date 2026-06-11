@@ -661,6 +661,27 @@ export function TaskDetailPage({
   const showChat = !!(currentUser && (userAssignment || isOwner))
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
+
+  const teamLeadId = userAssignment
+    ? (userAssignment.parentAssignmentId || userAssignment.id)
+    : (isOwner && selectedAssignment)
+      ? (selectedAssignment.parentAssignmentId || selectedAssignment.id)
+      : null
+
+  const leadAssignment = teamLeadId
+    ? assignments.find((ass) => ass.id === teamLeadId)
+    : null
+
+  const leadUserId = leadAssignment ? leadAssignment.userId : null
+
+  const teamAssignments = teamLeadId
+    ? assignments.filter((ass) => ass.id === teamLeadId || ass.parentAssignmentId === teamLeadId)
+    : []
+
+  const teamInvitations = leadUserId
+    ? invitations.filter((invite) => invite.senderId === leadUserId)
+    : []
+
   const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
     ? String(location.state.backTo)
     : null
@@ -897,11 +918,11 @@ export function TaskDetailPage({
                         {/* Assignees List */}
                         <div>
                           <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Assigned Developers</h4>
-                          {assignments.length === 0 ? (
+                          {teamAssignments.length === 0 ? (
                             <p className="text-sm text-slate-500 italic">No developers assigned yet.</p>
                           ) : (
                             <div className="flex flex-wrap gap-3">
-                              {assignments.map((ass) => {
+                              {teamAssignments.map((ass) => {
                                 const isLead = !ass.parentAssignmentId
                                 return (
                                   <div
@@ -931,11 +952,11 @@ export function TaskDetailPage({
                         {(isOwner || (userAssignment && !userAssignment.parentAssignmentId)) && (
                           <div className="pt-2 border-t border-slate-100">
                             <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sent Invitations</h4>
-                            {invitations.length === 0 ? (
+                            {teamInvitations.length === 0 ? (
                               <p className="text-sm text-slate-500 italic">No invitations sent yet.</p>
                             ) : (
                               <div className="space-y-2">
-                                {invitations.map((invite) => {
+                                {teamInvitations.map((invite) => {
                                   const statusLower = invite.status.toLowerCase()
                                   let statusClass = "bg-amber-50 text-amber-700 border-amber-200"
                                   if (statusLower === 'accepted') statusClass = "bg-green-50 text-green-700 border-green-200"
