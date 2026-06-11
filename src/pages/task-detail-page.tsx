@@ -473,8 +473,17 @@ export function TaskDetailPage({
   const dashboard = readStoredProfileDashboard()
   const userReputation = dashboard?.stats?.reputationScore ?? 0
   const isReputationTooLow = currentUser && task && userReputation < task.minReputation
+  const isDeadlinePassed = task && task.deadline && new Date(task.deadline).getTime() < Date.now()
 
   const getAssignmentButtonContent = () => {
+    if (isDeadlinePassed) {
+      return {
+        text: 'Deadline Passed',
+        disabled: true,
+        tooltip: 'This task can no longer be claimed because the deadline has passed',
+      }
+    }
+
     if (!currentUser) {
       return {
         text: 'Login to assign',
@@ -515,6 +524,13 @@ export function TaskDetailPage({
   }
 
   const getSubmitButtonContent = () => {
+    if (isDeadlinePassed) {
+      return {
+        disabled: true,
+        tooltip: 'This task can no longer accept submissions because the deadline has passed',
+      }
+    }
+
     if (!currentUser) {
       return {
         disabled: true,
@@ -604,6 +620,11 @@ export function TaskDetailPage({
                         {userAssignment && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                             Assigned
+                          </Badge>
+                        )}
+                        {isDeadlinePassed && (
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                            Overdue
                           </Badge>
                         )}
                       </div>
