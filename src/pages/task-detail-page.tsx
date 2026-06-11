@@ -14,7 +14,7 @@ import { fetchTaskById, updateTask } from '../lib/task-storage'
 import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment, updateSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { createInvitation, fetchInvitationsByTask } from '../lib/task-invitation-storage'
-import { fetchAllUsers } from '../lib/user-storage'
+import { fetchAllUserDetails } from '../lib/user-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
@@ -76,6 +76,7 @@ export function TaskDetailPage({
   const [isInviting, setIsInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [allUsers, setAllUsers] = useState<User[]>([])
+  const [inviteSearchQuery, setInviteSearchQuery] = useState('')
 
   // State for task editing
   const [showEditModal, setShowEditModal] = useState(false)
@@ -283,9 +284,14 @@ export function TaskDetailPage({
     if (showInviteModal) {
       async function loadUsers() {
         try {
-          const res = await fetchAllUsers()
+          const res = await fetchAllUserDetails()
           if (res.status === 'success' && res.data) {
-            setAllUsers(res.data)
+            const mappedUsers: User[] = res.data.map(u => ({
+              id: u.id,
+              username: u.username,
+              email: u.email
+            }))
+            setAllUsers(mappedUsers)
           }
         } catch (e) {
           console.error("Failed to load users for invitation", e)
@@ -538,6 +544,21 @@ export function TaskDetailPage({
   const userReputation = dashboard?.stats?.reputationScore ?? 0
   const isReputationTooLow = currentUser && task && userReputation < task.minReputation
   const isDeadlinePassed = task && task.deadline && new Date(task.deadline).getTime() < Date.now()
+
+  const eligibleUsers = allUsers.filter((u) => {
+    const assigneesUserIds = new Set(assignments.map((a) => a.userId))
+    const invitedUserIds = new Set(invitations.map((i) => i.receiverId))
+    return (
+      u.id !== currentUser?.id &&
+      u.id !== projectOwnerId &&
+      !assigneesUserIds.has(u.id) &&
+      !invitedUserIds.has(u.id)
+    )
+  })
+
+  const filteredEligibleUsers = eligibleUsers.filter((u) =>
+    u.username.toLowerCase().includes(inviteSearchQuery.toLowerCase())
+  )
 
   const getAssignmentButtonContent = () => {
     if (isDeadlinePassed) {
@@ -1760,37 +1781,79 @@ export function TaskDetailPage({
             setShowInviteModal(false)
             setInviteReceiverId(null)
             setInviteError(null)
+            setInviteSearchQuery('')
           }}
           title="Invite Collaborator"
         >
           <div className="space-y-4 text-slate-900">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-700">Select Developer to Invite</label>
-              <select
-                value={inviteReceiverId || ''}
-                onChange={(e) => setInviteReceiverId(Number(e.target.value) || null)}
-                className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-700"
+              <label className="block text-sm font-medium text-slate-700">Search Developer to Invite</label>
+              <Input
+                type="text"
+                placeholder="Type username to search..."
+                value={inviteSearchQuery}
+                onChange={(e) => setInviteSearchQuery(e.target.value)}
                 disabled={isInviting}
-              >
-                <option value="">-- Choose a developer --</option>
-                {allUsers
-                  .filter((u) => {
-                    const assigneesUserIds = new Set(assignments.map((a) => a.userId))
-                    const invitedUserIds = new Set(invitations.map((i) => i.receiverId))
-                    return (
-                      u.id !== currentUser?.id &&
-                      u.id !== projectOwnerId &&
-                      !assigneesUserIds.has(u.id) &&
-                      !invitedUserIds.has(u.id)
-                    )
-                  })
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.username} {u.email ? `(${u.email})` : ''}
-                    </option>
-                  ))}
-              </select>
+              />
             </div>
+
+            {/* Results List */}
+            <div className="border border-slate-200 rounded-lg max-h-[220px] overflow-y-auto divide-y divide-slate-100 bg-white shadow-inner">
+              {filteredEligibleUsers.length === 0 ? (
+                <p className="text-sm text-slate-500 p-4 text-center italic">
+                  {inviteSearchQuery ? `No developers found matching "${inviteSearchQuery}"` : "No developers available to invite"}
+                </p>
+              ) : (
+                filteredEligibleUsers.map((u) => {
+                  const isSelected = inviteReceiverId === u.id
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => setInviteReceiverId(u.id)}
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-blue-50/70 text-blue-900 font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 text-sm uppercase">
+                          {u.username.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{u.username}</p>
+                          {u.email && <p className="text-xs text-slate-400 font-normal">{u.email}</p>}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <span className="text-blue-600">
+                          <Check size={16} />
+                        </span>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Selected developer indicator */}
+            {inviteReceiverId && (
+              <div className="flex items-center justify-between rounded-xl bg-blue-50/50 border border-blue-200/60 p-3 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+                  <p className="text-sm font-medium text-blue-900">
+                    Selected: <span className="font-bold">{allUsers.find(u => u.id === inviteReceiverId)?.username}</span>
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setInviteReceiverId(null)}
+                  className="h-7 w-7 p-0 rounded-full hover:bg-blue-100/50 text-blue-600"
+                >
+                  <X size={14} />
+                </Button>
+              </div>
+            )}
+
             {inviteError && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
                 <p className="text-sm text-red-700">{inviteError}</p>
@@ -1810,6 +1873,7 @@ export function TaskDetailPage({
                   setShowInviteModal(false)
                   setInviteReceiverId(null)
                   setInviteError(null)
+                  setInviteSearchQuery('')
                 }}
                 disabled={isInviting}
               >
