@@ -14,7 +14,7 @@ import { fetchTaskById } from '../lib/task-storage'
 import { createSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
-import { fetchTaskPayments, fundTask } from '../lib/payment-storage'
+import { fetchTaskPayments, fundTask, syncTaskPayments } from '../lib/payment-storage'
 import { formatMoney, fundingBadgeClassName, isTaskFunded, normalizeFundingStatus } from '../lib/payment-utils'
 
 export function TaskDetailPage({
@@ -240,6 +240,11 @@ export function TaskDetailPage({
     setPaymentError(null)
 
     try {
+      const syncResponse = await syncTaskPayments(task.id)
+      if (syncResponse.status === 'error' || !syncResponse.data) {
+        throw new Error(syncResponse.message || 'Unable to sync payment status.')
+      }
+
       const [taskResponse, paymentsResponse] = await Promise.all([
         fetchTaskById(task.id),
         fetchTaskPayments(task.id),
