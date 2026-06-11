@@ -103,6 +103,7 @@ export function TaskDetailPage({
   }>({})
   const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
+  const [allowAnyReputation, setAllowAnyReputation] = useState(true)
   const [rejectionReason, setRejectionReason] = useState<'BUGS_OR_INCOMPLETE' | 'SPAM_OR_LOW_EFFORT'>('BUGS_OR_INCOMPLETE')
 
 
@@ -180,6 +181,7 @@ export function TaskDetailPage({
       recommendedSkills: task.recommendedSkills || [],
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
+    setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
     setEditErrors({})
     setEditFeedback(null)
     setShowEditModal(true)
@@ -198,6 +200,7 @@ export function TaskDetailPage({
 
     const updatedData = {
       ...editTaskForm,
+      minReputation: allowAnyReputation ? -500 : (editTaskForm.minReputation || 0),
       recommendedSkills: editSkillsInput
         .split(',')
         .map((skill) => skill.trim())
@@ -544,7 +547,7 @@ export function TaskDetailPage({
 
   const dashboard = readStoredProfileDashboard()
   const userReputation = dashboard?.stats?.reputationScore ?? 0
-  const isReputationTooLow = currentUser && task && userReputation < task.minReputation
+  const isReputationTooLow = currentUser && task && task.minReputation > -500 && userReputation < task.minReputation
   const isDeadlinePassed = task && task.deadline && new Date(task.deadline).getTime() < Date.now()
 
   const eligibleUsers = allUsers.filter((u) => {
@@ -867,7 +870,9 @@ export function TaskDetailPage({
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Min Reputation Required</p>
-                        <p className="text-base text-slate-900">{task.minReputation}</p>
+                        <p className="text-base text-slate-900">
+                          {task.minReputation <= -500 ? 'None' : task.minReputation}
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm text-slate-500">Deadline</p>
@@ -1732,21 +1737,52 @@ export function TaskDetailPage({
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={editTaskForm.minReputation === undefined ? "" : editTaskForm.minReputation}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setEditTaskForm((current) => ({
-                    ...current,
-                    minReputation: value === "" ? 0 : Number(value),
-                  }));
-                }}
-              />
+            <div className="flex flex-col justify-center gap-2">
+              <div className="flex items-center gap-2 mt-6">
+                <input
+                  id="edit-task-any-rep"
+                  type="checkbox"
+                  checked={allowAnyReputation}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setAllowAnyReputation(checked)
+                    if (checked) {
+                      setEditTaskForm((current) => ({
+                        ...current,
+                        minReputation: -500,
+                      }))
+                    } else {
+                      setEditTaskForm((current) => ({
+                        ...current,
+                        minReputation: 0,
+                      }))
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="edit-task-any-rep" className="text-sm font-medium text-slate-700 cursor-pointer">
+                  Any reputation score
+                </label>
+              </div>
             </div>
+
+            {!allowAnyReputation && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">Minimum Reputation Required</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={editTaskForm.minReputation === undefined ? "" : editTaskForm.minReputation}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setEditTaskForm((current) => ({
+                      ...current,
+                      minReputation: value === "" ? 0 : Number(value),
+                    }));
+                  }}
+                />
+              </div>
+            )}
 
             <div className="flex items-center gap-2 mt-6">
               <input
