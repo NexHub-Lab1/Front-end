@@ -94,6 +94,7 @@ export function TaskDetailPage({
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
   const [rejectionReason, setRejectionReason] = useState<'BUGS_OR_INCOMPLETE' | 'SPAM_OR_LOW_EFFORT'>('BUGS_OR_INCOMPLETE')
 
+
   const getDeadlineString = (dateVal: Date | string | undefined): string => {
     if (!dateVal) return ''
     const d = new Date(dateVal)
@@ -1473,6 +1474,7 @@ export function TaskDetailPage({
                 }}
               />
             </div>
+
 
             <div>
               <label className="block text-sm font-medium mb-1 text-slate-700">Deadline</label>
