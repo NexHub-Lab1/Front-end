@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest } from '../types/app'
+import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -12,8 +12,9 @@ import { Input } from '../components/ui/input'
 import { fetchProjectById } from '../lib/project-storage'
 import { fetchTaskById, updateTask } from '../lib/task-storage'
 import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment, updateSubmission } from '../lib/submission-storage'
-
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
+import { createInvitation, fetchInvitationsByTask } from '../lib/task-invitation-storage'
+import { fetchAllUsers } from '../lib/user-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
@@ -67,6 +68,14 @@ export function TaskDetailPage({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [selectedDeveloperFilter, setSelectedDeveloperFilter] = useState<string | null>(null)
+
+  // State for task collaboration & invitation
+  const [invitations, setInvitations] = useState<TaskInvitationResponse[]>([])
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteReceiverId, setInviteReceiverId] = useState<number | null>(null)
+  const [isInviting, setIsInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [allUsers, setAllUsers] = useState<User[]>([])
 
   // State for task editing
   const [showEditModal, setShowEditModal] = useState(false)
@@ -271,6 +280,51 @@ export function TaskDetailPage({
 
 
   useEffect(() => {
+    if (showInviteModal) {
+      async function loadUsers() {
+        try {
+          const res = await fetchAllUsers()
+          if (res.status === 'success' && res.data) {
+            setAllUsers(res.data)
+          }
+        } catch (e) {
+          console.error("Failed to load users for invitation", e)
+        }
+      }
+      void loadUsers()
+    }
+  }, [showInviteModal])
+
+  const handleSendInvitation = async () => {
+    if (!currentUser || !task || !inviteReceiverId) return
+
+    try {
+      setIsInviting(true)
+      setInviteError(null)
+      const res = await createInvitation({
+        taskId: task.id,
+        receiverId: inviteReceiverId,
+      })
+
+      if (res.status === 'success' && res.data) {
+        setInvitations((prev) => [...prev, res.data!])
+        setShowInviteModal(false)
+        setInviteReceiverId(null)
+        setActionFeedback({
+          type: 'success',
+          message: `Invitation sent successfully to ${res.data.receiverUsername}.`,
+        })
+      } else {
+        setInviteError(res.message || 'Failed to send invitation')
+      }
+    } catch (e) {
+      setInviteError(e instanceof Error ? e.message : 'An error occurred')
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  useEffect(() => {
     async function loadTask() {
       const parsedId = Number(id)
 
@@ -306,6 +360,7 @@ export function TaskDetailPage({
 
         if (currentUser) {
 
+          let hasActiveAssignment = false
           let foundAnyAssignment: TaskAssignmentResponse | null = null
           const assignmentsRes = await fetchAssignmentsByUser(currentUser.id, {
             page: 0,
@@ -317,6 +372,7 @@ export function TaskDetailPage({
               a => a.taskId === parsedId && a.status.toLowerCase() !== 'completed'
             )
             setUserAssignment(foundActive || null)
+            hasActiveAssignment = !!foundActive
 
             const foundAny = assignmentsRes.data.content.find(
               a => a.taskId === parsedId
@@ -325,16 +381,24 @@ export function TaskDetailPage({
             setAnyAssignment(foundAny || null)
           }
 
-          if (userIsOwner) {
+          if (userIsOwner || hasActiveAssignment) {
             const allAssignmentsRes = await fetchTaskAssignments(parsedId)
             if (allAssignmentsRes.status === 'success' && allAssignmentsRes.data) {
               const content = allAssignmentsRes.data.content || []
               setAssignments(content)
-              if (content.length > 0) {
+              if (userIsOwner && content.length > 0) {
                 setSelectedAssignment(content[0])
               }
             }
 
+            // Fetch task invitations
+            const invitesRes = await fetchInvitationsByTask(parsedId)
+            if (invitesRes.status === 'success' && invitesRes.data) {
+              setInvitations(invitesRes.data)
+            }
+          }
+
+          if (userIsOwner) {
             const subsRes = await fetchSubmissionsByTask(parsedId, { page: 0, size: 100 })
             if (subsRes.status === 'success' && subsRes.data) {
               setSubmissions(subsRes.data.content)
@@ -772,6 +836,105 @@ export function TaskDetailPage({
                   </div>
                 </CardBody>
               </Card>
+
+              {/* Team & Collaboration Card */}
+              {(isOwner || userAssignment) && (
+                <Card>
+                  <CardBody className="space-y-6 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.06),transparent_35%)]">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <CardTitle className="text-2xl">Team & Collaboration</CardTitle>
+                        {userAssignment && !userAssignment.parentAssignmentId && userAssignment.status.toLowerCase() === 'active' && !isDeadlinePassed && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowInviteModal(true)}
+                            className="h-8 border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold"
+                          >
+                            <UserPlus size={14} className="mr-1.5" />
+                            Invite Collaborator
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Assignees List */}
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Assigned Developers</h4>
+                          {assignments.length === 0 ? (
+                            <p className="text-sm text-slate-500 italic">No developers assigned yet.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-3">
+                              {assignments.map((ass) => {
+                                const isLead = !ass.parentAssignmentId
+                                return (
+                                  <div
+                                    key={ass.id}
+                                    className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5"
+                                  >
+                                    <span
+                                      onClick={() => navigate(`/user/${ass.userId}`)}
+                                      className="text-sm font-semibold text-slate-800 hover:underline cursor-pointer"
+                                    >
+                                      {ass.username}
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className={isLead ? "bg-blue-50 text-blue-700 border-blue-200 text-[10px]" : "bg-slate-100 text-slate-600 border-slate-200 text-[10px]"}
+                                    >
+                                      {isLead ? 'Lead' : 'Collaborator'}
+                                    </Badge>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sent Invitations List (only for Lead or Project Owner) */}
+                        {(isOwner || (userAssignment && !userAssignment.parentAssignmentId)) && (
+                          <div className="pt-2 border-t border-slate-100">
+                            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sent Invitations</h4>
+                            {invitations.length === 0 ? (
+                              <p className="text-sm text-slate-500 italic">No invitations sent yet.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {invitations.map((invite) => {
+                                  const statusLower = invite.status.toLowerCase()
+                                  let statusClass = "bg-amber-50 text-amber-700 border-amber-200"
+                                  if (statusLower === 'accepted') statusClass = "bg-green-50 text-green-700 border-green-200"
+                                  if (statusLower === 'rejected') statusClass = "bg-red-50 text-red-700 border-red-200"
+
+                                  return (
+                                    <div
+                                      key={invite.id}
+                                      className="flex items-center justify-between bg-slate-50/50 border border-slate-200/60 rounded-xl px-4 py-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span
+                                          onClick={() => navigate(`/user/${invite.receiverId}`)}
+                                          className="text-sm font-medium text-slate-700 hover:underline cursor-pointer"
+                                        >
+                                          {invite.receiverUsername}
+                                        </span>
+                                        <span className="text-xs text-slate-400">invited by {invite.senderUsername}</span>
+                                      </div>
+                                      <Badge variant="outline" className={`${statusClass} text-[10px]`}>
+                                        {invite.status}
+                                      </Badge>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
               {/* Submitted Proposals Card */}
               {(isOwner || anyAssignment) && (
                 <Card>
@@ -1587,6 +1750,73 @@ export function TaskDetailPage({
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {showInviteModal && (
+        <Modal
+          isOpen={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false)
+            setInviteReceiverId(null)
+            setInviteError(null)
+          }}
+          title="Invite Collaborator"
+        >
+          <div className="space-y-4 text-slate-900">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">Select Developer to Invite</label>
+              <select
+                value={inviteReceiverId || ''}
+                onChange={(e) => setInviteReceiverId(Number(e.target.value) || null)}
+                className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-slate-700"
+                disabled={isInviting}
+              >
+                <option value="">-- Choose a developer --</option>
+                {allUsers
+                  .filter((u) => {
+                    const assigneesUserIds = new Set(assignments.map((a) => a.userId))
+                    const invitedUserIds = new Set(invitations.map((i) => i.receiverId))
+                    return (
+                      u.id !== currentUser?.id &&
+                      u.id !== projectOwnerId &&
+                      !assigneesUserIds.has(u.id) &&
+                      !invitedUserIds.has(u.id)
+                    )
+                  })
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.username} {u.email ? `(${u.email})` : ''}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {inviteError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-sm text-red-700">{inviteError}</p>
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="primary"
+                onClick={handleSendInvitation}
+                disabled={isInviting || !inviteReceiverId}
+              >
+                {isInviting ? 'Sending Invitation...' : 'Send Invitation'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowInviteModal(false)
+                  setInviteReceiverId(null)
+                  setInviteError(null)
+                }}
+                disabled={isInviting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </main>

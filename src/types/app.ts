@@ -170,13 +170,33 @@ export type TaskAssignmentResponse = {
   username: string,
   assignedAt: Date,
   status: string,
-  attemptsUsed: number
+  attemptsUsed: number,
+  parentAssignmentId?: number | null
 }
 
 export type TaskAssignmentUpdateRequest = {
   id: number
   status: string
   attemptsUsed: number
+}
+
+export type TaskInvitationRequest = {
+  taskId: number
+  receiverId: number
+}
+
+export type TaskInvitationResponse = {
+  id: number
+  taskId: number
+  taskTitle: string
+  projectId: number
+  projectName: string
+  senderId: number
+  senderUsername: string
+  receiverId: number
+  receiverUsername: string
+  status: string
+  createdAt: string
 }
 
 export type TaskSubmissionRequest = {
