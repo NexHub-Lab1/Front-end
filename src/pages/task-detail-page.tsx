@@ -1,5 +1,5 @@
 import { ArrowLeft, Bookmark, CreditCard, ExternalLink, RefreshCw, Send, UserPlus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
@@ -44,6 +44,8 @@ export function TaskDetailPage({
   const [taskPayments, setTaskPayments] = useState<PaymentResponse[]>([])
   const [isPaymentActionLoading, setIsPaymentActionLoading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [paymentNotice, setPaymentNotice] = useState<{ type: 'info' | 'success'; message: string } | null>(null)
+  const autoSyncedPaymentRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function loadTask() {
@@ -61,6 +63,7 @@ export function TaskDetailPage({
       setUserAssignment(null)
       setTaskPayments([])
       setPaymentError(null)
+      setPaymentNotice(null)
 
       try {
         const response = await fetchTaskById(parsedId)
@@ -258,12 +261,51 @@ export function TaskDetailPage({
 
       setTask(taskResponse.data)
       setTaskPayments(paymentsResponse.data)
+      const refreshedFundingStatus = normalizeFundingStatus(taskResponse.data.fundingStatus)
+      if (refreshedFundingStatus === 'funded') {
+        setPaymentNotice({
+          type: 'success',
+          message: 'Payment confirmed. This task reward is now funded.',
+        })
+      } else if (refreshedFundingStatus === 'pending') {
+        setPaymentNotice({
+          type: 'info',
+          message: 'Payment status was checked. Mercado Pago has not confirmed funding yet.',
+        })
+      }
     } catch (refreshError) {
       setPaymentError(refreshError instanceof Error ? refreshError.message : 'Unable to refresh payment.')
     } finally {
       setIsPaymentActionLoading(false)
     }
   }
+
+  const latestPayment = taskPayments[0] ?? null
+  const checkoutReturnStatus = new URLSearchParams(location.search).get('payment')
+  const returnedFromCheckout = checkoutReturnStatus !== null
+
+  useEffect(() => {
+    if (!task || !isOwner || !latestPayment || latestPayment.status.toLowerCase() !== 'pending') {
+      return
+    }
+
+    const checkoutStatus = new URLSearchParams(location.search).get('payment')
+    if (!checkoutStatus) {
+      return
+    }
+
+    const syncKey = `${task.id}-${latestPayment.id}-${checkoutStatus}`
+    if (autoSyncedPaymentRef.current === syncKey) {
+      return
+    }
+
+    autoSyncedPaymentRef.current = syncKey
+    setPaymentNotice({
+      type: 'info',
+      message: 'Checking Mercado Pago confirmation for this reward...',
+    })
+    void handleRefreshPaymentStatus()
+  }, [isOwner, latestPayment, location.search, task])
 
   function validatePullRequestUrl(value: string) {
     if (!value.trim()) {
@@ -355,8 +397,6 @@ export function TaskDetailPage({
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
   const fundingStatus = normalizeFundingStatus(task?.fundingStatus)
-  const latestPayment = taskPayments[0] ?? null
-  const returnedFromCheckout = new URLSearchParams(location.search).has('payment')
   const backTo = typeof location.state === 'object' && location.state !== null && 'backTo' in location.state
     ? String(location.state.backTo)
     : null
@@ -506,6 +546,18 @@ export function TaskDetailPage({
                       {paymentError ? (
                         <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                           {paymentError}
+                        </p>
+                      ) : null}
+
+                      {paymentNotice ? (
+                        <p
+                          className={`rounded-md border p-3 text-sm ${
+                            paymentNotice.type === 'success'
+                              ? 'border-green-200 bg-green-50 text-green-700'
+                              : 'border-blue-200 bg-blue-50 text-blue-700'
+                          }`}
+                        >
+                          {paymentNotice.message}
                         </p>
                       ) : null}
 
