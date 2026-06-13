@@ -1,9 +1,9 @@
-import { ArrowLeft, Send, UserPlus, Check, X, Loader2, Pencil } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { ArrowLeft, CreditCard, ExternalLink, RefreshCw, Send, UserPlus, Check, X, Loader2, Pencil } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse } from '../types/app'
+import type { PaymentResponse, TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -16,19 +16,11 @@ import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-stor
 import { createInvitation, fetchInvitationsByTask } from '../lib/task-invitation-storage'
 import { fetchAllUserDetails } from '../lib/user-storage'
 import { LOOKUP_PAGE_SIZE } from '../lib/pagination'
+import { fetchTaskPayments, fundTask, syncTaskPayments } from '../lib/payment-storage'
+import { formatMoney, fundingBadgeClassName, isTaskFunded, normalizeFundingStatus } from '../lib/payment-utils'
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
 import { readStoredProfileDashboard } from '../lib/dashboard-storage'
-const formatMoney = (amount: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount)
-  } catch (e) {
-    return `${amount.toFixed(2)} ${currency}`
-  }
-}
 
 export function TaskDetailPage({
   currentUser,
@@ -55,6 +47,11 @@ export function TaskDetailPage({
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [taskPayments, setTaskPayments] = useState<PaymentResponse[]>([])
+  const [isPaymentActionLoading, setIsPaymentActionLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [paymentNotice, setPaymentNotice] = useState<{ type: 'info' | 'success'; message: string } | null>(null)
+  const autoSyncedPaymentRef = useRef<string | null>(null)
   const [projectOwnerUsername, setProjectOwnerUsername] = useState<string | null>(null)
   const [projectOwnerId, setProjectOwnerId] = useState<number | null>(null)
   const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
@@ -347,6 +344,18 @@ export function TaskDetailPage({
 
       setIsLoading(true)
       setError(null)
+      setIsOwner(false)
+      setUserAssignment(null)
+      setAnyAssignment(null)
+      setProjectOwnerUsername(null)
+      setProjectOwnerId(null)
+      setAssignments([])
+      setSelectedAssignment(null)
+      setSubmissions([])
+      setInvitations([])
+      setTaskPayments([])
+      setPaymentError(null)
+      setPaymentNotice(null)
 
       try {
         const response = await fetchTaskById(parsedId)
@@ -366,6 +375,15 @@ export function TaskDetailPage({
             const ownerStatus = projectRes.data.ownerId === currentUser.id
             setIsOwner(ownerStatus)
             userIsOwner = ownerStatus
+
+            if (ownerStatus) {
+              const paymentsResponse = await fetchTaskPayments(loadedTask.id)
+              if (paymentsResponse.status === 'success' && paymentsResponse.data) {
+                setTaskPayments(paymentsResponse.data)
+              } else {
+                setPaymentError(paymentsResponse.message || 'Unable to load payment history.')
+              }
+            }
           }
         }
 
@@ -533,6 +551,107 @@ export function TaskDetailPage({
     }
   }
 
+  const handleFundTask = async () => {
+    if (!task) {
+      return
+    }
+
+    setIsPaymentActionLoading(true)
+    setPaymentError(null)
+    setActionFeedback(null)
+
+    try {
+      const result = await fundTask(task.id)
+      if (result.status === 'error' || !result.data) {
+        throw new Error(result.message || 'Unable to start funding.')
+      }
+      if (!result.data.checkoutUrl) {
+        throw new Error('Mercado Pago did not return a checkout URL.')
+      }
+
+      setTask((currentTask) => currentTask ? { ...currentTask, fundingStatus: 'pending' } : currentTask)
+      setTaskPayments((payments) => [result.data!, ...payments])
+      window.location.assign(result.data.checkoutUrl)
+    } catch (fundingError) {
+      setPaymentError(fundingError instanceof Error ? fundingError.message : 'Unable to start funding.')
+    } finally {
+      setIsPaymentActionLoading(false)
+    }
+  }
+
+  const handleRefreshPaymentStatus = async () => {
+    if (!task || !isOwner) {
+      return
+    }
+
+    setIsPaymentActionLoading(true)
+    setPaymentError(null)
+
+    try {
+      const syncResponse = await syncTaskPayments(task.id)
+      if (syncResponse.status === 'error' || !syncResponse.data) {
+        throw new Error(syncResponse.message || 'Unable to sync payment status.')
+      }
+
+      const [taskResponse, paymentsResponse] = await Promise.all([
+        fetchTaskById(task.id),
+        fetchTaskPayments(task.id),
+      ])
+      if (taskResponse.status === 'error' || !taskResponse.data) {
+        throw new Error(taskResponse.message || 'Unable to refresh task.')
+      }
+      if (paymentsResponse.status === 'error' || !paymentsResponse.data) {
+        throw new Error(paymentsResponse.message || 'Unable to refresh payment history.')
+      }
+
+      setTask(taskResponse.data)
+      setTaskPayments(paymentsResponse.data)
+      const refreshedFundingStatus = normalizeFundingStatus(taskResponse.data.fundingStatus)
+      if (refreshedFundingStatus === 'funded') {
+        setPaymentNotice({
+          type: 'success',
+          message: 'Payment confirmed. This task reward is now funded.',
+        })
+      } else if (refreshedFundingStatus === 'pending') {
+        setPaymentNotice({
+          type: 'info',
+          message: 'Payment status was checked. Mercado Pago has not confirmed funding yet.',
+        })
+      }
+    } catch (refreshError) {
+      setPaymentError(refreshError instanceof Error ? refreshError.message : 'Unable to refresh payment.')
+    } finally {
+      setIsPaymentActionLoading(false)
+    }
+  }
+
+  const latestPayment = taskPayments[0] ?? null
+  const checkoutReturnStatus = new URLSearchParams(location.search).get('payment')
+  const returnedFromCheckout = checkoutReturnStatus !== null
+
+  useEffect(() => {
+    if (!task || !isOwner || !latestPayment || latestPayment.status.toLowerCase() !== 'pending') {
+      return
+    }
+
+    const checkoutStatus = new URLSearchParams(location.search).get('payment')
+    if (!checkoutStatus) {
+      return
+    }
+
+    const syncKey = `${task.id}-${latestPayment.id}-${checkoutStatus}`
+    if (autoSyncedPaymentRef.current === syncKey) {
+      return
+    }
+
+    autoSyncedPaymentRef.current = syncKey
+    setPaymentNotice({
+      type: 'info',
+      message: 'Checking Mercado Pago confirmation for this reward...',
+    })
+    void handleRefreshPaymentStatus()
+  }, [isOwner, latestPayment, location.search, task])
+
   function validatePullRequestUrl(value: string) {
     if (!value.trim()) {
       return 'Please enter a Pull Request URL'
@@ -606,6 +725,14 @@ export function TaskDetailPage({
       }
     }
 
+    if (!isTaskFunded(task?.fundingStatus)) {
+      return {
+        text: 'Waiting for Funding',
+        disabled: true,
+        tooltip: 'The project owner must fund this reward before it can be assigned',
+      }
+    }
+
     if (task && !task.collaborative) {
       const hasAnyActive = assignments.some(
         (a) => a.status.toLowerCase() === 'active'
@@ -648,6 +775,13 @@ export function TaskDetailPage({
       }
     }
 
+    if (!isTaskFunded(task?.fundingStatus)) {
+      return {
+        disabled: true,
+        tooltip: 'This reward must be funded before you can submit work',
+      }
+    }
+
     if (!userAssignment) {
       return {
         disabled: true,
@@ -664,6 +798,7 @@ export function TaskDetailPage({
   const showChat = !!(currentUser && (userAssignment || isOwner))
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
+  const fundingStatus = normalizeFundingStatus(task?.fundingStatus)
 
   const teamLeadId = userAssignment
     ? (userAssignment.parentAssignmentId || userAssignment.id)
@@ -731,6 +866,9 @@ export function TaskDetailPage({
                     <div className="space-y-4">
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">{task.status}</Badge>
+                        <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                          {fundingStatus}
+                        </Badge>
                         <Badge variant="outline">{task.projectName}</Badge>
                         {projectOwnerUsername && projectOwnerId && (
                           <Badge
@@ -829,6 +967,83 @@ export function TaskDetailPage({
                       >
                         {actionFeedback.message}
                       </p>
+                    </div>
+                  )}
+
+                  {isOwner && (
+                    <div className="space-y-4 rounded-xl border border-blue-100 bg-white/75 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-xl">Reward funding</CardTitle>
+                          <CardDescription className="mt-1">
+                            Secure {formatMoney(task.rewardAmount, task.rewardCurrency)} before work begins.
+                          </CardDescription>
+                        </div>
+                        <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                          {fundingStatus}
+                        </Badge>
+                      </div>
+
+                      {paymentError ? (
+                        <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                          {paymentError}
+                        </p>
+                      ) : null}
+
+                      {paymentNotice ? (
+                        <p
+                          className={`rounded-md border p-3 text-sm ${
+                            paymentNotice.type === 'success'
+                              ? 'border-green-200 bg-green-50 text-green-700'
+                              : 'border-blue-200 bg-blue-50 text-blue-700'
+                          }`}
+                        >
+                          {paymentNotice.message}
+                        </p>
+                      ) : null}
+
+                      {latestPayment?.status.toLowerCase() === 'pending' ? (
+                        <div className="space-y-3">
+                          <CardDescription>
+                            {returnedFromCheckout
+                              ? 'You returned from Mercado Pago. Funding is enabled when the payment webhook is confirmed.'
+                              : 'Your Mercado Pago checkout is waiting for payment confirmation.'}
+                          </CardDescription>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => void handleRefreshPaymentStatus()}
+                              disabled={isPaymentActionLoading}
+                            >
+                              <RefreshCw size={16} className="mr-2" />
+                              Refresh status
+                            </Button>
+                            {latestPayment.checkoutUrl ? (
+                              <Button variant="primary" asChild>
+                                <a href={latestPayment.checkoutUrl}>
+                                  <ExternalLink size={16} className="mr-2" />
+                                  Continue to Mercado Pago
+                                </a>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : fundingStatus !== 'funded' && fundingStatus !== 'released' ? (
+                        <Button
+                          variant="primary"
+                          onClick={() => void handleFundTask()}
+                          disabled={isPaymentActionLoading}
+                        >
+                          <CreditCard size={16} className="mr-2" />
+                          {isPaymentActionLoading ? 'Starting...' : 'Fund task reward'}
+                        </Button>
+                      ) : (
+                        <CardDescription>
+                          {fundingStatus === 'released'
+                            ? 'The approved reward has been released to the contributor.'
+                            : 'This reward is funded and held until a submission is approved.'}
+                        </CardDescription>
+                      )}
                     </div>
                   )}
 

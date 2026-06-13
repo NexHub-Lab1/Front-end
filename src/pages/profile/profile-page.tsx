@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Send,
   MessageSquare,
+  Wallet,
 } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -22,11 +23,12 @@ import { TasksTab } from './profile-tabs/tasks'
 import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
+import { WalletTab } from './profile-tabs/wallet'
 import { ChatsTab } from './profile-tabs/chats'
 import { fetchProfileDashboard, readStoredProfileDashboard } from '../../lib/dashboard-storage'
 import { ConnectionList, FollowConnections, type ConnectionView } from '../../components/app/follow-connections'
 
-const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions', 'chats'] as const
+const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions', 'wallet', 'chats'] as const
 
 type ProfileTabKey = (typeof profileTabKeys)[number]
 
@@ -41,6 +43,7 @@ const tabIcons: Record<ProfileTabKey, React.ReactNode> = {
   'assigned-tasks': <ClipboardCheck size={18} />,
   'to-review': <CheckSquare size={18} />,
   submissions: <Send size={18} />,
+  wallet: <Wallet size={18} />,
   chats: <MessageSquare size={18} />,
 }
 
@@ -153,6 +156,8 @@ export function ProfilePage({
         return <ToReviewTab user={currentUser} />
       case 'submissions':
         return <SubmissionsTab user={currentUser} />
+      case 'wallet':
+        return <WalletTab />
       case 'chats':
         return <ChatsTab user={currentUser} />
       default:
