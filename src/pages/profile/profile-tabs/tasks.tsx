@@ -20,6 +20,17 @@ import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pa
 import type { PaginatedResponse } from "../../../types/app";
 import { readStoredProfileDashboard } from "../../../lib/dashboard-storage";
 
+const formatMoney = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  } catch (e) {
+    return `${amount.toFixed(2)} ${currency}`
+  }
+}
+
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
   title: "",
@@ -30,6 +41,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   deadline: new Date(),
   status: "Open",
   maxAttempts: 3,
+  collaborative: false,
   recommendedSkills: []
 }
 
@@ -47,6 +59,7 @@ export function TasksTab({
     return dashboard?.tasks || createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE);
   });
   const [currentPage, setCurrentPage] = useState(0);
+  const [allowAnyReputation, setAllowAnyReputation] = useState(true);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -195,6 +208,7 @@ export function TasksTab({
 
     const taskData = {
       ...taskForm,
+      minReputation: allowAnyReputation ? -500 : (taskForm.minReputation || 0),
       recommendedSkills: skillsInput
         .split(',')
         .map((skill) => skill.trim())
@@ -268,9 +282,12 @@ export function TasksTab({
       deadline: task.deadline,
       status: task.status,
       maxAttempts: task.maxAttempts,
+      collaborative: task.collaborative,
+      minReputation: task.minReputation,
       recommendedSkills: task.recommendedSkills
     })
     setSkillsInput(task.recommendedSkills.join(', '))
+    setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
     setEditingTaskId(task.id)
     setIsEditMode(true)
     setShowModal(true)
@@ -282,6 +299,7 @@ export function TasksTab({
     setEditingTaskId(null)
     setCreateErrors({})
     setSkillsInput('')
+    setAllowAnyReputation(true)
     setTaskForm(EMPTY_TASK_FORM)
   }
 
@@ -295,6 +313,18 @@ export function TasksTab({
         title={isEditMode ? "Edit task" : "Create a new task"}
       >
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          {feedback && (
+            <div className="md:col-span-2">
+              <div className={`p-3 rounded-lg flex items-center gap-3 text-sm border ${
+                feedback.type === 'success'
+                  ? 'border-green-100 bg-green-50 text-green-700'
+                  : 'border-red-100 bg-red-50 text-red-700'
+              }`}>
+                {feedback.type === 'success' ? <Check size={16} className="text-green-600" /> : <Cross size={16} className="text-red-600" />}
+                <span>{feedback.message}</span>
+              </div>
+            </div>
+          )}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Task Title</label>
             <Input
@@ -420,6 +450,68 @@ export function TasksTab({
               }}
             />
           </div>
+          <div className="flex items-center gap-2 mt-6">
+            <input
+              id="tab-create-task-collaborative"
+              type="checkbox"
+              checked={taskForm.collaborative}
+              onChange={(event) => {
+                setTaskForm((current) => ({
+                  ...current,
+                  collaborative: event.target.checked,
+                }))
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="tab-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+              Collaborative Task
+            </label>
+          </div>
+          <div className="flex flex-col justify-center gap-2">
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                id="tab-create-task-any-rep"
+                type="checkbox"
+                checked={allowAnyReputation}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAllowAnyReputation(checked);
+                  if (checked) {
+                    setTaskForm((current) => ({
+                      ...current,
+                      minReputation: -500,
+                    }));
+                  } else {
+                    setTaskForm((current) => ({
+                      ...current,
+                      minReputation: 0,
+                    }));
+                  }
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="tab-create-task-any-rep" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Any reputation score
+              </label>
+            </div>
+          </div>
+          {!allowAnyReputation && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Minimum Reputation Required</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={taskForm.minReputation === undefined ? "" : taskForm.minReputation}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setTaskForm((current) => ({
+                    ...current,
+                    minReputation: value === "" ? 0 : Number(value),
+                  }));
+                }}
+              />
+            </div>
+          )}
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-2">Recommended Skills</label>
@@ -491,7 +583,7 @@ export function TasksTab({
             <PlusIcon size={16} />
           </Button>
         </section>
-        {feedback ? (
+        {!showModal && feedback ? (
           <Card className={`border-${feedback.type === 'success' ? 'green' : 'red'}-100 bg-${feedback.type === 'success' ? 'green' : 'red'}-50/70 shadow-none`}>
             <CardBody className="flex items-center gap-3 p-4">
               {feedback.type === 'success' ? <Check size={16} className="text-green-600" /> : <Cross size={16} className="text-red-600" />}
@@ -563,7 +655,7 @@ export function TasksTab({
                       </div>
 
                       <div className="space-y-2 text-sm text-slate-600">
-                        <p><span className="font-medium text-slate-800">Reward:</span> {task.rewardAmount} {task.rewardCurrency}</p>
+                        <p><span className="font-medium text-slate-800">Reward:</span> {formatMoney(task.rewardAmount, task.rewardCurrency)}</p>
                         <p><span className="font-medium text-slate-800">Max Attempts:</span> {task.maxAttempts}</p>
                       </div>
 

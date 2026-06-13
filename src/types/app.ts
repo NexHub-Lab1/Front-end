@@ -10,6 +10,8 @@ export type UserDetailsResponse = {
   image_url: string
   last_active_at: Date
   created_at: Date
+  reputationScore: number
+  totalPoints: number
 }
 
 export type AuthUser = {
@@ -24,6 +26,7 @@ export type User = {
   githubUsername?: string | null
   profileImageUrl?: string | null
   skills?: string[]
+  emailNotificationsEnabled?: boolean
 }
 export type ApiResponse<T> = {
   status: 'success' | 'error'
@@ -129,6 +132,8 @@ export type TaskRequest = {
   deadline: Date,
   status: string,
   maxAttempts: number,
+  minReputation?: number,
+  collaborative: boolean,
   recommendedSkills: string[]
 }
 
@@ -145,6 +150,8 @@ export type TaskResponse = {
   status: string,
   fundingStatus?: string | null,
   maxAttempts: number,
+  minReputation: number,
+  collaborative: boolean,
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[]
@@ -210,13 +217,33 @@ export type TaskAssignmentResponse = {
   username: string,
   assignedAt: Date,
   status: string,
-  attemptsUsed: number
+  attemptsUsed: number,
+  parentAssignmentId?: number | null
 }
 
 export type TaskAssignmentUpdateRequest = {
   id: number
   status: string
   attemptsUsed: number
+}
+
+export type TaskInvitationRequest = {
+  taskId: number
+  receiverId: number
+}
+
+export type TaskInvitationResponse = {
+  id: number
+  taskId: number
+  taskTitle: string
+  projectId: number
+  projectName: string
+  senderId: number
+  senderUsername: string
+  receiverId: number
+  receiverUsername: string
+  status: string
+  createdAt: string
 }
 
 export type TaskSubmissionRequest = {
@@ -249,6 +276,7 @@ export type TaskSubmissionUpdateRequest = {
   status: string
   reviewComments: string
   reviewerId: number
+  rejectionReason?: 'SPAM_OR_LOW_EFFORT' | 'BUGS_OR_INCOMPLETE'
 }
 
 export type ProjectLookupDTO = {

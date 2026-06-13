@@ -18,6 +18,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   deadline: new Date(),
   status: 'Open',
   maxAttempts: 3,
+  collaborative: false,
   recommendedSkills: [],
 }
 
@@ -31,6 +32,7 @@ export function CreateTaskModal({
   onCreated?: () => void | Promise<void>
 }) {
   const [taskForm, setTaskForm] = useState<TaskRequest>(EMPTY_TASK_FORM)
+  const [allowAnyReputation, setAllowAnyReputation] = useState(true)
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [skillsInput, setSkillsInput] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -71,6 +73,7 @@ export function CreateTaskModal({
 
   function resetForm() {
     setTaskForm(EMPTY_TASK_FORM)
+    setAllowAnyReputation(true)
     setProjects([])
     setSkillsInput('')
     setSubmitError(null)
@@ -149,6 +152,7 @@ export function CreateTaskModal({
 
       const result = await createTask({
         ...taskForm,
+        minReputation: allowAnyReputation ? -500 : (taskForm.minReputation || 0),
         recommendedSkills: skillsInput
           .split(',')
           .map((skill) => skill.trim())
@@ -281,6 +285,62 @@ export function CreateTaskModal({
             }}
           />
         </div>
+        <div className="flex items-center gap-2 mt-6">
+          <input
+            id="sidebar-create-task-collaborative"
+            type="checkbox"
+            checked={taskForm.collaborative}
+            onChange={(event) => {
+              setTaskForm((current) => ({
+                ...current,
+                collaborative: event.target.checked,
+              }))
+            }}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="sidebar-create-task-collaborative" className="text-sm font-medium text-slate-700 cursor-pointer">
+            Collaborative Task
+          </label>
+        </div>
+        <div className="flex flex-col justify-center gap-2">
+          <div className="flex items-center gap-2">
+            <input
+              id="sidebar-create-task-any-rep"
+              type="checkbox"
+              checked={allowAnyReputation}
+              onChange={(event) => {
+                const checked = event.target.checked
+                setAllowAnyReputation(checked)
+                if (checked) {
+                  setTaskForm((current) => ({ ...current, minReputation: -500 }))
+                } else {
+                  setTaskForm((current) => ({ ...current, minReputation: 0 }))
+                }
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="sidebar-create-task-any-rep" className="text-sm font-medium text-slate-700 cursor-pointer">
+              Any reputation score
+            </label>
+          </div>
+        </div>
+        {!allowAnyReputation && (
+          <div>
+            <label className="mb-2 block text-sm font-medium">Minimum Reputation Required</label>
+            <Input
+              type="number"
+              placeholder="0"
+              value={taskForm.minReputation === undefined ? '' : taskForm.minReputation}
+              onChange={(event) => {
+                const value = event.target.value
+                setTaskForm((current) => ({
+                  ...current,
+                  minReputation: value === '' ? 0 : Number(value),
+                }))
+              }}
+            />
+          </div>
+        )}
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium">Recommended Skills</label>
           <Input

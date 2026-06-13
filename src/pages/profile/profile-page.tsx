@@ -1,4 +1,15 @@
-import { Sparkles, Star } from 'lucide-react'
+import {
+  Sparkles,
+  Star,
+  User as UserIcon,
+  Folder,
+  Briefcase,
+  ClipboardCheck,
+  CheckSquare,
+  Send,
+  MessageSquare,
+  Wallet,
+} from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppHeader } from '../../components/app/app-header'
@@ -13,15 +24,27 @@ import { AssignedTasksTab } from './profile-tabs/assigned-tasks'
 import { ToReviewTab } from './profile-tabs/to-review'
 import { SubmissionsTab } from './profile-tabs/submissions'
 import { WalletTab } from './profile-tabs/wallet'
+import { ChatsTab } from './profile-tabs/chats'
 import { fetchProfileDashboard, readStoredProfileDashboard } from '../../lib/dashboard-storage'
 import { ConnectionList, FollowConnections, type ConnectionView } from '../../components/app/follow-connections'
 
-const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions', 'wallet'] as const
+const profileTabKeys = ['profile', 'projects', 'tasks', 'assigned-tasks', 'to-review', 'submissions', 'wallet', 'chats'] as const
 
 type ProfileTabKey = (typeof profileTabKeys)[number]
 
 function isProfileTabKey(value: string | null): value is ProfileTabKey {
   return value !== null && profileTabKeys.includes(value as ProfileTabKey)
+}
+
+const tabIcons: Record<ProfileTabKey, React.ReactNode> = {
+  profile: <UserIcon size={18} />,
+  projects: <Folder size={18} />,
+  tasks: <Briefcase size={18} />,
+  'assigned-tasks': <ClipboardCheck size={18} />,
+  'to-review': <CheckSquare size={18} />,
+  submissions: <Send size={18} />,
+  wallet: <Wallet size={18} />,
+  chats: <MessageSquare size={18} />,
 }
 
 export function ProfilePage({
@@ -52,10 +75,7 @@ export function ProfilePage({
   const loadDashboard = useCallback(async () => {
     if (!currentUser?.id) return;
     
-    // Only show spinner if we don't have any data yet
-    // We use a functional update or a ref to check the latest data without depending on it
     setIsLoadingDashboard(() => {
-      // If we already have data, don't trigger the "Loading..." full-screen state
       return dashboardData ? false : true;
     });
     
@@ -69,8 +89,6 @@ export function ProfilePage({
     } finally {
       setIsLoadingDashboard(false)
     }
-    // We intentionally omit dashboardData from here to prevent an infinite loop
-    // because dashboardData is updated by this very function.
   }, [currentUser?.id])
 
   useEffect(() => {
@@ -140,6 +158,8 @@ export function ProfilePage({
         return <SubmissionsTab user={currentUser} />
       case 'wallet':
         return <WalletTab />
+      case 'chats':
+        return <ChatsTab user={currentUser} />
       default:
         return <ProfileTab onSignOut={onSignOut} onUserUpdate={onUserUpdate} />
     }
@@ -149,9 +169,9 @@ export function ProfilePage({
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <AppHeader onSignOut={onSignOut} onOpenMenu={onOpenMenu} />
 
-      <section className="mx-auto mt-6 h-[80vh] grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="overflow-hidden">
-          <CardBody className="flex flex-col h-full gap-4 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))]">
+      <section className="mx-auto mt-6 grid max-w-6xl gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className="overflow-hidden lg:sticky lg:top-6 self-start">
+          <CardBody className="flex flex-col gap-4 p-6 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_35%),linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,1))]">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <DeveloperAvatar name={currentUser.username} />
@@ -193,7 +213,7 @@ export function ProfilePage({
                   <div
                     key={key}
                     className={
-                      `group transition-all flex items-center h-12 px-4 rounded-xl cursor-pointer font-medium
+                      `group transition-all flex items-center gap-3 h-12 px-4 rounded-xl cursor-pointer font-medium
                       ${isActive 
                         ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50 border border-blue-100' 
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent'
@@ -201,15 +221,19 @@ export function ProfilePage({
                     }
                     onClick={() => changeActiveTab(key as ProfileTabKey)}
                   >
-                    {capitalize(key)}
+                    <span className={isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600 transition-colors'}>
+                      {tabIcons[key]}
+                    </span>
+                    <span>{capitalize(key)}</span>
                   </div>
                 )
               })}
             </nav>
           </CardBody>
         </Card>
-
-        {renderActiveTab()}
+        <div className="[&>div]:min-h-[600px]">
+          {renderActiveTab()}
+        </div>
       </section>
     </main>
   )

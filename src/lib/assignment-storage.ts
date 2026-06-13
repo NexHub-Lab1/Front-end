@@ -107,3 +107,23 @@ export async function deleteAssignment(assignmentId: number): Promise<ApiRespons
   console.log('Delete Assignment Response Status:', response)
   return handleResponse(response)
 }
+
+export async function fetchAllAssignments(params?: PaginationParams): Promise<ApiResponse<PaginatedResponse<TaskAssignmentResponse>>> {
+  const token = readStoredUserToken()
+  if (!token) {
+    return {
+      status: 'error',
+      message: 'No authentication token',
+      data: null,
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  const page = params?.page ?? 0
+  const size = params?.size ?? 100
+  const response = await fetch(`${ASSIGNMENT_ROOT_ENDPOINT}${buildPaginationQuery(params ?? { page, size })}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  })
+  return normalizePaginatedApiResponse(await handleResponse(response), page, size)
+}
