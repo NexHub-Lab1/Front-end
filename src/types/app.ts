@@ -51,6 +51,8 @@ export type PaginationParams = {
   page?: number
   size?: number
   sort?: string[]
+  search?: string
+  status?: string
 }
 
 export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile' | '/projects'

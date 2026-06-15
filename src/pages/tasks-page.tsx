@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleDollarSign, FolderKanban, PlusIcon, RotateCcw } from 'lucide-react'
+import { ArrowLeft, CircleDollarSign, FolderKanban, PlusIcon, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -38,6 +38,8 @@ export function TasksPage({
     createEmptyPaginatedResponse<TaskResponse>(0, GRID_PAGE_SIZE),
   )
   const [currentPage, setCurrentPage] = useState(0)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -52,6 +54,8 @@ export function TasksPage({
       const tasksResponse = await fetchAllTasks({
         page: currentPage,
         size: GRID_PAGE_SIZE,
+        search: searchKeyword,
+        status: statusFilter,
       })
 
       if (tasksResponse.status === 'error' || !tasksResponse.data) {
@@ -71,7 +75,7 @@ export function TasksPage({
       setLoadError('Unable to load tasks.')
       setIsLoading(false)
     })
-  }, [currentPage])
+  }, [currentPage, searchKeyword, statusFilter])
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -130,6 +134,38 @@ export function TasksPage({
                 setIsLoading(false)
               }}
             />
+
+            {/* Search & Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search tasks by title or description..."
+                  value={searchKeyword}
+                  onChange={(e) => {
+                    setSearchKeyword(e.target.value)
+                    setCurrentPage(0)
+                  }}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder-slate-400 bg-slate-50/50 focus:bg-white transition-all"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value)
+                  setCurrentPage(0)
+                }}
+                className="border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer min-w-[160px]"
+              >
+                <option value="">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="In_Progress">In Progress</option>
+                <option value="Review">Review</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
 
             {loadError ? (
               <Card className="border-red-100 bg-red-50/70 shadow-none">

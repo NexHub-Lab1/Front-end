@@ -24,6 +24,14 @@ export function buildPaginationQuery(params?: PaginationParams) {
     searchParams.append('sort', sortValue)
   })
 
+  if (params.search !== undefined && params.search !== '') {
+    searchParams.set('search', params.search)
+  }
+
+  if (params.status !== undefined && params.status !== '') {
+    searchParams.set('status', params.status)
+  }
+
   const query = searchParams.toString()
   return query ? `?${query}` : ''
 }

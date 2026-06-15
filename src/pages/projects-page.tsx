@@ -1,4 +1,4 @@
-import { ArrowLeft, Github, PlusIcon, Star, Users } from 'lucide-react'
+import { ArrowLeft, Github, PlusIcon, Star, Users, Search } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
 import { ImportGithubReposModal } from '../components/app/import-github-repos-modal'
@@ -28,6 +28,8 @@ export function ProjectsPage({
     createEmptyPaginatedResponse<ProjectResponse>(0, GRID_PAGE_SIZE),
   )
   const [currentPage, setCurrentPage] = useState(0)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -35,7 +37,7 @@ export function ProjectsPage({
   const [feedback, setFeedback] = useState<string | null>(null)
   const currentUser = readStoredUser()
 
-  async function loadProjects(page: number) {
+  async function loadProjects(page: number, search = searchKeyword, status = statusFilter) {
     setIsLoading(true)
     setLoadError(null)
 
@@ -43,6 +45,8 @@ export function ProjectsPage({
       const response = await fetchAllProjects({
         page,
         size: GRID_PAGE_SIZE,
+        search,
+        status,
       })
 
       if (response.status === 'success' && response.data) {
@@ -61,10 +65,10 @@ export function ProjectsPage({
   }
 
   useEffect(() => {
-    loadProjects(currentPage).catch((error) => {
+    loadProjects(currentPage, searchKeyword, statusFilter).catch((error) => {
       console.error(error)
     })
-  }, [currentPage])
+  }, [currentPage, searchKeyword, statusFilter])
 
   useEffect(() => {
     if (searchParams.get('importGithub') === '1' && currentUser?.githubUsername) {
@@ -140,6 +144,37 @@ export function ProjectsPage({
                 await loadProjects(0)
               }}
             />
+
+            {/* Search & Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search projects by name or description..."
+                  value={searchKeyword}
+                  onChange={(e) => {
+                    setSearchKeyword(e.target.value)
+                    setCurrentPage(0)
+                  }}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder-slate-400 bg-slate-50/50 focus:bg-white transition-all"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value)
+                  setCurrentPage(0)
+                }}
+                className="border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer min-w-[160px]"
+              >
+                <option value="">All Statuses</option>
+                <option value="OPEN">OPEN</option>
+                <option value="HIRING">HIRING</option>
+                <option value="IN_PROGRESS">IN PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+              </select>
+            </div>
 
             {loadError ? (
               <Card className="border-red-100 bg-red-50/70 shadow-none">

@@ -1,5 +1,5 @@
-import { ArrowLeft, Flame, Mail, Sparkles, Star, User } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Flame, Mail, Sparkles, Star, User, Search } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
@@ -22,6 +22,8 @@ export function UsersPage({
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserDetailsResponse[]>([])
   const [currentPage, setCurrentPage] = useState(0)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [selectedSkill, setSelectedSkill] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -50,12 +52,47 @@ export function UsersPage({
     void loadUsers()
   }, [])
 
-  // Client-side pagination calculations
-  const totalElements = users.length
+  // Reset page when search or skill changes
+  useEffect(() => {
+    setCurrentPage(0)
+  }, [searchKeyword, selectedSkill])
+
+  // Extract unique skills for the dropdown filter
+  const availableSkills = useMemo(() => {
+    const skillsSet = new Set<string>()
+    users.forEach((user) => {
+      user.skills?.forEach((skill) => {
+        if (skill.trim()) {
+          skillsSet.add(skill.trim())
+        }
+      })
+    })
+    return Array.from(skillsSet).sort()
+  }, [users])
+
+  // Filter users in memory
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchesSearch =
+        !searchKeyword.trim() ||
+        user.username.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        user.bio?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        user.skills?.some((s) => s.toLowerCase().includes(searchKeyword.toLowerCase()))
+
+      const matchesSkill =
+        !selectedSkill ||
+        user.skills?.some((s) => s.toLowerCase() === selectedSkill.toLowerCase())
+
+      return matchesSearch && matchesSkill
+    })
+  }, [users, searchKeyword, selectedSkill])
+
+  // Client-side pagination calculations based on filtered list
+  const totalElements = filteredUsers.length
   const totalPages = Math.ceil(totalElements / GRID_PAGE_SIZE)
   const startIndex = currentPage * GRID_PAGE_SIZE
   const endIndex = startIndex + GRID_PAGE_SIZE
-  const paginatedUsers = users.slice(startIndex, endIndex)
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex)
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -80,6 +117,32 @@ export function UsersPage({
               </div>
             </div>
 
+            {/* Search & Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search developers by name, bio or skill..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder-slate-400 bg-slate-50/50 focus:bg-white transition-all"
+                />
+              </div>
+              <select
+                value={selectedSkill}
+                onChange={(e) => setSelectedSkill(e.target.value)}
+                className="border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer min-w-[160px]"
+              >
+                <option value="">All Skills</option>
+                {availableSkills.map((skill) => (
+                  <option key={skill} value={skill}>
+                    {skill}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {loadError ? (
               <Card className="border-red-100 bg-red-50/70 shadow-none">
                 <CardBody className="p-5">
@@ -92,7 +155,7 @@ export function UsersPage({
                   <CardDescription>Loading developers...</CardDescription>
                 </CardBody>
               </Card>
-            ) : users.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <Card className="shadow-none">
                 <CardBody className="p-6 text-center">
                   <CardDescription>No developers found.</CardDescription>
