@@ -73,6 +73,42 @@ const formatMoney = (amount: number, currency: string) => {
   }
 }
 
+function getGithubWebhookStatusMeta(status?: string | null) {
+  const normalized = status?.toLowerCase();
+
+  if (normalized === "connected") {
+    return {
+      label: "connected",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+  if (normalized === "pending") {
+    return {
+      label: "pending",
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+    };
+  }
+  if (normalized === "failed") {
+    return {
+      label: "needs attention",
+      className: "border-red-200 bg-red-50 text-red-700",
+    };
+  }
+
+  return {
+    label: "not connected",
+    className: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+}
+
+function formatNullableDate(value?: Date | string | null) {
+  if (!value) {
+    return "Never";
+  }
+
+  return new Date(value).toLocaleDateString();
+}
+
 export function ProjectDetailPage({
   onSignOut,
   onOpenMenu,
@@ -375,6 +411,10 @@ export function ProjectDetailPage({
     () => normalizeRepoUrl(project?.githubRepo?.toString()),
     [project?.githubRepo],
   );
+  const githubWebhookStatus = useMemo(
+    () => getGithubWebhookStatusMeta(project?.githubWebhookStatus),
+    [project?.githubWebhookStatus],
+  );
   const isOwner = useMemo(() => {
     if (!project || !currentUser) {
       return false;
@@ -601,6 +641,12 @@ export function ProjectDetailPage({
                           by {project.ownerUsername.toString()}
                         </Badge>
                       ) : null}
+                      <Badge
+                        variant="outline"
+                        className={githubWebhookStatus.className}
+                      >
+                        GitHub webhook: {githubWebhookStatus.label}
+                      </Badge>
                     </div>
 
                     <div className="space-y-2">
@@ -695,6 +741,32 @@ export function ProjectDetailPage({
                       <span className="font-medium text-slate-700">Status</span>
                       <span>{project.status.toString()}</span>
                     </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-medium text-slate-700">
+                        GitHub webhook
+                      </span>
+                      <span className="text-right">
+                        {githubWebhookStatus.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-medium text-slate-700">
+                        Last webhook event
+                      </span>
+                      <span className="text-right">
+                        {formatNullableDate(project.githubWebhookLastDeliveryAt)}
+                      </span>
+                    </div>
+                    {project.githubWebhookLastError ? (
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="font-medium text-slate-700">
+                          Webhook error
+                        </span>
+                        <span className="max-w-md text-right text-red-600">
+                          {project.githubWebhookLastError}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="flex items-center justify-between gap-4">
                       <span className="font-medium text-slate-700">
                         Created

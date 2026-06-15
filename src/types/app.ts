@@ -78,7 +78,11 @@ export type ProjectResponse = {
   completedTasksCount: number,
   starsCount: number,
   contributorCount: number,
-  tags: string[]
+  tags: string[],
+  githubWebhookStatus?: string | null,
+  githubWebhookLastError?: string | null,
+  githubWebhookConnectedAt?: Date | string | null,
+  githubWebhookLastDeliveryAt?: Date | string | null
 }
 
 export type ProjectForm = {
