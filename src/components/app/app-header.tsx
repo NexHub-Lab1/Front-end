@@ -17,6 +17,7 @@ export function AppHeader({
   const user = readStoredUser()
   const isProjectsActive = location.pathname === '/projects'
   const isTasksActive = location.pathname === '/tasks'
+  const isUsersActive = location.pathname === '/users'
 
   return (
     <header className="sticky top-0 z-30 rounded-3xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
@@ -40,6 +41,13 @@ export function AppHeader({
               className={isTasksActive ? "text-blue-600 font-bold bg-blue-50/50 hover:text-blue-700 hover:bg-blue-50" : "text-slate-600 hover:text-slate-900"}
             >
               Tasks
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/users')}
+              className={isUsersActive ? "text-blue-600 font-bold bg-blue-50/50 hover:text-blue-700 hover:bg-blue-50" : "text-slate-600 hover:text-slate-900"}
+            >
+              Developers
             </Button>
           </div>
         </div>

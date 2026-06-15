@@ -14,6 +14,7 @@ import { ProjectsPage } from './pages/projects-page'
 import { TasksPage } from './pages/tasks-page'
 import type { AuthUser, User } from './types/app'
 import UserDetails from './pages/user-details'
+import { UsersPage } from './pages/users-page'
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => readStoredUser())
@@ -104,6 +105,15 @@ function App() {
           path="/tasks"
           element={
             <TasksPage
+              onSignOut={handleSignOut}
+              onOpenMenu={() => setIsMenuOpen(true)}
+            />
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <UsersPage
               onSignOut={handleSignOut}
               onOpenMenu={() => setIsMenuOpen(true)}
             />
