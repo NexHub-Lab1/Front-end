@@ -75,6 +75,20 @@ export async function fetchProjectsByCurrentUser(
   return normalizePaginatedApiResponse(await handleResponse(response), page, size)
 }
 
+export async function fetchProjectsByOwnerId(
+  ownerId: number,
+  params?: PaginationParams,
+): Promise<ApiResponse<PaginatedResponse<ProjectResponse>>> {
+  const page = params?.page ?? 0
+  const size = params?.size ?? 9
+  const endpoint = `${GET_PROJECTS_ENDPOINT(ownerId)}${buildPaginationQuery(params)}`
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return normalizePaginatedApiResponse(await handleResponse(response, false), page, size)
+}
+
 export async function fetchProjectById(projectId: number): Promise<ApiResponse<ProjectResponse>> {
   const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/${projectId}`, {
     method: 'GET',

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { followUser, getUserDetails, getFollowedUsers, unfollowUser } from "../lib/user-storage"
-import { type UserDetailsResponse } from "../types/app"
-import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar, UserPlus, Loader2, CheckCircle, AlertCircle, UserCheck, Sparkles, Star } from "lucide-react"
+import { fetchProjectsByOwnerId } from "../lib/project-storage"
+import { fetchTasksByOwner } from "../lib/task-storage"
+import { type UserDetailsResponse, type ProjectResponse, type TaskResponse, type PaginatedResponse } from "../types/app"
+import { ArrowLeft, ArrowDown, ArrowRight, Mail, Flame, Calendar, UserPlus, Loader2, CheckCircle, AlertCircle, UserCheck, Sparkles, Star, Users } from "lucide-react"
 import { AppHeader } from "../components/app/app-header"
 import { StatLine } from "../components/app/stat-line"
 import { Button } from "../components/ui/button"
@@ -10,6 +12,19 @@ import { Card, CardBody, CardDescription, CardTitle } from "../components/ui/car
 import { Badge } from "../components/ui/badge"
 import { readStoredAuthUser } from "../lib/auth-storage"
 import { ConnectionList, FollowConnections, type ConnectionView } from "../components/app/follow-connections"
+import { PaginationControls } from "../components/ui/pagination-controls"
+import { createEmptyPaginatedResponse } from "../lib/pagination"
+
+const formatMoney = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount)
+  } catch (e) {
+    return `${amount.toFixed(2)} ${currency}`
+  }
+}
 
 export default function UserDetails({
   onSignOut,
@@ -37,6 +52,65 @@ export default function UserDetails({
         selectedConnections === 'followers' || selectedConnections === 'following'
             ? selectedConnections
             : null
+
+    const [projectsPage, setProjectsPage] = useState<PaginatedResponse<ProjectResponse>>(() => createEmptyPaginatedResponse(0, 6))
+    const [tasksPage, setTasksPage] = useState<PaginatedResponse<TaskResponse>>(() => createEmptyPaginatedResponse(0, 6))
+    const [projectsPageNum, setProjectsPageNum] = useState(0)
+    const [tasksPageNum, setTasksPageNum] = useState(0)
+    const [isLoadingProjects, setIsLoadingProjects] = useState(false)
+    const [isLoadingTasks, setIsLoadingTasks] = useState(false)
+
+    useEffect(() => {
+        async function loadProjects() {
+            const parsedId = Number(id)
+            if (Number.isNaN(parsedId)) return
+
+            setIsLoadingProjects(true)
+            try {
+                const response = await fetchProjectsByOwnerId(parsedId, {
+                    page: projectsPageNum,
+                    size: 6,
+                })
+                if (response.status === 'success' && response.data) {
+                    setProjectsPage(response.data)
+                } else {
+                    setProjectsPage(createEmptyPaginatedResponse(projectsPageNum, 6))
+                }
+            } catch (err) {
+                console.error("Failed to load user projects", err)
+                setProjectsPage(createEmptyPaginatedResponse(projectsPageNum, 6))
+            } finally {
+                setIsLoadingProjects(false)
+            }
+        }
+        void loadProjects()
+    }, [id, projectsPageNum])
+
+    useEffect(() => {
+        async function loadTasks() {
+            const parsedId = Number(id)
+            if (Number.isNaN(parsedId)) return
+
+            setIsLoadingTasks(true)
+            try {
+                const response = await fetchTasksByOwner(parsedId, {
+                    page: tasksPageNum,
+                    size: 6,
+                })
+                if (response.status === 'success' && response.data) {
+                    setTasksPage(response.data)
+                } else {
+                    setTasksPage(createEmptyPaginatedResponse(tasksPageNum, 6))
+                }
+            } catch (err) {
+                console.error("Failed to load user tasks", err)
+                setTasksPage(createEmptyPaginatedResponse(tasksPageNum, 6))
+            } finally {
+                setIsLoadingTasks(false)
+            }
+        }
+        void loadTasks()
+    }, [id, tasksPageNum])
 
     useEffect(() => {
         async function loadUser() {
@@ -313,8 +387,8 @@ export default function UserDetails({
                                 view={connectionView}
                                 onBack={() => setSearchParams({})}
                             />
-                        ) : (
-                        <div className="w-full">
+                                                ) : (
+                        <div className="w-full space-y-6">
                             <Card className="shadow-none">
                                 <CardBody className="space-y-4 p-6">
                                     <CardTitle className="text-xl">About this developer</CardTitle>
@@ -337,6 +411,141 @@ export default function UserDetails({
                                     </div>
                                 </CardBody>
                             </Card>
+
+                            {/* Projects of this developer */}
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <CardTitle className="text-xl">Projects of this developer</CardTitle>
+                                {isLoadingProjects ? (
+                                    <Card className="shadow-none">
+                                        <CardBody className="p-6 text-center">
+                                            <CardDescription>Loading projects...</CardDescription>
+                                        </CardBody>
+                                    </Card>
+                                ) : projectsPage.content.length === 0 ? (
+                                    <Card className="shadow-none">
+                                        <CardBody className="p-6 text-center">
+                                            <CardDescription>This developer hasn't created any projects yet.</CardDescription>
+                                        </CardBody>
+                                    </Card>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {projectsPage.content.map((project) => (
+                                                <Card
+                                                    key={project.id}
+                                                    hoverShadow={true}
+                                                    className="h-fit cursor-pointer"
+                                                    onClick={() => navigate(`/project/${project.id}`)}
+                                                    clickMouse={true}
+                                                >
+                                                    <CardBody className="flex h-full flex-col gap-4 p-5">
+                                                        <div className="min-h-[5rem] min-w-0 space-y-2">
+                                                            <CardTitle className="break-words text-2xl font-medium leading-tight">
+                                                                {project.name}
+                                                            </CardTitle>
+                                                            <CardDescription className="line-clamp-2">{project.description}</CardDescription>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {project.tags.slice(0, 3).map((tag) => (
+                                                                <Badge variant='outline' key={String(tag)} className="text-[10px]">{tag}</Badge>
+                                                            ))}
+                                                        </div>
+                                                        <div className="mt-auto flex flex-wrap gap-4 pt-4 border-t border-slate-100">
+                                                            <StatLine
+                                                                icon={<Star size={14} className="text-amber-400" />}
+                                                                text={`${project.starsCount} stars`}
+                                                            />
+                                                            <StatLine
+                                                                icon={<Users size={14} className="text-slate-400" />}
+                                                                text={`${project.contributorCount} contributors`}
+                                                            />
+                                                        </div>
+                                                    </CardBody>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                        <PaginationControls
+                                            page={projectsPage.page}
+                                            totalPages={projectsPage.totalPages}
+                                            totalElements={projectsPage.totalElements}
+                                            itemLabel="project"
+                                            isLoading={isLoadingProjects}
+                                            onPageChange={setProjectsPageNum}
+                                        />
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Tasks of this developer */}
+                            <div className="space-y-4 pt-6 border-t border-slate-100">
+                                <CardTitle className="text-xl">Tasks of this developer</CardTitle>
+                                {isLoadingTasks ? (
+                                    <Card className="shadow-none">
+                                        <CardBody className="p-6 text-center">
+                                            <CardDescription>Loading tasks...</CardDescription>
+                                        </CardBody>
+                                    </Card>
+                                ) : tasksPage.content.length === 0 ? (
+                                    <Card className="shadow-none">
+                                        <CardBody className="p-6 text-center">
+                                            <CardDescription>This developer hasn't created any tasks yet.</CardDescription>
+                                        </CardBody>
+                                    </Card>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {tasksPage.content.map((task) => (
+                                                <Card
+                                                    key={task.id}
+                                                    hoverShadow={true}
+                                                    className="h-fit cursor-pointer"
+                                                    onClick={() => navigate(`/task/${task.id}`)}
+                                                    clickMouse={true}
+                                                >
+                                                    <CardBody className="space-y-4 p-5">
+                                                        <div className="space-y-2">
+                                                            <CardTitle className="text-xl font-medium truncate" title={task.title}>
+                                                                {task.title}
+                                                            </CardTitle>
+                                                            <CardDescription className="line-clamp-2">{task.description}</CardDescription>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <Badge variant="secondary">{task.status}</Badge>
+                                                        </div>
+
+                                                        <div className="space-y-2 text-sm text-slate-600">
+                                                            <p><span className="font-medium text-slate-800">Reward:</span> {formatMoney(task.rewardAmount, task.rewardCurrency)}</p>
+                                                            <p><span className="font-medium text-slate-800">Max Attempts:</span> {task.maxAttempts}</p>
+                                                        </div>
+
+                                                        {task.recommendedSkills.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {task.recommendedSkills.slice(0, 3).map((skill) => (
+                                                                    <Badge key={skill} variant="outline" className="bg-blue-50 text-blue-700 border-blue-100 text-[10px]">
+                                                                        {skill}
+                                                                    </Badge>
+                                                                ))}
+                                                                {task.recommendedSkills.length > 3 && (
+                                                                    <Badge variant="outline" className="text-[10px]">+{task.recommendedSkills.length - 3}</Badge>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </CardBody>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                        <PaginationControls
+                                            page={tasksPage.page}
+                                            totalPages={tasksPage.totalPages}
+                                            totalElements={tasksPage.totalElements}
+                                            itemLabel="task"
+                                            isLoading={isLoadingTasks}
+                                            onPageChange={setTasksPageNum}
+                                        />
+                                    </>
+                                )}
+                            </div>
                         </div>
                         )}
                     </div>
