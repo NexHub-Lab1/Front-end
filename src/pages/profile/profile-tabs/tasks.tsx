@@ -41,6 +41,15 @@ const getDeadlineString = (dateVal: Date | string | undefined): string => {
   return `${year}-${month}-${day}`;
 };
 
+const shouldCancelInsteadOfDelete = (message?: string) => {
+  const normalizedMessage = message?.toLowerCase() || "";
+  return (
+    normalizedMessage.includes("cancel it instead") ||
+    normalizedMessage.includes("assignments or submissions") ||
+    normalizedMessage.includes("payment history")
+  );
+};
+
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
   title: "",
@@ -259,13 +268,13 @@ export function TasksTab({
     try {
       const res = await deleteTask(taskId)
       if (res.status === 'error') {
-        if (res.message && res.message.includes('has assignments or submissions')) {
+        if (shouldCancelInsteadOfDelete(res.message)) {
           const cancelRes = await cancelTask(taskId)
           if (cancelRes.status === 'error') {
             setFeedback({ message: cancelRes.message || "Error removing task", type: "error" })
             return
           }
-          setFeedback({ message: "Task was cancelled to preserve assignment history", type: "success" })
+          setFeedback({ message: "Task was cancelled to preserve its history", type: "success" })
         } else {
           setFeedback({ message: res.message || "Error removing task", type: "error" })
           return
@@ -628,7 +637,7 @@ export function TasksTab({
                 Are you sure you want to remove <strong>{taskToRemove.title}</strong>?
                 <br />
                 <span className="text-xs text-slate-500 mt-2 block">
-                  Note: If this task has active contributors or submission history, it will be automatically cancelled instead of completely deleted to preserve history.
+                  Note: If this task has contributors, submissions, or payment history, it will be automatically cancelled instead of completely deleted.
                 </span>
               </CardDescription>
               <div className="flex justify-end gap-3">
