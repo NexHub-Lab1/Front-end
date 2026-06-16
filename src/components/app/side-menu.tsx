@@ -3,7 +3,6 @@ import {
   FolderKanban,
   ListChecks,
   Settings,
-  Trophy,
   User,
   X,
   type LucideIcon,
@@ -56,12 +55,6 @@ export function SideMenu({
       description: 'Find open work.',
       icon: ListChecks,
       action: () => navigateAndClose('/tasks'),
-    },
-    {
-      label: 'Builders ranking',
-      description: 'Community standings.',
-      icon: Trophy,
-      action: onClose,
     },
     {
       label: 'Settings',
