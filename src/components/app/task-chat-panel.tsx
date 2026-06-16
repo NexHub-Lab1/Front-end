@@ -60,7 +60,7 @@ export function TaskChatPanel({
     if (!token) return
 
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      webSocketFactory: () => new SockJS('/ws'),
       connectHeaders: {
         Authorization: `Bearer ${token}`,
       },
