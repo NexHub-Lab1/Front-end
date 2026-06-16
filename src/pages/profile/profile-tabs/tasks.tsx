@@ -50,6 +50,44 @@ const shouldCancelInsteadOfDelete = (message?: string) => {
   );
 };
 
+const isVisibleOwnerTask = (task: TaskResponse) => task.status.toLowerCase() !== "cancelled";
+
+const withVisibleOwnerTasks = (page: PaginatedResponse<TaskResponse>) => {
+  const content = page.content.filter(isVisibleOwnerTask);
+  if (content.length === page.content.length) {
+    return page;
+  }
+
+  const totalElements = Math.max(content.length, page.totalElements - (page.content.length - content.length));
+  const totalPages = page.size > 0 ? Math.ceil(totalElements / page.size) : page.totalPages;
+  return {
+    ...page,
+    content,
+    totalElements,
+    totalPages,
+    last: totalPages === 0 || page.page >= totalPages - 1,
+    hasNext: totalPages > 0 && page.page < totalPages - 1,
+  };
+};
+
+const withoutTask = (page: PaginatedResponse<TaskResponse>, taskId: number) => {
+  const content = page.content.filter((task) => task.id !== taskId);
+  if (content.length === page.content.length) {
+    return page;
+  }
+
+  const totalElements = Math.max(0, page.totalElements - 1);
+  const totalPages = page.size > 0 ? Math.ceil(totalElements / page.size) : page.totalPages;
+  return {
+    ...page,
+    content,
+    totalElements,
+    totalPages,
+    last: totalPages === 0 || page.page >= totalPages - 1,
+    hasNext: totalPages > 0 && page.page < totalPages - 1,
+  };
+};
+
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
   title: "",
@@ -75,7 +113,9 @@ export function TasksTab({
   });
   const [tasksPage, setTasksPage] = useState<PaginatedResponse<TaskResponse>>(() => {
     const dashboard = readStoredProfileDashboard();
-    return dashboard?.tasks || createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE);
+    return dashboard?.tasks
+      ? withVisibleOwnerTasks(dashboard.tasks)
+      : createEmptyPaginatedResponse<TaskResponse>(0, PROFILE_PAGE_SIZE);
   });
   const [currentPage, setCurrentPage] = useState(0);
   const [allowAnyReputation, setAllowAnyReputation] = useState(true);
@@ -115,7 +155,7 @@ export function TasksTab({
       });
 
       if (response.status === 'success' && response.data) {
-        setTasksPage(response.data)
+        setTasksPage(withVisibleOwnerTasks(response.data))
       } else {
         setTasksPage(createEmptyPaginatedResponse<TaskResponse>(pageOverride, PROFILE_PAGE_SIZE))
       }
@@ -131,7 +171,7 @@ export function TasksTab({
     const syncFromDashboard = () => {
       const dashboard = readStoredProfileDashboard();
       if (dashboard?.tasks && currentPage === 0) {
-        setTasksPage(dashboard.tasks);
+        setTasksPage(withVisibleOwnerTasks(dashboard.tasks));
       }
       if (dashboard?.projectLookups) {
         setLookupProjects(dashboard.projectLookups);
@@ -282,6 +322,7 @@ export function TasksTab({
       } else {
         setFeedback({ message: "Task deleted successfully", type: "success" })
       }
+      setTasksPage((current) => withoutTask(current, taskId))
       setTaskToRemove(null)
       setCurrentPage(0)
       void reloadTasks(0)
