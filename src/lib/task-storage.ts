@@ -1,4 +1,4 @@
-import type { ApiResponse, PaginatedResponse, PaginationParams, TaskRequest, TaskResponse } from '../types/app'
+import type { ApiResponse, FeaturedTaskResponse, PaginatedResponse, PaginationParams, TaskRequest, TaskResponse } from '../types/app'
 import { readStoredUserToken, handleForbiddenResponse } from './auth-storage'
 import { buildPaginationQuery, normalizePaginatedApiResponse } from './pagination'
 
@@ -31,6 +31,18 @@ export async function fetchAllTasks(
   const page = params?.page ?? 0
   const size = params?.size ?? 9
   const response = await fetch(`${ROOT_TASK_ENDPOINT}${buildPaginationQuery(params)}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  return normalizePaginatedApiResponse(await handleResponse(response, false), page, size)
+}
+
+export async function fetchFeaturedTasks(
+  params?: PaginationParams,
+): Promise<ApiResponse<PaginatedResponse<FeaturedTaskResponse>>> {
+  const page = params?.page ?? 0
+  const size = params?.size ?? 9
+  const response = await fetch(`${ROOT_TASK_ENDPOINT}/featured${buildPaginationQuery(params)}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   })
