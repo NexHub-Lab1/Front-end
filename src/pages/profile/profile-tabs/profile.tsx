@@ -231,26 +231,36 @@ export function ProfileTab({
       nextErrors.currentEmail = 'Current email is required.'
     } else if (!isValidEmail(form.currentEmail)) {
       nextErrors.currentEmail = 'Enter a valid current email.'
+    } else if (form.currentEmail.length > 80) {
+      nextErrors.currentEmail = 'Current email must not exceed 80 characters.'
     }
 
-    if (!isGithubUser && !form.currentPassword.trim()) {
-      nextErrors.currentPassword = 'Current password is required.'
+    if (!isGithubUser) {
+      if (!form.currentPassword.trim()) {
+        nextErrors.currentPassword = 'Current password is required.'
+      } else if (form.currentPassword.length > 40) {
+        nextErrors.currentPassword = 'Current password must not exceed 40 characters.'
+      }
     }
 
     if (!form.newUsername.trim()) {
       nextErrors.newUsername = 'Username is required.'
+    } else if (form.newUsername.length > 20) {
+      nextErrors.newUsername = 'Username must not exceed 20 characters.'
     }
 
     if (!form.newEmail.trim()) {
       nextErrors.newEmail = 'New email is required.'
     } else if (!isValidEmail(form.newEmail)) {
       nextErrors.newEmail = 'Enter a valid new email.'
+    } else if (form.newEmail.length > 80) {
+      nextErrors.newEmail = 'New email must not exceed 80 characters.'
     }
 
     if (isGithubUser && form.newPassword.trim()) {
       nextErrors.newPassword = 'Password changes are disabled for GitHub accounts.'
-    } else if (form.newPassword && form.newPassword.length < 8) {
-      nextErrors.newPassword = 'New password must be at least 8 characters.'
+    } else if (form.newPassword && (form.newPassword.length < 8 || form.newPassword.length > 40)) {
+      nextErrors.newPassword = 'New password must be between 8 and 40 characters.'
     }
 
     setEditErrors(nextErrors)
@@ -262,32 +272,37 @@ export function ProfileTab({
       if (!value.trim()) {
         return 'Current email is required.'
       }
-      return isValidEmail(value) ? undefined : 'Enter a valid current email.'
+      if (!isValidEmail(value)) return 'Enter a valid current email.'
+      return value.length <= 80 ? undefined : 'Current email must not exceed 80 characters.'
     }
 
     if (field === 'currentPassword') {
       if (isGithubUser) {
         return undefined
       }
-      return value.trim() ? undefined : 'Current password is required.'
+      if (!value.trim()) return 'Current password is required.'
+      return value.length <= 40 ? undefined : 'Current password must not exceed 40 characters.'
     }
 
     if (field === 'newUsername') {
-      return value.trim() ? undefined : 'Username is required.'
+      if (!value.trim()) return 'Username is required.'
+      return value.length <= 20 ? undefined : 'Username must not exceed 20 characters.'
     }
 
     if (field === 'newEmail') {
       if (!value.trim()) {
         return 'New email is required.'
       }
-      return isValidEmail(value) ? undefined : 'Enter a valid new email.'
+      if (!isValidEmail(value)) return 'Enter a valid new email.'
+      return value.length <= 80 ? undefined : 'New email must not exceed 80 characters.'
     }
 
     if (isGithubUser) {
       return value.trim() ? 'Password changes are disabled for GitHub accounts.' : undefined
     }
 
-    return !value || value.length >= 8 ? undefined : 'New password must be at least 8 characters.'
+    if (!value) return undefined;
+    return value.length >= 8 && value.length <= 40 ? undefined : 'New password must be between 8 and 40 characters.'
   }
 
   function updateEditError(field: keyof typeof editErrors, value: string) {

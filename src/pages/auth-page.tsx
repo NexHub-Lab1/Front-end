@@ -160,18 +160,22 @@ export function AuthPage({
 
     if (mode === 'signup' && !signupForm.username.trim()) {
       nextErrors.username = 'Username is required.'
+    } else if (mode === 'signup' && signupForm.username.length > 20) {
+      nextErrors.username = 'Username must not exceed 20 characters.'
     }
 
     if (!activeForm.email.trim()) {
       nextErrors.email = mode === 'login' ? 'Email or username is required.' : 'Email is required.'
     } else if (mode === 'signup' && !isValidEmail(activeForm.email)) {
       nextErrors.email = 'Enter a valid email address.'
+    } else if (activeForm.email.length > 80) {
+      nextErrors.email = 'Email must not exceed 80 characters.'
     }
 
     if (!activeForm.password.trim()) {
       nextErrors.password = 'Password is required.'
-    } else if (activeForm.password.length < 8) {
-      nextErrors.password = 'Password must be at least 8 characters.'
+    } else if (activeForm.password.length < 8 || activeForm.password.length > 40) {
+      nextErrors.password = 'Password must be between 8 and 40 characters.'
     }
 
     setAuthErrors(nextErrors)
@@ -180,20 +184,27 @@ export function AuthPage({
 
   function validateAuthField(field: 'username' | 'email' | 'password', value: string) {
     if (field === 'username') {
-      return mode === 'signup' && !value.trim() ? 'Username is required.' : undefined
+      if (mode === 'signup' && !value.trim()) return 'Username is required.'
+      if (mode === 'signup' && value.length > 20) return 'Username must not exceed 20 characters.'
+      return undefined
     }
 
     if (field === 'email') {
       if (!value.trim()) {
         return mode === 'login' ? 'Email or username is required.' : 'Email is required.'
       }
-      return mode === 'login' || isValidEmail(value) ? undefined : 'Enter a valid email address.'
+      if (mode === 'signup' && !isValidEmail(value)) return 'Enter a valid email address.'
+      if (value.length > 80) return 'Email must not exceed 80 characters.'
+      return undefined
     }
 
     if (!value.trim()) {
       return 'Password is required.'
     }
-    return value.length >= 8 ? undefined : 'Password must be at least 8 characters.'
+    if (value.length < 8 || value.length > 40) {
+      return 'Password must be between 8 and 40 characters.'
+    }
+    return undefined
   }
 
   function updateAuthError(field: 'username' | 'email' | 'password', value: string) {
