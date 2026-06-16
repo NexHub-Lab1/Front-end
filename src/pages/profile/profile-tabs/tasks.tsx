@@ -31,6 +31,16 @@ const formatMoney = (amount: number, currency: string) => {
   }
 }
 
+const getDeadlineString = (dateVal: Date | string | undefined): string => {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const EMPTY_TASK_FORM: TaskRequest = {
   projectId: 0,
   title: "",
@@ -447,6 +457,21 @@ export function TasksTab({
                   deliverables: event.target.value,
                 }))
                 updateTaskError('deliverables', event.target.value)
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Deadline</label>
+            <Input
+              type="date"
+              value={getDeadlineString(taskForm.deadline)}
+              onChange={(event) => {
+                const val = event.target.value;
+                setTaskForm((current) => ({
+                  ...current,
+                  deadline: val ? new Date(val) : new Date(),
+                }))
               }}
             />
           </div>
