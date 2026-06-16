@@ -226,7 +226,7 @@ export function LandingPage({
                             <CardDescription className="mt-1 truncate">{task.projectName}</CardDescription>
                           </div>
                           <Badge variant="outline" className="shrink-0 border-blue-100 bg-blue-50 text-blue-700">
-                            {featuredTask.recommendationScore}
+                            Score {featuredTask.recommendationScore}
                           </Badge>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
