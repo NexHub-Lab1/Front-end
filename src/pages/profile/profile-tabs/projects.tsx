@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardTitle,
 } from "../../../components/ui/card";
-import { Check, Cross, PlusIcon, Star, Users } from "lucide-react";
+import { Check, Cross, Github, PlusIcon, Star, Users } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 
@@ -21,6 +21,7 @@ import { isGithubRepositoryUrl } from "../../../lib/github-url";
 import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
 import type { PaginatedResponse } from "../../../types/app";
 import { readStoredProfileDashboard } from "../../../lib/dashboard-storage";
+import { ImportGithubReposModal } from "../../../components/app/import-github-repos-modal";
 
 export function ProjectsTab({ 
     user 
@@ -35,6 +36,7 @@ export function ProjectsTab({
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [createErrors, setCreateErrors] = useState<{
     name?: string
     description?: string
@@ -347,24 +349,38 @@ export function ProjectsTab({
   return (
     <Card>
       <CardBody className="p-4 flex flex-col max-h-full h-full">
-        <section className="flex flex-row items-center">
-          <div className="w-full">
+        <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <CardTitle className="text-3xl">My projects</CardTitle>
             <CardDescription className="mt-2 text-base">
-              Here you can see all of your projects and create new ones.
+              Here you can see all of your projects and create or import new ones.
             </CardDescription>
           </div>
-          <Button
-            className="h-12 mr-10"
-            variant="primary"
-            size="lg"
-            onClick={() => {
-              resetProjectForm()
-              setShowModal(true)
-            }}
-          >
-            <PlusIcon size={16} />
-          </Button>
+          <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+            {user.githubUsername ? (
+              <Button
+                className="h-12"
+                variant="outline"
+                size="lg"
+                onClick={() => setShowImportModal(true)}
+              >
+                <Github size={16} />
+                Import repos
+              </Button>
+            ) : null}
+            <Button
+              className="h-12"
+              variant="primary"
+              size="lg"
+              aria-label="Create project"
+              onClick={() => {
+                resetProjectForm()
+                setShowModal(true)
+              }}
+            >
+              <PlusIcon size={16} />
+            </Button>
+          </div>
         </section>
         {!showModal && feedback ? (
           <Card className={`border-${feedback.type === 'success' ? 'green' : 'red'}-100 bg-${feedback.type === 'success' ? 'green' : 'red'}-50/70 shadow-none`}>
@@ -375,6 +391,15 @@ export function ProjectsTab({
           </Card>
         ) : null}
         {displayModal()}
+        <ImportGithubReposModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImported={async () => {
+            setFeedback({ message: 'GitHub repository imported successfully.', type: 'success' })
+            setCurrentPage(0)
+            await reloadProjects(0)
+          }}
+        />
         <section className="mt-10 h-full overflow-hidden">
           {isLoadingProjects ? (
             <Card className="shadow-none border-none">

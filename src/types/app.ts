@@ -53,6 +53,7 @@ export type PaginationParams = {
   sort?: string[]
   search?: string
   status?: string
+  userId?: number
 }
 
 export type AppRoute = '/' | '/auth/login' | '/auth/signup' | '/profile' | '/projects'
@@ -161,6 +162,14 @@ export type TaskResponse = {
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[]
+}
+
+export type FeaturedTaskResponse = {
+  task: TaskResponse
+  recommendationScore: number
+  recommendationReasons: string[]
+  matchedSkills: string[]
+  eligible: boolean
 }
 
 export type PaymentResponse = {

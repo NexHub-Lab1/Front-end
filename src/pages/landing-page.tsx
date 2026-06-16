@@ -19,11 +19,11 @@ import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { StatLine } from '../components/app/stat-line'
 import { fetchAllProjects } from '../lib/project-storage'
-import { fetchAllTasks } from '../lib/task-storage'
+import { fetchFeaturedTasks } from '../lib/task-storage'
 import { fetchAllUserDetails } from '../lib/user-storage'
 import { readStoredUser } from '../lib/auth-storage'
 import { formatMoney, fundingBadgeClassName, normalizeFundingStatus } from '../lib/payment-utils'
-import type { ProjectResponse, TaskResponse, UserDetailsResponse } from '../types/app'
+import type { FeaturedTaskResponse, ProjectResponse, UserDetailsResponse } from '../types/app'
 
 function sortDevelopersByActivity(users: UserDetailsResponse[]) {
   return [...users]
@@ -74,7 +74,7 @@ export function LandingPage({
   const currentUser = readStoredUser()
   const [topProjects, setTopProjects] = useState<ProjectResponse[] | null>(null)
   const [topProjectsError, setTopProjectsError] = useState<string | null>(null)
-  const [topTasks, setTopTasks] = useState<TaskResponse[] | null>(null)
+  const [topTasks, setTopTasks] = useState<FeaturedTaskResponse[] | null>(null)
   const [topTasksError, setTopTasksError] = useState<string | null>(null)
   const [topUsers, setTopUsers] = useState<UserDetailsResponse[] | null>(null)
   const [topUsersError, setTopUsersError] = useState<string | null>(null)
@@ -84,7 +84,7 @@ export function LandingPage({
       try {
         const [projectsResponse, tasksResponse, usersResponse] = await Promise.all([
           fetchAllProjects({ page: 0, size: 3 }),
-          fetchAllTasks({ page: 0, size: 4, sort: ['rewardAmount,desc'] }),
+          fetchFeaturedTasks({ page: 0, size: 4, userId: currentUser?.id }),
           fetchAllUserDetails(),
         ])
 
@@ -119,12 +119,11 @@ export function LandingPage({
     }
 
     void loadLandingData()
-  }, [])
+  }, [currentUser?.id])
 
   const projectCount = topProjects?.length ?? 0
   const taskCount = topTasks?.length ?? 0
   const developerCount = topUsers?.length ?? 0
-  const highlightedTask = topTasks?.[0] ?? null
 
   return (
     <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_32%),linear-gradient(135deg,#eef4ff_0%,#ffffff_42%,#f8fbff_100%)] px-4 py-5 sm:px-6 lg:px-8">
@@ -185,67 +184,77 @@ export function LandingPage({
         </Card>
 
         <Card className="overflow-hidden border-blue-100/80 bg-white/90 shadow-[0_24px_80px_rgba(37,99,235,0.12)] backdrop-blur">
-          <CardBody className="relative flex h-full min-h-[470px] flex-col justify-between gap-6 p-7">
+          <CardBody className="relative flex h-full min-h-[470px] flex-col gap-5 p-7">
             <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-blue-100/80 blur-3xl" />
             <div className="absolute bottom-0 right-0 h-28 w-28 rounded-tl-[4rem] bg-gradient-to-br from-blue-50 to-indigo-100" />
 
             <div className="relative space-y-4">
               <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
                 <Zap size={14} />
-                Featured task
+                Featured tasks
               </div>
+              <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-950">
+                {currentUser ? 'Recommended for you' : 'Best work to start with'}
+              </h2>
+              <p className="text-base leading-7 text-slate-600">
+                Ranked by skills, funding, reputation fit, deadline, freshness, and task quality.
+              </p>
+            </div>
+
+            <div className="relative flex-1 space-y-3">
               {topTasksError ? (
-                <p className="text-sm text-red-700">{topTasksError}</p>
+                <ErrorCard message={topTasksError} />
               ) : topTasks === null ? (
-                <p className="text-sm text-slate-500">Loading featured task...</p>
-              ) : highlightedTask ? (
-                <>
-                  <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-950">{highlightedTask.title}</h2>
-                  <p className="text-base leading-7 text-slate-600">{highlightedTask.description}</p>
-                </>
+                <LoadingCard label="Loading featured tasks..." />
+              ) : topTasks.length === 0 ? (
+                <EmptyCard title="No tasks yet" description="Recommended tasks will appear here once project owners create them." />
               ) : (
-                <>
-                  <h2 className="text-4xl font-semibold tracking-[-0.03em] text-slate-950">No tasks yet</h2>
-                  <p className="text-base leading-7 text-slate-600">
-                    Once tasks are created, the highest reward task will show here.
-                  </p>
-                </>
+                topTasks.slice(0, 3).map((featuredTask) => {
+                  const task = featuredTask.task
+                  return (
+                    <Card
+                      key={task.id}
+                      className="bg-white/90 shadow-none"
+                      hoverShadow={true}
+                      clickMouse={true}
+                      onClick={() => navigate(`/task/${task.id}`)}
+                    >
+                      <CardBody className="space-y-3 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <CardTitle className="line-clamp-2 text-xl font-medium">{task.title}</CardTitle>
+                            <CardDescription className="mt-1 truncate">{task.projectName}</CardDescription>
+                          </div>
+                          <Badge variant="outline" className="shrink-0 border-blue-100 bg-blue-50 text-blue-700">
+                            {featuredTask.recommendationScore}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                            {normalizeFundingStatus(task.fundingStatus)}
+                          </Badge>
+                          <span className="text-sm font-semibold text-slate-900">
+                            {formatMoney(task.rewardAmount, task.rewardCurrency)}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {featuredTask.recommendationReasons.slice(0, 3).map((reason) => (
+                            <Badge key={reason} variant="secondary" className="bg-blue-50 text-blue-700">
+                              {reason}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardBody>
+                    </Card>
+                  )
+                })
               )}
             </div>
 
-            {highlightedTask ? (
-              <div className="relative space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                    <p className="text-sm text-slate-500">Reward</p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-950">
-                      {formatMoney(highlightedTask.rewardAmount, highlightedTask.rewardCurrency)}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Funding</p>
-                    <p className="mt-1 text-2xl font-semibold capitalize text-slate-950">
-                      {normalizeFundingStatus(highlightedTask.fundingStatus)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{highlightedTask.status}</Badge>
-                  <Badge variant="outline" className="border-blue-100 bg-white text-blue-700">
-                    {highlightedTask.projectName}
-                  </Badge>
-                  {highlightedTask.recommendedSkills.slice(0, 3).map((skill) => (
-                    <Badge key={skill} variant="outline" className="bg-white">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-                <Button variant="primary" size="lg" onClick={() => navigate(`/task/${highlightedTask.id}`)}>
-                  View task
-                  <ArrowRight size={16} />
-                </Button>
-              </div>
-            ) : null}
+            <Button variant="primary" size="lg" className="relative w-fit" onClick={() => navigate('/tasks?featured=1')}>
+              View all recommended
+              <ArrowRight size={16} />
+            </Button>
           </CardBody>
         </Card>
       </section>
@@ -317,13 +326,13 @@ export function LandingPage({
             <CardBody className="space-y-5 p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <CardTitle className="text-3xl">Funded work, clear scope</CardTitle>
+                  <CardTitle className="text-3xl">Recommended tasks</CardTitle>
                   <CardDescription className="mt-2 text-base">
-                    Discover tasks by reward, project, status, and required skills.
+                    A ranked feed of tasks with the strongest fit and clearest next steps.
                   </CardDescription>
                 </div>
-                <Button variant="outline" onClick={() => navigate('/tasks')}>
-                  View all tasks
+                <Button variant="outline" onClick={() => navigate('/tasks?featured=1')}>
+                  View all recommended
                   <ArrowRight size={16} />
                 </Button>
               </div>
@@ -336,43 +345,54 @@ export function LandingPage({
                 ) : topTasks.length === 0 ? (
                   <EmptyCard title="No tasks yet" description="Tasks will appear here once project owners create them." />
                 ) : (
-                  topTasks.map((task) => (
-                    <Card
-                      key={task.id}
-                      className="shadow-none"
-                      hoverShadow={true}
-                      clickMouse={true}
-                      onClick={() => navigate(`/task/${task.id}`)}
-                    >
-                      <CardBody className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                        <div className="min-w-0 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary">{task.status}</Badge>
-                            <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
-                              {normalizeFundingStatus(task.fundingStatus)}
-                            </Badge>
-                          </div>
-                          <div>
-                            <CardTitle className="break-words text-xl font-medium">{task.title}</CardTitle>
-                            <CardDescription className="mt-1">{task.projectName}</CardDescription>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {task.recommendedSkills.slice(0, 3).map((skill) => (
-                              <Badge key={skill} variant="outline">
-                                {skill}
+                  topTasks.map((featuredTask) => {
+                    const task = featuredTask.task
+                    return (
+                      <Card
+                        key={task.id}
+                        className="shadow-none"
+                        hoverShadow={true}
+                        clickMouse={true}
+                        onClick={() => navigate(`/task/${task.id}`)}
+                      >
+                        <CardBody className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary">{task.status}</Badge>
+                              <Badge variant="outline" className={fundingBadgeClassName(task.fundingStatus)}>
+                                {normalizeFundingStatus(task.fundingStatus)}
                               </Badge>
-                            ))}
+                              <Badge variant="outline" className="border-blue-100 bg-blue-50 text-blue-700">
+                                Score {featuredTask.recommendationScore}
+                              </Badge>
+                            </div>
+                            <div>
+                              <CardTitle className="break-words text-xl font-medium">{task.title}</CardTitle>
+                              <CardDescription className="mt-1">{task.projectName}</CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {featuredTask.recommendationReasons.slice(0, 4).map((reason) => (
+                                <Badge key={reason} variant="secondary" className="bg-blue-50 text-blue-700">
+                                  {reason}
+                                </Badge>
+                              ))}
+                              {task.recommendedSkills.slice(0, 3).map((skill) => (
+                                <Badge key={skill} variant="outline">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center justify-between gap-4 md:block md:text-right">
-                          <p className="text-2xl font-semibold text-slate-950">
-                            {formatMoney(task.rewardAmount, task.rewardCurrency)}
-                          </p>
-                          <CardDescription>{task.maxAttempts} attempts</CardDescription>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))
+                          <div className="flex items-center justify-between gap-4 md:block md:text-right">
+                            <p className="text-2xl font-semibold text-slate-950">
+                              {formatMoney(task.rewardAmount, task.rewardCurrency)}
+                            </p>
+                            <CardDescription>{task.maxAttempts} attempts</CardDescription>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    )
+                  })
                 )}
               </div>
             </CardBody>
