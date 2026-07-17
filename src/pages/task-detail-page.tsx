@@ -66,6 +66,7 @@ export function TaskDetailPage({
   const [reviewComments, setReviewComments] = useState('')
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
+  const [isRejecting, setIsRejecting] = useState(false)
   const [selectedDeveloperFilter, setSelectedDeveloperFilter] = useState<string | null>(null)
 
   // State for task collaboration & invitation
@@ -232,6 +233,7 @@ export function TaskDetailPage({
     setReviewComments(submission.reviewComments || '')
     setReviewError(null)
     setRejectionReason('BUGS_OR_INCOMPLETE')
+    setIsRejecting(false)
     setShowReviewModal(true)
   }
 
@@ -261,6 +263,7 @@ export function TaskDetailPage({
         setShowReviewModal(false)
         setSelectedSubmission(null)
         setReviewComments('')
+        setIsRejecting(false)
         
         // Reload submissions list
         const subsRes = await fetchSubmissionsByTask(task.id, { page: 0, size: 100 })
@@ -1673,6 +1676,7 @@ export function TaskDetailPage({
             setSelectedSubmission(null)
             setReviewComments('')
             setReviewError(null)
+            setIsRejecting(false)
           }}
           title="Review Solution Proposal"
         >
@@ -1760,52 +1764,56 @@ export function TaskDetailPage({
             {(selectedSubmission.status.toLowerCase() === 'submitted' ||
               selectedSubmission.status.toLowerCase() === 'pending') ? (
               <div className="space-y-4">
-                <div className="space-y-2 bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-900">
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Rejection Reason & Severity <span className="text-slate-400 font-normal">(Only applies if rejecting)</span>
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-1">
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="rejectionReason"
-                        value="BUGS_OR_INCOMPLETE"
-                        checked={rejectionReason === 'BUGS_OR_INCOMPLETE'}
-                        onChange={() => setRejectionReason('BUGS_OR_INCOMPLETE')}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
-                      />
-                      <span>Bugs / Incomplete <span className="text-slate-400 font-normal">(-10 Rep)</span></span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="rejectionReason"
-                        value="SPAM_OR_LOW_EFFORT"
-                        checked={rejectionReason === 'SPAM_OR_LOW_EFFORT'}
-                        onChange={() => setRejectionReason('SPAM_OR_LOW_EFFORT')}
-                        className="h-4 w-4 text-red-600 focus:ring-red-500 border-slate-300"
-                      />
-                      <span>Spam / Low Effort <span className="text-red-500 font-medium">(-25 Rep, reset streak)</span></span>
-                    </label>
-                  </div>
-                </div>
+                {isRejecting && (
+                  <>
+                    <div className="space-y-2 bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-900">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Rejection Reason & Severity
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-1">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="rejectionReason"
+                            value="BUGS_OR_INCOMPLETE"
+                            checked={rejectionReason === 'BUGS_OR_INCOMPLETE'}
+                            onChange={() => setRejectionReason('BUGS_OR_INCOMPLETE')}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
+                          />
+                          <span>Bugs / Incomplete <span className="text-slate-400 font-normal">(-10 Rep)</span></span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="rejectionReason"
+                            value="SPAM_OR_LOW_EFFORT"
+                            checked={rejectionReason === 'SPAM_OR_LOW_EFFORT'}
+                            onChange={() => setRejectionReason('SPAM_OR_LOW_EFFORT')}
+                            className="h-4 w-4 text-red-600 focus:ring-red-500 border-slate-300"
+                          />
+                          <span>Spam / Low Effort <span className="text-red-500 font-medium">(-25 Rep, reset streak)</span></span>
+                        </label>
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Review Feedback Comments <span className="text-red-500 font-normal">(Required only for Rejections)</span>
-                  </label>
-                  <textarea
-                    value={reviewComments}
-                    onChange={(e) => {
-                      setReviewComments(e.target.value)
-                      if (reviewError) setReviewError(null)
-                    }}
-                    placeholder="Enter your feedback, suggestions, or comments here..."
-                    rows={4}
-                    className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400"
-                    disabled={isSubmittingReview}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Review Feedback Comments <span className="text-red-500 font-normal">*</span>
+                      </label>
+                      <textarea
+                        value={reviewComments}
+                        onChange={(e) => {
+                          setReviewComments(e.target.value)
+                          if (reviewError) setReviewError(null)
+                        }}
+                        placeholder="Enter your feedback, suggestions, or comments here..."
+                        rows={4}
+                        className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400"
+                        disabled={isSubmittingReview}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {reviewError && (
                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -1814,40 +1822,60 @@ export function TaskDetailPage({
                 )}
 
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <Button
-                    variant="primary"
-                    onClick={() => submitReview(true)}
-                    disabled={isSubmittingReview}
-                    className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white flex items-center gap-1.5"
-                  >
-                    {isSubmittingReview ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Check size={16} />
-                    )}
-                    Approve Proposal
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => submitReview(false)}
-                    disabled={isSubmittingReview || !reviewComments.trim()}
-                    title={!reviewComments.trim() ? "Comments are required for rejection" : "Reject proposal"}
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
-                  >
-                    {isSubmittingReview ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
+                  {!isRejecting && (
+                    <Button
+                      variant="primary"
+                      onClick={() => submitReview(true)}
+                      disabled={isSubmittingReview}
+                      className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white flex items-center gap-1.5"
+                    >
+                      {isSubmittingReview ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Check size={16} />
+                      )}
+                      Approve Proposal
+                    </Button>
+                  )}
+                  {isRejecting ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => submitReview(false)}
+                      disabled={isSubmittingReview || !reviewComments.trim()}
+                      title={!reviewComments.trim() ? "Comments are required for rejection" : "Confirm Rejection"}
+                      className="bg-red-600 hover:bg-red-700 border-red-600 text-white flex items-center gap-1.5"
+                    >
+                      {isSubmittingReview ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <X size={16} />
+                      )}
+                      Confirm Rejection
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsRejecting(true)}
+                      disabled={isSubmittingReview}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
+                    >
                       <X size={16} />
-                    )}
-                    Reject Proposal
-                  </Button>
+                      Reject Proposal
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      setShowReviewModal(false)
-                      setSelectedSubmission(null)
-                      setReviewComments('')
-                      setReviewError(null)
+                      if (isRejecting) {
+                        setIsRejecting(false)
+                        setReviewError(null)
+                      } else {
+                        setShowReviewModal(false)
+                        setSelectedSubmission(null)
+                        setReviewComments('')
+                        setReviewError(null)
+                        setIsRejecting(false)
+                      }
                     }}
                     disabled={isSubmittingReview}
                     className="ml-auto"
