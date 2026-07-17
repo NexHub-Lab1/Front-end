@@ -264,6 +264,8 @@ export type TaskInvitationResponse = {
 export type TaskSubmissionRequest = {
   assignmentId: number
   pullRequestUrl: string
+  description?: string
+  demoUrl?: string
 }
 
 export type TaskSubmissionResponse = {
@@ -276,6 +278,8 @@ export type TaskSubmissionResponse = {
   userId: number,
   username: string,
   pullRequestUrl: string,
+  description?: string,
+  demoUrl?: string,
   submittedAt: Date,
   status: string,
   reviewComments: string,

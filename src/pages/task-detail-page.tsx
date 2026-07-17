@@ -42,6 +42,8 @@ export function TaskDetailPage({
   const [anyAssignment, setAnyAssignment] = useState<TaskAssignmentResponse | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [prUrl, setPrUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [demoUrl, setDemoUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
@@ -511,11 +513,15 @@ export function TaskDetailPage({
       const result = await createSubmission({
         assignmentId: userAssignment.id,
         pullRequestUrl: prUrl,
+        description: description.trim() || undefined,
+        demoUrl: demoUrl.trim() || undefined,
       })
 
       if (result.status === 'success') {
         setShowSubmitModal(false)
         setPrUrl('')
+        setDescription('')
+        setDemoUrl('')
         setActionFeedback({
           type: 'success',
           message: 'Submission created successfully. The project owner can now review it.',
@@ -1581,6 +1587,8 @@ export function TaskDetailPage({
           onClose={() => {
             setShowSubmitModal(false)
             setPrUrl('')
+            setDescription('')
+            setDemoUrl('')
             setSubmitError(null)
           }}
           title="Submit Solution"
@@ -1603,6 +1611,27 @@ export function TaskDetailPage({
                 error={Boolean(submitError)}
               />
             </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Briefly describe your solution..."
+                disabled={isSubmitting}
+                className="w-full rounded-md border border-slate-300 p-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Demo/Visuals URL (Optional)</label>
+              <Input
+                type="text"
+                value={demoUrl}
+                onChange={(e) => setDemoUrl(e.target.value)}
+                placeholder="https://..."
+                disabled={isSubmitting}
+              />
+            </div>
             {userAssignment && (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                 <p className="text-sm text-blue-700">
@@ -1623,6 +1652,8 @@ export function TaskDetailPage({
                 onClick={() => {
                   setShowSubmitModal(false)
                   setPrUrl('')
+                  setDescription('')
+                  setDemoUrl('')
                   setSubmitError(null)
                 }}
                 disabled={isSubmitting}
@@ -1685,6 +1716,28 @@ export function TaskDetailPage({
                   {selectedSubmission.pullRequestUrl}
                 </a>
               </div>
+              {selectedSubmission.demoUrl && (
+                <div className="text-sm flex items-center gap-2">
+                  <span className="font-semibold text-slate-700">Demo URL:</span>{" "}
+                  <a
+                    href={selectedSubmission.demoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-blue-600 hover:text-blue-700 font-mono text-xs hover:underline truncate max-w-[400px]"
+                  >
+                    {selectedSubmission.demoUrl}
+                  </a>
+                </div>
+              )}
+              {selectedSubmission.description && (
+                <div className="text-sm space-y-1">
+                  <span className="font-semibold text-slate-700">Description:</span>
+                  <div className="bg-slate-100 p-2 rounded text-slate-600 text-xs whitespace-pre-wrap">
+                    {selectedSubmission.description}
+                  </div>
+                </div>
+              )}
               <div className="text-sm flex items-center gap-2">
                 <span className="font-semibold text-slate-700">Current Status:</span>{" "}
                 <Badge
