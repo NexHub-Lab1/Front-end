@@ -112,7 +112,7 @@ export function ChatsTab({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 w-full h-full items-stretch">
+    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 w-full h-[calc(100vh-250px)] min-h-[500px] items-stretch">
       {/* Chats Sidebar */}
       <Card className="h-full flex flex-col overflow-hidden bg-white/80 backdrop-blur-md border border-slate-200/80">
         <CardBody className="flex flex-col h-full p-0">
