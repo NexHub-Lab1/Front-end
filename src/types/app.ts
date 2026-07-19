@@ -161,7 +161,14 @@ export type TaskResponse = {
   collaborative: boolean,
   createdAt: Date,
   updatedAt: Date,
-  recommendedSkills: string[]
+  recommendedSkills: string[],
+  githubIssueId?: number | null,
+  githubIssueNumber?: number | null,
+  githubIssueUrl?: string | null,
+  githubIssueState?: string | null,
+  githubIssueSyncStatus?: string | null,
+  githubIssueLastError?: string | null,
+  githubIssueLastSyncedAt?: Date | string | null
 }
 
 export type FeaturedTaskResponse = {

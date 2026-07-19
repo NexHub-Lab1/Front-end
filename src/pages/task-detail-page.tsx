@@ -10,7 +10,7 @@ import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/car
 import Modal from '../components/ui/modal'
 import { Input } from '../components/ui/input'
 import { fetchProjectById } from '../lib/project-storage'
-import { fetchTaskById, updateTask } from '../lib/task-storage'
+import { fetchTaskById, retryGithubIssueSync, updateTask } from '../lib/task-storage'
 import { createSubmission, fetchSubmissionsByTask, fetchSubmissionsByAssignment, updateSubmission } from '../lib/submission-storage'
 import { fetchAssignmentsByUser, createAssignment } from '../lib/assignment-storage'
 import { createInvitation, fetchInvitationsByTask } from '../lib/task-invitation-storage'
@@ -100,6 +100,7 @@ export function TaskDetailPage({
   }>({})
   const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [isUpdatingTask, setIsUpdatingTask] = useState(false)
+  const [isGithubIssueSyncing, setIsGithubIssueSyncing] = useState(false)
   const [allowAnyReputation, setAllowAnyReputation] = useState(true)
   const [rejectionReason, setRejectionReason] = useState<'BUGS_OR_INCOMPLETE' | 'SPAM_OR_LOW_EFFORT'>('BUGS_OR_INCOMPLETE')
 
@@ -182,6 +183,33 @@ export function TaskDetailPage({
     setEditErrors({})
     setEditFeedback(null)
     setShowEditModal(true)
+  }
+
+  const handleRetryGithubIssueSync = async () => {
+    if (!task || !isOwner) return
+    setIsGithubIssueSyncing(true)
+    setActionFeedback(null)
+    try {
+      const response = await retryGithubIssueSync(task.id)
+      if (response.status === 'success' && response.data) {
+        setTask(response.data)
+        setActionFeedback({
+          type: response.data.githubIssueSyncStatus === 'failed' ? 'error' : 'success',
+          message: response.data.githubIssueSyncStatus === 'failed'
+            ? response.data.githubIssueLastError || 'GitHub issue synchronization failed.'
+            : 'GitHub issue synchronized successfully.',
+        })
+      } else {
+        setActionFeedback({ type: 'error', message: response.message || 'GitHub issue synchronization failed.' })
+      }
+    } catch (syncError) {
+      setActionFeedback({
+        type: 'error',
+        message: syncError instanceof Error ? syncError.message : 'GitHub issue synchronization failed.',
+      })
+    } finally {
+      setIsGithubIssueSyncing(false)
+    }
   }
 
   const handleEditTaskSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -1061,6 +1089,60 @@ export function TaskDetailPage({
                   )}
                 </CardBody>
               </Card>
+
+              {(task.githubIssueUrl || (isOwner && task.githubIssueSyncStatus === 'failed')) && (
+                <Card>
+                  <CardBody className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle className="text-lg">GitHub Issue</CardTitle>
+                        {task.githubIssueNumber ? (
+                          <Badge variant="outline">#{task.githubIssueNumber}</Badge>
+                        ) : null}
+                        {task.githubIssueState ? (
+                          <Badge
+                            variant="outline"
+                            className={task.githubIssueState.toLowerCase() === 'closed'
+                              ? 'border-violet-200 bg-violet-50 text-violet-700'
+                              : 'border-green-200 bg-green-50 text-green-700'}
+                          >
+                            {task.githubIssueState.toLowerCase() === 'closed' ? 'Closed' : 'Open'}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {isOwner && task.githubIssueSyncStatus === 'failed' ? (
+                        <CardDescription className="text-red-700">
+                          {task.githubIssueLastError || 'The GitHub Issue could not be synchronized.'}
+                        </CardDescription>
+                      ) : (
+                        <CardDescription>
+                          Shared by every collaborator assigned to this task.
+                        </CardDescription>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {isOwner && task.githubIssueSyncStatus === 'failed' ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => void handleRetryGithubIssueSync()}
+                          disabled={isGithubIssueSyncing}
+                        >
+                          <RefreshCw size={16} className={`mr-2 ${isGithubIssueSyncing ? 'animate-spin' : ''}`} />
+                          Retry sync
+                        </Button>
+                      ) : null}
+                      {task.githubIssueUrl ? (
+                        <Button variant="primary" asChild>
+                          <a href={task.githubIssueUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink size={16} className="mr-2" />
+                            View GitHub issue
+                          </a>
+                        </Button>
+                      ) : null}
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
 
               <Card>
                 <CardBody className="space-y-6 p-6">
