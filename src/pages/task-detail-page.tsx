@@ -1163,7 +1163,7 @@ export function TaskDetailPage({
                         </CardDescription>
                       ) : isOwner && !task.githubIssueUrl ? (
                         <CardDescription className="text-amber-700">
-                          The GitHub Issue has not been synchronized yet.
+                          No GitHub Issue has been created for this task yet.
                         </CardDescription>
                       ) : (
                         <CardDescription>
@@ -1179,7 +1179,11 @@ export function TaskDetailPage({
                           disabled={isGithubIssueSyncing}
                         >
                           <RefreshCw size={16} className={`mr-2 ${isGithubIssueSyncing ? 'animate-spin' : ''}`} />
-                          Retry sync
+                          {isGithubIssueSyncing
+                            ? 'Creating...'
+                            : task.githubIssueSyncStatus === 'failed'
+                              ? 'Retry sync'
+                              : 'Create GitHub issue'}
                         </Button>
                       ) : null}
                       {task.githubIssueUrl ? (
