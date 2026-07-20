@@ -290,6 +290,24 @@ export type TaskSubmissionResponse = {
   reviewerId: number,
   reviewerUsername: string,
   attemptsUsed: number
+  githubReviewState?: string | null
+  githubReviewAuthor?: string | null
+  githubReviewUrl?: string | null
+  githubReviewUpdatedAt?: Date | string | null
+}
+
+export type GithubPullRequestCommentResponse = {
+  id: number
+  submissionId: number
+  taskId: number
+  pullRequestUrl: string
+  eventType: 'issue_comment' | 'pull_request_review' | 'pull_request_review_comment'
+  authorUsername: string | null
+  authorAvatarUrl: string | null
+  body: string
+  githubUrl: string
+  createdAt: Date | string | null
+  updatedAt: Date | string | null
 }
 
 export type TaskSubmissionUpdateRequest = {

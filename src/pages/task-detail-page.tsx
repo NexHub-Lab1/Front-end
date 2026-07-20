@@ -1,9 +1,9 @@
-import { ArrowLeft, CreditCard, ExternalLink, RefreshCw, Send, UserPlus, Check, X, Loader2, Pencil } from 'lucide-react'
+import { ArrowLeft, CreditCard, ExternalLink, RefreshCw, Send, UserPlus, Check, X, Loader2, Pencil, GitPullRequest, MessageSquare } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { PaymentResponse, TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse } from '../types/app'
+import type { PaymentResponse, TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse, GithubPullRequestCommentResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -21,6 +21,7 @@ import { formatMoney, fundingBadgeClassName, isTaskFunded, normalizeFundingStatu
 import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
 import { readStoredProfileDashboard } from '../lib/dashboard-storage'
+import { fetchGithubTaskActivity } from '../lib/github-activity-storage'
 
 export function TaskDetailPage({
   currentUser,
@@ -57,6 +58,9 @@ export function TaskDetailPage({
   const [assignments, setAssignments] = useState<TaskAssignmentResponse[]>([])
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentResponse | null>(null)
   const [submissions, setSubmissions] = useState<TaskSubmissionResponse[]>([])
+  const [githubActivity, setGithubActivity] = useState<GithubPullRequestCommentResponse[]>([])
+  const [isGithubActivityLoading, setIsGithubActivityLoading] = useState(false)
+  const [githubActivityError, setGithubActivityError] = useState<string | null>(null)
 
   // State for fast proposal review
   const [selectedSubmission, setSelectedSubmission] = useState<TaskSubmissionResponse | null>(null)
@@ -380,6 +384,9 @@ export function TaskDetailPage({
       setAssignments([])
       setSelectedAssignment(null)
       setSubmissions([])
+      setGithubActivity([])
+      setGithubActivityError(null)
+      setIsGithubActivityLoading(false)
       setInvitations([])
       setTaskPayments([])
       setPaymentError(null)
@@ -464,6 +471,22 @@ export function TaskDetailPage({
             const subsRes = await fetchSubmissionsByAssignment(foundAnyAssignment.id, { page: 0, size: 100 })
             if (subsRes.status === 'success' && subsRes.data) {
               setSubmissions(subsRes.data.content)
+            }
+          }
+
+          if (userIsOwner || foundAnyAssignment) {
+            setIsGithubActivityLoading(true)
+            try {
+              const activityRes = await fetchGithubTaskActivity(parsedId)
+              if (activityRes.status === 'success' && activityRes.data) {
+                setGithubActivity(activityRes.data)
+              } else {
+                setGithubActivityError(activityRes.message || 'Unable to load GitHub activity.')
+              }
+            } catch {
+              setGithubActivityError('Unable to load GitHub activity.')
+            } finally {
+              setIsGithubActivityLoading(false)
             }
           }
 
@@ -827,6 +850,30 @@ export function TaskDetailPage({
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
   const fundingStatus = normalizeFundingStatus(task?.fundingStatus)
+  const githubReviewedSubmissions = submissions
+    .filter((submission) => submission.githubReviewState)
+    .sort((first, second) => {
+      const firstDate = first.githubReviewUpdatedAt ? new Date(first.githubReviewUpdatedAt).getTime() : 0
+      const secondDate = second.githubReviewUpdatedAt ? new Date(second.githubReviewUpdatedAt).getTime() : 0
+      return secondDate - firstDate
+    })
+
+  const githubReviewBadgeClass = (state: string) => {
+    switch (state.toLowerCase()) {
+      case 'approved':
+        return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      case 'changes_requested':
+        return 'border-amber-200 bg-amber-50 text-amber-800'
+      case 'dismissed':
+        return 'border-slate-200 bg-slate-100 text-slate-600'
+      default:
+        return 'border-blue-200 bg-blue-50 text-blue-700'
+    }
+  }
+
+  const githubReviewLabel = (state: string) => {
+    return state.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  }
 
   const teamLeadId = userAssignment
     ? (userAssignment.parentAssignmentId || userAssignment.id)
@@ -1582,6 +1629,139 @@ export function TaskDetailPage({
                               })}
                             </tbody>
                           </table>
+                        </div>
+                      )}
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {(isOwner || anyAssignment) && submissions.length > 0 && (
+                <Card>
+                  <CardBody className="space-y-5 p-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="mb-1 flex items-center gap-2">
+                          <GitPullRequest size={20} className="text-slate-700" />
+                          <CardTitle className="text-xl">GitHub activity</CardTitle>
+                        </div>
+                        <CardDescription>
+                          Comments and technical reviews from the linked pull request.
+                        </CardDescription>
+                      </div>
+                      <Badge variant="outline" className="w-fit bg-slate-50 text-slate-600">
+                        Read only
+                      </Badge>
+                    </div>
+
+                    {githubReviewedSubmissions.length > 0 && (
+                      <div className="space-y-2 border-t border-slate-100 pt-4">
+                        <p className="text-xs font-semibold uppercase text-slate-500">Technical review status</p>
+                        {githubReviewedSubmissions.map((submission) => (
+                          <div
+                            key={submission.id}
+                            className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge className={`border ${githubReviewBadgeClass(submission.githubReviewState!)}`}>
+                                  {githubReviewLabel(submission.githubReviewState!)}
+                                </Badge>
+                                {isOwner && (
+                                  <span className="text-sm font-medium text-slate-700">{submission.username}</span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {submission.githubReviewAuthor ? `Reviewed by @${submission.githubReviewAuthor}` : 'GitHub review updated'}
+                                {submission.githubReviewUpdatedAt
+                                  ? ` · ${new Date(submission.githubReviewUpdatedAt).toLocaleString()}`
+                                  : ''}
+                              </p>
+                            </div>
+                            {submission.githubReviewUrl && (
+                              <Button asChild variant="outline" size="sm" className="shrink-0">
+                                <a href={submission.githubReviewUrl} target="_blank" rel="noopener noreferrer">
+                                  View review
+                                  <ExternalLink size={14} />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="space-y-3 border-t border-slate-100 pt-4">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare size={17} className="text-slate-500" />
+                        <p className="text-sm font-semibold text-slate-800">Pull request comments</p>
+                      </div>
+
+                      {isGithubActivityLoading ? (
+                        <div className="flex items-center gap-2 py-4 text-sm text-slate-500">
+                          <Loader2 size={16} className="animate-spin" />
+                          Loading GitHub activity...
+                        </div>
+                      ) : githubActivityError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                          {githubActivityError}
+                        </div>
+                      ) : githubActivity.length === 0 ? (
+                        <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-sm text-slate-500">
+                          No GitHub comments or reviews yet.
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                          {githubActivity.map((activity) => (
+                            <div key={activity.id} className="p-4">
+                              <div className="flex items-start gap-3">
+                                {activity.authorAvatarUrl ? (
+                                  <img
+                                    src={activity.authorAvatarUrl}
+                                    alt=""
+                                    className="h-8 w-8 shrink-0 rounded-full border border-slate-200"
+                                  />
+                                ) : (
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                                    {(activity.authorUsername || '?').slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="text-sm font-semibold text-slate-800">
+                                      {activity.authorUsername ? `@${activity.authorUsername}` : 'GitHub user'}
+                                    </span>
+                                    <Badge variant="outline" className="bg-white text-[10px] text-slate-500">
+                                      {activity.eventType === 'pull_request_review_comment'
+                                        ? 'Inline review'
+                                        : activity.eventType === 'pull_request_review'
+                                          ? 'Review summary'
+                                          : 'Conversation'}
+                                    </Badge>
+                                    {activity.createdAt && (
+                                      <span className="text-xs text-slate-400">
+                                        {new Date(activity.createdAt).toLocaleString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+                                    {activity.body}
+                                  </p>
+                                  {activity.githubUrl && (
+                                    <a
+                                      href={activity.githubUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                                    >
+                                      View on GitHub
+                                      <ExternalLink size={12} />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
