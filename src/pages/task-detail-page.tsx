@@ -1137,7 +1137,7 @@ export function TaskDetailPage({
                 </CardBody>
               </Card>
 
-              {(task.githubIssueUrl || (isOwner && task.githubIssueSyncStatus === 'failed')) && (
+              {(task.githubIssueUrl || (isOwner && assignments.length > 0 && !task.githubIssueUrl)) && (
                 <Card>
                   <CardBody className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-2">
@@ -1161,6 +1161,10 @@ export function TaskDetailPage({
                         <CardDescription className="text-red-700">
                           {task.githubIssueLastError || 'The GitHub Issue could not be synchronized.'}
                         </CardDescription>
+                      ) : isOwner && !task.githubIssueUrl ? (
+                        <CardDescription className="text-amber-700">
+                          The GitHub Issue has not been synchronized yet.
+                        </CardDescription>
                       ) : (
                         <CardDescription>
                           Shared by every collaborator assigned to this task.
@@ -1168,7 +1172,7 @@ export function TaskDetailPage({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {isOwner && task.githubIssueSyncStatus === 'failed' ? (
+                      {isOwner && !task.githubIssueUrl ? (
                         <Button
                           variant="outline"
                           onClick={() => void handleRetryGithubIssueSync()}
