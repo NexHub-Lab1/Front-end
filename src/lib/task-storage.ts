@@ -118,3 +118,11 @@ export async function cancelTask(taskId: number): Promise<ApiResponse<TaskRespon
   })
   return handleResponse(response)
 }
+
+export async function retryGithubIssueSync(taskId: number): Promise<ApiResponse<TaskResponse>> {
+  const response = await fetch(`${ROOT_TASK_ENDPOINT}/${taskId}/github-issue/sync`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  return handleResponse(response)
+}
