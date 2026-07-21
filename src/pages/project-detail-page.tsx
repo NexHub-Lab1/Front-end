@@ -656,12 +656,14 @@ export function ProjectDetailPage({
                           by {project.ownerUsername.toString()}
                         </Badge>
                       ) : null}
-                      <Badge
-                        variant="outline"
-                        className={githubWebhookStatus.className}
-                      >
-                        GitHub webhook: {githubWebhookStatus.label}
-                      </Badge>
+                      {project.githubRepo ? (
+                        <Badge
+                          variant="outline"
+                          className={githubWebhookStatus.className}
+                        >
+                          GitHub webhook: {githubWebhookStatus.label}
+                        </Badge>
+                      ) : null}
                     </div>
 
                     <div className="space-y-2">

@@ -12,6 +12,8 @@ export type UserDetailsResponse = {
   created_at: Date
   reputationScore: number
   totalPoints: number
+  githubUsername?: string | null
+  figmaUsername?: string | null
 }
 
 export type AuthUser = {
