@@ -357,7 +357,7 @@ export function AuthPage({
                 <Github size={18} />
                 Continue with GitHub
               </Button>
-              
+
               <Button
                 type="button"
                 variant="outline"

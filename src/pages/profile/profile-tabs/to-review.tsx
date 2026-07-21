@@ -111,7 +111,9 @@ export function ToReviewTab({
         await loadSubmissionsToReview(currentPage)
         setReviewFeedback({
           type: 'success',
-          message: `Submission ${approved ? 'approved' : 'rejected'} successfully.`,
+          message: approved
+            ? 'Submission approved. Other pending submissions for this task were closed without penalties.'
+            : 'Submission rejected successfully.',
         })
       } else {
         setReviewFeedback({
@@ -375,6 +377,7 @@ export function ToReviewTab({
             <div className={`rounded-lg border p-4 ${reviewAction === 'approve' ? 'border-green-100 bg-green-50/50' : 'border-amber-100 bg-amber-50/50'}`}>
               <p className={`text-sm ${reviewAction === 'approve' ? 'text-green-800' : 'text-amber-800'}`}>
                 You are about to <strong>{reviewAction === 'approve' ? 'approve' : 'reject'}</strong> this submission.
+                {reviewAction === 'approve' && ' The reward will be released to this contributor and other pending submissions will be closed without reputation penalties.'}
                 {reviewAction === 'reject' && ' The contributor will be notified and can submit again if attempts remain.'}
               </p>
             </div>

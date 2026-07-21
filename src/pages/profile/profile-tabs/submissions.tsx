@@ -67,6 +67,8 @@ export function SubmissionsTab({
         return 'bg-green-50 text-green-700 border-green-200'
       case 'rejected':
         return 'bg-red-50 text-red-700 border-red-200'
+      case 'not_selected':
+        return 'bg-slate-100 text-slate-700 border-slate-200'
       case 'submitted':
       case 'changes_requested':
         return 'bg-yellow-50 text-yellow-700 border-yellow-200'
@@ -74,6 +76,11 @@ export function SubmissionsTab({
         return 'bg-gray-50 text-gray-700 border-gray-200'
     }
   }
+
+  const getStatusLabel = (status: string) =>
+    status.toLowerCase() === 'not_selected'
+      ? 'Not selected'
+      : status.replaceAll('_', ' ')
 
   if (isLoading && submissionsPage.content.length === 0) {
     return (
@@ -108,7 +115,7 @@ export function SubmissionsTab({
                       <p className="text-sm text-slate-500 line-clamp-1">{submission.projectName}</p>
                     </div>
                     <Badge variant="secondary" className={`border-slate-100 ${getStatusColor(submission.status)}`}>
-                      {submission.status}
+                      {getStatusLabel(submission.status)}
                     </Badge>
                   </div>
 

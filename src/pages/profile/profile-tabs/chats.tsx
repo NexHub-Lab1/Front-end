@@ -17,6 +17,7 @@ export function ChatsTab({
 }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const requestedChatId = Number(searchParams.get('chat_id') ?? searchParams.get('assignmentId'))
   const [chats, setChats] = useState<TaskAssignmentResponse[]>([])
   const [selectedChat, setSelectedChat] = useState<TaskAssignmentResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -40,13 +41,6 @@ export function ChatsTab({
           (a) => a.userId === user.id || projectIds.includes(a.projectId)
         )
         setChats(filtered)
-        
-        // Auto-select chat from URL
-        const chatIdFromUrl = searchParams.get('chat_id')
-        if (chatIdFromUrl) {
-          const found = filtered.find(c => c.id.toString() === chatIdFromUrl)
-          if (found) setSelectedChat(found)
-        }
       } else {
         setError(response.message || 'Failed to load conversations.')
       }
@@ -61,6 +55,17 @@ export function ChatsTab({
   useEffect(() => {
     void loadChats()
   }, [loadChats])
+
+  useEffect(() => {
+    if (!Number.isInteger(requestedChatId) || requestedChatId <= 0) {
+      return
+    }
+
+    const requestedChat = chats.find((chat) => chat.id === requestedChatId)
+    if (requestedChat) {
+      setSelectedChat(requestedChat)
+    }
+  }, [chats, requestedChatId])
 
   const handleSelectChat = (chat: TaskAssignmentResponse) => {
     setSelectedChat(chat)

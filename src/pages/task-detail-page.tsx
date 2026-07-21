@@ -552,7 +552,7 @@ export function TaskDetailPage({
   const handleSubmit = async () => {
     const isDevelopment = task?.taskType === 'DEVELOPMENT' || !task?.taskType;
     let urlError = undefined;
-    
+
     if (isDevelopment) {
       urlError = validatePullRequestUrl(prUrl);
     } else {
@@ -749,7 +749,7 @@ export function TaskDetailPage({
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
       return 'Please enter a valid URL (must start with http:// or https://)'
     }
-    
+
     if (!value.includes('figma.com')) {
       return 'Please enter a valid Figma URL'
     }
@@ -2029,12 +2029,12 @@ export function TaskDetailPage({
               </div>
               {selectedSubmission.designUrl && selectedSubmission.designUrl.includes('figma.com') && (
                 <div className="mt-4 border rounded overflow-hidden">
-                  <iframe 
+                  <iframe
                     style={{ border: 'none' }}
-                    width="100%" 
-                    height="450" 
-                    src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(selectedSubmission.designUrl)}`} 
-                    allowFullScreen 
+                    width="100%"
+                    height="450"
+                    src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(selectedSubmission.designUrl)}`}
+                    allowFullScreen
                   />
                 </div>
               )}
