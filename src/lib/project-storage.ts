@@ -143,3 +143,12 @@ export async function archiveProject(projectId: number): Promise<ApiResponse<Pro
   })
   return handleResponse(response)
 }
+
+export async function importFigmaProject(figmaUrl: string): Promise<ApiResponse<ProjectResponse>> {
+  const response = await fetch(`${PROJECT_ROOT_ENDPOINT}/import-figma`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ figmaUrl }),
+  })
+  return handleResponse(response)
+}

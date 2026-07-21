@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowRight, CheckCircle2, Github, LoaderCircle, LogIn, Sparkles, UserPlus } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Figma, Github, LoaderCircle, LogIn, Sparkles, UserPlus } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import type { ApiResponse, AuthMode, AuthUser, User } from '../types/app'
@@ -224,6 +224,10 @@ export function AuthPage({
     window.location.href = '/api/auth/github/start'
   }
 
+  function handleFigmaLogin() {
+    window.location.href = '/api/auth/figma/start'
+  }
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="grid min-h-[calc(100vh-3rem)] gap-8 lg:grid-cols-[minmax(320px,1.15fr)_minmax(340px,440px)] lg:items-center">
@@ -352,6 +356,18 @@ export function AuthPage({
               >
                 <Github size={18} />
                 Continue with GitHub
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                disabled={isSubmitting}
+                onClick={handleFigmaLogin}
+              >
+                <Figma size={18} />
+                Continue with Figma
               </Button>
             </form>
 

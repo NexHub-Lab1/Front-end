@@ -12,6 +12,7 @@ import {
   Plus,
   Check,
   X,
+  Figma,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -136,6 +137,7 @@ export function ProjectDetailPage({
     name: "",
     description: "",
     githubRepo: "",
+    figmaFileUrl: "",
     status: "",
     tags: [],
   });
@@ -166,6 +168,7 @@ export function ProjectDetailPage({
     minReputation: 0,
     collaborative: false,
     recommendedSkills: [],
+    taskType: 'DEVELOPMENT',
   });
   const [createSkillsInput, setCreateSkillsInput] = useState("");
   const [createErrors, setCreateErrors] = useState<{
@@ -257,6 +260,7 @@ export function ProjectDetailPage({
       minReputation: 0,
       collaborative: false,
       recommendedSkills: [],
+      taskType: 'DEVELOPMENT',
     });
     setCreateSkillsInput("");
     setCreateErrors({});
@@ -399,7 +403,8 @@ export function ProjectDetailPage({
       id: project.id,
       name: project.name.toString(),
       description: project.description.toString(),
-      githubRepo: project.githubRepo.toString(),
+      githubRepo: project.githubRepo?.toString() || "",
+      figmaFileUrl: project.figmaFileUrl?.toString() || "",
       status: project.status.toString(),
       tags: project.tags.map((tag) => tag.toString()),
     });
@@ -461,10 +466,18 @@ export function ProjectDetailPage({
       nextErrors.description = "Description is required.";
     }
 
-    if (!editForm.githubRepo.trim()) {
-      nextErrors.githubRepo = "GitHub repository is required.";
-    } else if (!isGithubRepositoryUrl(editForm.githubRepo)) {
-      nextErrors.githubRepo = "Enter a valid GitHub repository URL.";
+    const hasGithub = editForm.githubRepo?.trim() || "";
+    const hasFigma = editForm.figmaFileUrl?.trim() || "";
+
+    if (!hasGithub && !hasFigma) {
+      nextErrors.githubRepo = "Either a GitHub repository or Figma URL is required.";
+    } else {
+      if (hasGithub && !isGithubRepositoryUrl(hasGithub)) {
+        nextErrors.githubRepo = "Enter a valid GitHub repository URL.";
+      }
+      if (hasFigma && !hasFigma.includes("figma.com")) {
+        nextErrors.githubRepo = "Enter a valid Figma URL.";
+      }
     }
 
     if (!editForm.status.trim()) {
@@ -485,12 +498,14 @@ export function ProjectDetailPage({
     }
 
     if (field === "githubRepo") {
-      if (!value.trim()) {
-        return "GitHub repository is required.";
+      const hasFigma = editForm.figmaFileUrl?.trim();
+      if (!value.trim() && !hasFigma) {
+        return "Either a GitHub repository or Figma URL is required.";
       }
-      return isGithubRepositoryUrl(value)
-        ? undefined
-        : "Enter a valid GitHub repository URL.";
+      if (value.trim() && !isGithubRepositoryUrl(value)) {
+        return "Enter a valid GitHub repository URL.";
+      }
+      return undefined;
     }
 
     return value.trim() ? undefined : "Status is required.";
@@ -641,12 +656,14 @@ export function ProjectDetailPage({
                           by {project.ownerUsername.toString()}
                         </Badge>
                       ) : null}
-                      <Badge
-                        variant="outline"
-                        className={githubWebhookStatus.className}
-                      >
-                        GitHub webhook: {githubWebhookStatus.label}
-                      </Badge>
+                      {project.githubRepo ? (
+                        <Badge
+                          variant="outline"
+                          className={githubWebhookStatus.className}
+                        >
+                          GitHub webhook: {githubWebhookStatus.label}
+                        </Badge>
+                      ) : null}
                     </div>
 
                     <div className="space-y-2">
@@ -673,6 +690,14 @@ export function ProjectDetailPage({
                         <a href={repoUrl} target="_blank" rel="noreferrer">
                           <FolderGit2 size={16} />
                           Open repository
+                        </a>
+                      </Button>
+                    ) : null}
+                    {project.figmaFileUrl ? (
+                      <Button variant="outline" asChild>
+                        <a href={project.figmaFileUrl} target="_blank" rel="noreferrer">
+                          <Figma size={16} className="text-pink-500" />
+                          Open Figma Design
                         </a>
                       </Button>
                     ) : null}
@@ -949,13 +974,24 @@ export function ProjectDetailPage({
                   placeholder="Example: https://github.com/owner/repository"
                   helperText={editErrors.githubRepo}
                   error={Boolean(editErrors.githubRepo)}
-                  value={editForm.githubRepo}
+                  value={editForm.githubRepo || ""}
                   onChange={(event) => {
                     setEditForm((current) => ({
                       ...current,
                       githubRepo: event.target.value,
                     }));
                     updateEditError("githubRepo", event.target.value);
+                  }}
+                />
+                <Input
+                  label="Figma URL (optional)"
+                  placeholder="Example: https://www.figma.com/design/..."
+                  value={editForm.figmaFileUrl || ""}
+                  onChange={(event) => {
+                    setEditForm((current) => ({
+                      ...current,
+                      figmaFileUrl: event.target.value,
+                    }));
                   }}
                 />
                 <Input

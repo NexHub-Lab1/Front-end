@@ -99,7 +99,8 @@ const EMPTY_TASK_FORM: TaskRequest = {
   status: "Open",
   maxAttempts: 3,
   collaborative: false,
-  recommendedSkills: []
+  recommendedSkills: [],
+  taskType: 'DEVELOPMENT'
 }
 
 export function TasksTab({
@@ -344,7 +345,8 @@ export function TasksTab({
       maxAttempts: task.maxAttempts,
       collaborative: task.collaborative,
       minReputation: task.minReputation,
-      recommendedSkills: task.recommendedSkills
+      recommendedSkills: task.recommendedSkills,
+      taskType: task.taskType || 'DEVELOPMENT'
     })
     setSkillsInput(task.recommendedSkills.join(', '))
     setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
@@ -474,6 +476,26 @@ export function TasksTab({
               <option value="HIRING">HIRING</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
               <option value="COMPLETED">COMPLETED</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="taskType-select" className="block text-sm font-medium mb-2">
+              Task Type
+            </label>
+            <select
+              id="taskType-select"
+              value={taskForm.taskType}
+              onChange={(event) =>
+                setTaskForm((current) => ({
+                  ...current,
+                  taskType: event.target.value,
+                }))
+              }
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            >
+              <option value="DEVELOPMENT">Development</option>
+              <option value="DESIGN">Design</option>
             </select>
           </div>
 

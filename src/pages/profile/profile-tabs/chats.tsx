@@ -16,8 +16,8 @@ export function ChatsTab({
   user: User 
 }) {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const requestedAssignmentId = Number(searchParams.get('assignmentId'))
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedChatId = Number(searchParams.get('chat_id') ?? searchParams.get('assignmentId'))
   const [chats, setChats] = useState<TaskAssignmentResponse[]>([])
   const [selectedChat, setSelectedChat] = useState<TaskAssignmentResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -57,15 +57,20 @@ export function ChatsTab({
   }, [loadChats])
 
   useEffect(() => {
-    if (!Number.isInteger(requestedAssignmentId) || requestedAssignmentId <= 0) {
+    if (!Number.isInteger(requestedChatId) || requestedChatId <= 0) {
       return
     }
 
-    const requestedChat = chats.find((chat) => chat.id === requestedAssignmentId)
+    const requestedChat = chats.find((chat) => chat.id === requestedChatId)
     if (requestedChat) {
       setSelectedChat(requestedChat)
     }
-  }, [chats, requestedAssignmentId])
+  }, [chats, requestedChatId])
+
+  const handleSelectChat = (chat: TaskAssignmentResponse) => {
+    setSelectedChat(chat)
+    setSearchParams({ tab: 'chats', chat_id: chat.id.toString() })
+  }
 
   if (isLoading) {
     return (
@@ -112,7 +117,7 @@ export function ChatsTab({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 w-full h-full items-stretch">
+    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 w-full h-[calc(100vh-250px)] min-h-[500px] items-stretch">
       {/* Chats Sidebar */}
       <Card className="h-full flex flex-col overflow-hidden bg-white/80 backdrop-blur-md border border-slate-200/80">
         <CardBody className="flex flex-col h-full p-0">
@@ -135,7 +140,7 @@ export function ChatsTab({
               return (
                 <div
                   key={chat.id}
-                  onClick={() => setSelectedChat(chat)}
+                  onClick={() => handleSelectChat(chat)}
                   className={`group relative flex flex-col p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
                     isSelected
                       ? 'bg-blue-50/90 border-blue-200 shadow-sm shadow-blue-50'
