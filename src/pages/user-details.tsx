@@ -228,7 +228,11 @@ export default function UserDetails({
                                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                                     <div className="space-y-4">
                                         <div className="flex flex-wrap gap-2">
-                                            <Badge variant="secondary">Developer</Badge>
+                                            {userDetails.figmaUsername ? (
+                                                <Badge variant="secondary">Designer</Badge>
+                                            ) : (
+                                                <Badge variant="secondary">Developer</Badge>
+                                            )}
                                         </div>
 
                                         <div className="space-y-2">

@@ -12,6 +12,8 @@ export type UserDetailsResponse = {
   created_at: Date
   reputationScore: number
   totalPoints: number
+  githubUsername?: string | null
+  figmaUsername?: string | null
 }
 
 export type AuthUser = {
@@ -24,6 +26,8 @@ export type User = {
   email: string
   githubId?: number | null
   githubUsername?: string | null
+  figmaId?: string | null
+  figmaUsername?: string | null
   profileImageUrl?: string | null
   skills?: string[]
   emailNotificationsEnabled?: boolean
@@ -73,7 +77,7 @@ export type ProjectResponse = {
   ownerUsername: string,
   name: string,
   description: string,
-  githubRepo: string,
+  githubRepo?: string | null,
   status: string,
   createdAt: Date,
   updatedAt: Date,
@@ -85,14 +89,18 @@ export type ProjectResponse = {
   githubWebhookStatus?: string | null,
   githubWebhookLastError?: string | null,
   githubWebhookConnectedAt?: Date | string | null,
-  githubWebhookLastDeliveryAt?: Date | string | null
+  githubWebhookLastDeliveryAt?: Date | string | null,
+  figmaFileUrl?: string | null,
+  figmaFileName?: string | null,
+  figmaThumbnailUrl?: string | null
 }
 
 export type ProjectForm = {
   ownerId: number,
   name: string,
   description: string,
-  githubRepo: string,
+  githubRepo?: string | null,
+  figmaFileUrl?: string | null,
   status: string,
   tags: string[]
 }
@@ -101,7 +109,8 @@ export type ProjectUpdateForm = {
   id: number
   name: string
   description: string
-  githubRepo: string
+  githubRepo?: string | null
+  figmaFileUrl?: string | null
   status: string
   tags: string[]
 }
@@ -141,7 +150,8 @@ export type TaskRequest = {
   maxAttempts: number,
   minReputation?: number,
   collaborative: boolean,
-  recommendedSkills: string[]
+  recommendedSkills: string[],
+  taskType: string
 }
 
 export type TaskResponse = {
@@ -162,6 +172,7 @@ export type TaskResponse = {
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[],
+  taskType: string
   githubIssueId?: number | null,
   githubIssueNumber?: number | null,
   githubIssueUrl?: string | null,
@@ -270,7 +281,10 @@ export type TaskInvitationResponse = {
 
 export type TaskSubmissionRequest = {
   assignmentId: number
-  pullRequestUrl: string
+  pullRequestUrl?: string
+  designUrl?: string
+  description?: string
+  demoUrl?: string
 }
 
 export type TaskSubmissionResponse = {
@@ -282,7 +296,10 @@ export type TaskSubmissionResponse = {
   projectName: string,
   userId: number,
   username: string,
-  pullRequestUrl: string,
+  pullRequestUrl?: string,
+  designUrl?: string,
+  description?: string,
+  demoUrl?: string,
   submittedAt: Date,
   status: string,
   reviewComments: string,
@@ -312,7 +329,8 @@ export type GithubPullRequestCommentResponse = {
 
 export type TaskSubmissionUpdateRequest = {
   id: number
-  pullRequestUrl: string
+  pullRequestUrl?: string
+  designUrl?: string
   status: string
   reviewComments: string
   reviewerId: number

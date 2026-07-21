@@ -20,6 +20,7 @@ const EMPTY_TASK_FORM: TaskRequest = {
   maxAttempts: 3,
   collaborative: false,
   recommendedSkills: [],
+  taskType: 'DEVELOPMENT',
 }
 
 export function CreateTaskModal({
@@ -254,6 +255,22 @@ export function CreateTaskModal({
             <option value="HIRING">HIRING</option>
             <option value="IN_PROGRESS">IN_PROGRESS</option>
             <option value="COMPLETED">COMPLETED</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="sidebar-create-task-type" className="mb-2 block text-sm font-medium">
+            Task Type
+          </label>
+          <select
+            id="sidebar-create-task-type"
+            value={taskForm.taskType}
+            onChange={(event) => {
+              setTaskForm((current) => ({ ...current, taskType: event.target.value }))
+            }}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+          >
+            <option value="DEVELOPMENT">Development</option>
+            <option value="DESIGN">Design</option>
           </select>
         </div>
         <div>

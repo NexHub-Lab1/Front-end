@@ -43,6 +43,8 @@ export function TaskDetailPage({
   const [anyAssignment, setAnyAssignment] = useState<TaskAssignmentResponse | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [prUrl, setPrUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [demoUrl, setDemoUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
@@ -68,6 +70,7 @@ export function TaskDetailPage({
   const [reviewComments, setReviewComments] = useState('')
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
+  const [isRejecting, setIsRejecting] = useState(false)
   const [selectedDeveloperFilter, setSelectedDeveloperFilter] = useState<string | null>(null)
 
   // State for task collaboration & invitation
@@ -94,6 +97,7 @@ export function TaskDetailPage({
     minReputation: 0,
     collaborative: false,
     recommendedSkills: [],
+    taskType: 'DEVELOPMENT',
   })
   const [editSkillsInput, setEditSkillsInput] = useState('')
   const [editErrors, setEditErrors] = useState<{
@@ -181,6 +185,7 @@ export function TaskDetailPage({
       minReputation: task.minReputation,
       collaborative: task.collaborative,
       recommendedSkills: task.recommendedSkills || [],
+      taskType: task.taskType || 'DEVELOPMENT',
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
     setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
@@ -262,6 +267,7 @@ export function TaskDetailPage({
     setReviewComments(submission.reviewComments || '')
     setReviewError(null)
     setRejectionReason('BUGS_OR_INCOMPLETE')
+    setIsRejecting(false)
     setShowReviewModal(true)
   }
 
@@ -291,6 +297,7 @@ export function TaskDetailPage({
         setShowReviewModal(false)
         setSelectedSubmission(null)
         setReviewComments('')
+        setIsRejecting(false)
         
         // Reload submissions list
         const subsRes = await fetchSubmissionsByTask(task.id, { page: 0, size: 100 })
@@ -543,7 +550,15 @@ export function TaskDetailPage({
   }
 
   const handleSubmit = async () => {
-    const urlError = validatePullRequestUrl(prUrl)
+    const isDevelopment = task?.taskType === 'DEVELOPMENT' || !task?.taskType;
+    let urlError = undefined;
+    
+    if (isDevelopment) {
+      urlError = validatePullRequestUrl(prUrl);
+    } else {
+      urlError = validateDesignUrl(prUrl);
+    }
+
     if (urlError) {
       setSubmitError(urlError)
       return
@@ -559,14 +574,25 @@ export function TaskDetailPage({
       setSubmitError(null)
       setActionFeedback(null)
 
-      const result = await createSubmission({
+      const submissionPayload: any = {
         assignmentId: userAssignment.id,
-        pullRequestUrl: prUrl,
-      })
+        description: description.trim() || undefined,
+        demoUrl: demoUrl.trim() || undefined,
+      };
+
+      if (isDevelopment) {
+        submissionPayload.pullRequestUrl = prUrl;
+      } else {
+        submissionPayload.designUrl = prUrl;
+      }
+
+      const result = await createSubmission(submissionPayload)
 
       if (result.status === 'success') {
         setShowSubmitModal(false)
         setPrUrl('')
+        setDescription('')
+        setDemoUrl('')
         setActionFeedback({
           type: 'success',
           message: 'Submission created successfully. The project owner can now review it.',
@@ -710,6 +736,22 @@ export function TaskDetailPage({
 
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
       return 'Please enter a valid URL (must start with http:// or https://)'
+    }
+
+    return undefined
+  }
+
+  function validateDesignUrl(value: string) {
+    if (!value.trim()) {
+      return 'Please enter a Figma Design URL'
+    }
+
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      return 'Please enter a valid URL (must start with http:// or https://)'
+    }
+    
+    if (!value.includes('figma.com')) {
+      return 'Please enter a valid Figma URL'
     }
 
     return undefined
@@ -1530,13 +1572,13 @@ export function TaskDetailPage({
                                           </td>
                                           <td className="px-5 py-3">
                                             <a
-                                              href={sub.pullRequestUrl}
+                                              href={sub.pullRequestUrl || sub.designUrl}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               onClick={(e) => e.stopPropagation()}
                                               className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
                                             >
-                                              View PR
+                                              {sub.pullRequestUrl ? 'View PR' : 'View Design'}
                                             </a>
                                           </td>
                                           <td className="px-5 py-3 text-slate-500 text-xs font-normal">
@@ -1609,12 +1651,12 @@ export function TaskDetailPage({
                                     </td>
                                     <td className="px-5 py-3">
                                       <a
-                                        href={sub.pullRequestUrl}
+                                        href={sub.pullRequestUrl || sub.designUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
                                       >
-                                        View PR
+                                        {sub.pullRequestUrl ? 'View PR' : 'View Design'}
                                       </a>
                                     </td>
                                     <td className="px-5 py-3 text-slate-500 text-xs font-normal">
@@ -1851,26 +1893,53 @@ export function TaskDetailPage({
           onClose={() => {
             setShowSubmitModal(false)
             setPrUrl('')
+            setDescription('')
+            setDemoUrl('')
             setSubmitError(null)
           }}
           title="Submit Solution"
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Pull Request URL</label>
+              <label className="block text-sm font-medium">
+                {task?.taskType === 'DEVELOPMENT' || !task?.taskType ? 'Pull Request URL' : 'Figma Design URL'}
+              </label>
               <Input
                 type="text"
                 value={prUrl}
                 onChange={(e) => {
                   setPrUrl(e.target.value)
                   if (submitError) {
-                    setSubmitError(validatePullRequestUrl(e.target.value) ?? null)
+                    const isDevelopment = task?.taskType === 'DEVELOPMENT' || !task?.taskType;
+                    const err = isDevelopment ? validatePullRequestUrl(e.target.value) : validateDesignUrl(e.target.value);
+                    setSubmitError(err ?? null)
                   }
                 }}
-                placeholder="https://github.com/..."
+                placeholder={task?.taskType === 'DEVELOPMENT' || !task?.taskType ? "https://github.com/..." : "https://figma.com/..."}
                 disabled={isSubmitting}
                 helperText={submitError || undefined}
                 error={Boolean(submitError)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Briefly describe your solution..."
+                disabled={isSubmitting}
+                className="w-full rounded-md border border-slate-300 p-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Demo/Visuals URL (Optional)</label>
+              <Input
+                type="text"
+                value={demoUrl}
+                onChange={(e) => setDemoUrl(e.target.value)}
+                placeholder="https://..."
+                disabled={isSubmitting}
               />
             </div>
             {userAssignment && (
@@ -1893,6 +1962,8 @@ export function TaskDetailPage({
                 onClick={() => {
                   setShowSubmitModal(false)
                   setPrUrl('')
+                  setDescription('')
+                  setDemoUrl('')
                   setSubmitError(null)
                 }}
                 disabled={isSubmitting}
@@ -1912,6 +1983,7 @@ export function TaskDetailPage({
             setSelectedSubmission(null)
             setReviewComments('')
             setReviewError(null)
+            setIsRejecting(false)
           }}
           title="Review Solution Proposal"
         >
@@ -1944,17 +2016,50 @@ export function TaskDetailPage({
                 </span>
               </div>
               <div className="text-sm flex items-center gap-2">
-                <span className="font-semibold text-slate-700">PR Link:</span>{" "}
+                <span className="font-semibold text-slate-700">{selectedSubmission.pullRequestUrl ? 'PR Link:' : 'Design Link:'}</span>{" "}
                 <a
-                  href={selectedSubmission.pullRequestUrl}
+                  href={selectedSubmission.pullRequestUrl || selectedSubmission.designUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="text-blue-600 hover:text-blue-700 font-mono text-xs hover:underline truncate max-w-[400px]"
                 >
-                  {selectedSubmission.pullRequestUrl}
+                  {selectedSubmission.pullRequestUrl || selectedSubmission.designUrl}
                 </a>
               </div>
+              {selectedSubmission.designUrl && selectedSubmission.designUrl.includes('figma.com') && (
+                <div className="mt-4 border rounded overflow-hidden">
+                  <iframe 
+                    style={{ border: 'none' }}
+                    width="100%" 
+                    height="450" 
+                    src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(selectedSubmission.designUrl)}`} 
+                    allowFullScreen 
+                  />
+                </div>
+              )}
+              {selectedSubmission.demoUrl && (
+                <div className="text-sm flex items-center gap-2">
+                  <span className="font-semibold text-slate-700">Demo URL:</span>{" "}
+                  <a
+                    href={selectedSubmission.demoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-blue-600 hover:text-blue-700 font-mono text-xs hover:underline truncate max-w-[400px]"
+                  >
+                    {selectedSubmission.demoUrl}
+                  </a>
+                </div>
+              )}
+              {selectedSubmission.description && (
+                <div className="text-sm space-y-1">
+                  <span className="font-semibold text-slate-700">Description:</span>
+                  <div className="bg-slate-100 p-2 rounded text-slate-600 text-xs whitespace-pre-wrap">
+                    {selectedSubmission.description}
+                  </div>
+                </div>
+              )}
               <div className="text-sm flex items-center gap-2">
                 <span className="font-semibold text-slate-700">Current Status:</span>{" "}
                 <Badge
@@ -1977,52 +2082,56 @@ export function TaskDetailPage({
             {(selectedSubmission.status.toLowerCase() === 'submitted' ||
               selectedSubmission.status.toLowerCase() === 'pending') ? (
               <div className="space-y-4">
-                <div className="space-y-2 bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-900">
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Rejection Reason & Severity <span className="text-slate-400 font-normal">(Only applies if rejecting)</span>
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-1">
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="rejectionReason"
-                        value="BUGS_OR_INCOMPLETE"
-                        checked={rejectionReason === 'BUGS_OR_INCOMPLETE'}
-                        onChange={() => setRejectionReason('BUGS_OR_INCOMPLETE')}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
-                      />
-                      <span>Bugs / Incomplete <span className="text-slate-400 font-normal">(-10 Rep)</span></span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="rejectionReason"
-                        value="SPAM_OR_LOW_EFFORT"
-                        checked={rejectionReason === 'SPAM_OR_LOW_EFFORT'}
-                        onChange={() => setRejectionReason('SPAM_OR_LOW_EFFORT')}
-                        className="h-4 w-4 text-red-600 focus:ring-red-500 border-slate-300"
-                      />
-                      <span>Spam / Low Effort <span className="text-red-500 font-medium">(-25 Rep, reset streak)</span></span>
-                    </label>
-                  </div>
-                </div>
+                {isRejecting && (
+                  <>
+                    <div className="space-y-2 bg-slate-50 border border-slate-100 rounded-lg p-3 text-slate-900">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Rejection Reason & Severity
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-1">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="rejectionReason"
+                            value="BUGS_OR_INCOMPLETE"
+                            checked={rejectionReason === 'BUGS_OR_INCOMPLETE'}
+                            onChange={() => setRejectionReason('BUGS_OR_INCOMPLETE')}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
+                          />
+                          <span>Bugs / Incomplete <span className="text-slate-400 font-normal">(-10 Rep)</span></span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="rejectionReason"
+                            value="SPAM_OR_LOW_EFFORT"
+                            checked={rejectionReason === 'SPAM_OR_LOW_EFFORT'}
+                            onChange={() => setRejectionReason('SPAM_OR_LOW_EFFORT')}
+                            className="h-4 w-4 text-red-600 focus:ring-red-500 border-slate-300"
+                          />
+                          <span>Spam / Low Effort <span className="text-red-500 font-medium">(-25 Rep, reset streak)</span></span>
+                        </label>
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Review Feedback Comments <span className="text-red-500 font-normal">(Required only for Rejections)</span>
-                  </label>
-                  <textarea
-                    value={reviewComments}
-                    onChange={(e) => {
-                      setReviewComments(e.target.value)
-                      if (reviewError) setReviewError(null)
-                    }}
-                    placeholder="Enter your feedback, suggestions, or comments here..."
-                    rows={4}
-                    className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400"
-                    disabled={isSubmittingReview}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Review Feedback Comments <span className="text-red-500 font-normal">*</span>
+                      </label>
+                      <textarea
+                        value={reviewComments}
+                        onChange={(e) => {
+                          setReviewComments(e.target.value)
+                          if (reviewError) setReviewError(null)
+                        }}
+                        placeholder="Enter your feedback, suggestions, or comments here..."
+                        rows={4}
+                        className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400"
+                        disabled={isSubmittingReview}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {reviewError && (
                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -2031,40 +2140,60 @@ export function TaskDetailPage({
                 )}
 
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <Button
-                    variant="primary"
-                    onClick={() => submitReview(true)}
-                    disabled={isSubmittingReview}
-                    className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white flex items-center gap-1.5"
-                  >
-                    {isSubmittingReview ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Check size={16} />
-                    )}
-                    Approve Proposal
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => submitReview(false)}
-                    disabled={isSubmittingReview || !reviewComments.trim()}
-                    title={!reviewComments.trim() ? "Comments are required for rejection" : "Reject proposal"}
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
-                  >
-                    {isSubmittingReview ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
+                  {!isRejecting && (
+                    <Button
+                      variant="primary"
+                      onClick={() => submitReview(true)}
+                      disabled={isSubmittingReview}
+                      className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white flex items-center gap-1.5"
+                    >
+                      {isSubmittingReview ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Check size={16} />
+                      )}
+                      Approve Proposal
+                    </Button>
+                  )}
+                  {isRejecting ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => submitReview(false)}
+                      disabled={isSubmittingReview || !reviewComments.trim()}
+                      title={!reviewComments.trim() ? "Comments are required for rejection" : "Confirm Rejection"}
+                      className="bg-red-600 hover:bg-red-700 border-red-600 text-white flex items-center gap-1.5"
+                    >
+                      {isSubmittingReview ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <X size={16} />
+                      )}
+                      Confirm Rejection
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsRejecting(true)}
+                      disabled={isSubmittingReview}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
+                    >
                       <X size={16} />
-                    )}
-                    Reject Proposal
-                  </Button>
+                      Reject Proposal
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      setShowReviewModal(false)
-                      setSelectedSubmission(null)
-                      setReviewComments('')
-                      setReviewError(null)
+                      if (isRejecting) {
+                        setIsRejecting(false)
+                        setReviewError(null)
+                      } else {
+                        setShowReviewModal(false)
+                        setSelectedSubmission(null)
+                        setReviewComments('')
+                        setReviewError(null)
+                        setIsRejecting(false)
+                      }
                     }}
                     disabled={isSubmittingReview}
                     className="ml-auto"
