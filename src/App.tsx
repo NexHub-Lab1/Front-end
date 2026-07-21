@@ -6,6 +6,7 @@ import { SideMenu } from './components/app/side-menu'
 import { persistUser, readStoredUser } from './lib/auth-storage'
 import { AuthPage } from './pages/auth-page'
 import { GithubAuthCallbackPage } from './pages/github-auth-callback-page'
+import { FigmaAuthCallbackPage } from './pages/figma-auth-callback-page'
 import { LandingPage } from './pages/landing-page'
 import { ProjectDetailPage } from './pages/project-detail-page'
 import { TaskDetailPage } from './pages/task-detail-page'
@@ -76,6 +77,10 @@ function App() {
         <Route
           path="/auth/github/callback"
           element={<GithubAuthCallbackPage onAuthSuccess={handleAuthSuccess} />}
+        />
+        <Route
+          path="/auth/figma/callback"
+          element={<FigmaAuthCallbackPage onAuthSuccess={handleAuthSuccess} />}
         />
         <Route
           path="/profile"

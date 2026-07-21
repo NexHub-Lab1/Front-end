@@ -1,7 +1,8 @@
-import { ArrowLeft, Github, PlusIcon, Star, Users, Search } from 'lucide-react'
+import { ArrowLeft, Github, PlusIcon, Star, Users, Search, Figma } from 'lucide-react'
 
 import { AppHeader } from '../components/app/app-header'
 import { ImportGithubReposModal } from '../components/app/import-github-repos-modal'
+import { ImportFigmaModal } from '../components/app/import-figma-modal'
 import { StatLine } from '../components/app/stat-line'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -34,6 +35,7 @@ export function ProjectsPage({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showFigmaModal, setShowFigmaModal] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const currentUser = readStoredUser()
 
@@ -108,6 +110,17 @@ export function ProjectsPage({
                       Import repos
                     </Button>
                   ) : null}
+                  {currentUser.figmaUsername ? (
+                    <Button
+                      className="h-12"
+                      variant="outline"
+                      size="lg"
+                      onClick={() => setShowFigmaModal(true)}
+                    >
+                      <Figma size={16} />
+                      Import Figma
+                    </Button>
+                  ) : null}
                   <Button
                     className="h-12"
                     variant="primary"
@@ -140,6 +153,15 @@ export function ProjectsPage({
               onClose={() => setShowImportModal(false)}
               onImported={async () => {
                 setFeedback('GitHub repository imported successfully.')
+                setCurrentPage(0)
+                await loadProjects(0)
+              }}
+            />
+            <ImportFigmaModal
+              isOpen={showFigmaModal}
+              onClose={() => setShowFigmaModal(false)}
+              onImported={async () => {
+                setFeedback('Figma project imported successfully.')
                 setCurrentPage(0)
                 await loadProjects(0)
               }}
@@ -200,6 +222,11 @@ export function ProjectsPage({
                   {projectsPage.content.map((project) => (
                     <Card key={project.id} className="h-full shadow-none" hoverShadow={true}>
                       <CardBody className="flex h-full flex-col gap-4 p-5">
+                        {project.figmaThumbnailUrl ? (
+                          <div className="w-full h-40 rounded-lg overflow-hidden bg-slate-100 border border-slate-100 flex items-center justify-center">
+                            <img src={project.figmaThumbnailUrl} alt={project.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                          </div>
+                        ) : null}
                         <div className="min-w-0 flex-1 space-y-3">
                           <div className="min-h-20 space-y-1">
                             <CardTitle className="text-2xl font-medium">

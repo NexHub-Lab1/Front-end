@@ -56,6 +56,7 @@ export function ProjectsTab({
     ownerId: user?.id || 0,
     description: "",
     githubRepo: "",
+    figmaFileUrl: "",
     status: "",
     tags: []
   });
@@ -70,6 +71,7 @@ export function ProjectsTab({
       ownerId: user?.id || 0,
       description: "",
       githubRepo: "",
+      figmaFileUrl: "",
       status: "",
       tags: []
     })
@@ -132,10 +134,18 @@ export function ProjectsTab({
       nextErrors.description = 'Description is required.'
     }
 
-    if (!projectForm.githubRepo.trim()) {
-      nextErrors.githubRepo = 'GitHub repository is required.'
-    } else if (!isGithubRepositoryUrl(projectForm.githubRepo)) {
-      nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
+    const hasGithub = projectForm.githubRepo?.trim() || "";
+    const hasFigma = projectForm.figmaFileUrl?.trim() || "";
+
+    if (!hasGithub && !hasFigma) {
+      nextErrors.githubRepo = 'Either a GitHub repository or Figma URL is required.'
+    } else {
+      if (hasGithub && !isGithubRepositoryUrl(hasGithub)) {
+        nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
+      }
+      if (hasFigma && !hasFigma.includes('figma.com')) {
+        nextErrors.githubRepo = 'Enter a valid Figma URL.'
+      }
     }
 
     if (!projectForm.status.trim()) {
@@ -156,10 +166,14 @@ export function ProjectsTab({
     }
 
     if (field === 'githubRepo') {
-      if (!value.trim()) {
-        return 'GitHub repository is required.'
+      const hasFigma = projectForm.figmaFileUrl?.trim();
+      if (!value.trim() && !hasFigma) {
+        return 'Either a GitHub repository or Figma URL is required.'
       }
-      return isGithubRepositoryUrl(value) ? undefined : 'Enter a valid GitHub repository URL.'
+      if (value.trim() && !isGithubRepositoryUrl(value)) {
+        return 'Enter a valid GitHub repository URL.'
+      }
+      return undefined;
     }
 
     return value.trim() ? undefined : 'Status is required.'
@@ -258,13 +272,24 @@ export function ProjectsTab({
             placeholder="Example: https://github.com/owner/repository"
             helperText={createErrors.githubRepo}
             error={Boolean(createErrors.githubRepo)}
-            value={projectForm.githubRepo}
+            value={projectForm.githubRepo || ""}
             onChange={(event) => {
               setProjectForm((current) => ({
                 ...current,
                 githubRepo: event.target.value,
               }))
               updateCreateError('githubRepo', event.target.value)
+            }}
+          />
+          <Input
+            label="Figma URL (optional)"
+            placeholder="Example: https://www.figma.com/design/..."
+            value={projectForm.figmaFileUrl || ""}
+            onChange={(event) => {
+              setProjectForm((current) => ({
+                ...current,
+                figmaFileUrl: event.target.value,
+              }))
             }}
           />
           <div>

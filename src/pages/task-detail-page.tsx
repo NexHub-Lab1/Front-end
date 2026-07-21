@@ -93,6 +93,7 @@ export function TaskDetailPage({
     minReputation: 0,
     collaborative: false,
     recommendedSkills: [],
+    taskType: 'DEVELOPMENT',
   })
   const [editSkillsInput, setEditSkillsInput] = useState('')
   const [editErrors, setEditErrors] = useState<{
@@ -179,6 +180,7 @@ export function TaskDetailPage({
       minReputation: task.minReputation,
       collaborative: task.collaborative,
       recommendedSkills: task.recommendedSkills || [],
+      taskType: task.taskType || 'DEVELOPMENT',
     })
     setEditSkillsInput((task.recommendedSkills || []).join(', '))
     setAllowAnyReputation(!task.minReputation || task.minReputation <= -500)
@@ -497,7 +499,15 @@ export function TaskDetailPage({
   }
 
   const handleSubmit = async () => {
-    const urlError = validatePullRequestUrl(prUrl)
+    const isDevelopment = task?.taskType === 'DEVELOPMENT' || !task?.taskType;
+    let urlError = undefined;
+    
+    if (isDevelopment) {
+      urlError = validatePullRequestUrl(prUrl);
+    } else {
+      urlError = validateDesignUrl(prUrl);
+    }
+
     if (urlError) {
       setSubmitError(urlError)
       return
@@ -513,12 +523,19 @@ export function TaskDetailPage({
       setSubmitError(null)
       setActionFeedback(null)
 
-      const result = await createSubmission({
+      const submissionPayload: any = {
         assignmentId: userAssignment.id,
-        pullRequestUrl: prUrl,
         description: description.trim() || undefined,
         demoUrl: demoUrl.trim() || undefined,
-      })
+      };
+
+      if (isDevelopment) {
+        submissionPayload.pullRequestUrl = prUrl;
+      } else {
+        submissionPayload.designUrl = prUrl;
+      }
+
+      const result = await createSubmission(submissionPayload)
 
       if (result.status === 'success') {
         setShowSubmitModal(false)
@@ -668,6 +685,22 @@ export function TaskDetailPage({
 
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
       return 'Please enter a valid URL (must start with http:// or https://)'
+    }
+
+    return undefined
+  }
+
+  function validateDesignUrl(value: string) {
+    if (!value.trim()) {
+      return 'Please enter a Figma Design URL'
+    }
+
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      return 'Please enter a valid URL (must start with http:// or https://)'
+    }
+    
+    if (!value.includes('figma.com')) {
+      return 'Please enter a valid Figma URL'
     }
 
     return undefined
@@ -1402,13 +1435,13 @@ export function TaskDetailPage({
                                           </td>
                                           <td className="px-5 py-3">
                                             <a
-                                              href={sub.pullRequestUrl}
+                                              href={sub.pullRequestUrl || sub.designUrl}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               onClick={(e) => e.stopPropagation()}
                                               className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
                                             >
-                                              View PR
+                                              {sub.pullRequestUrl ? 'View PR' : 'View Design'}
                                             </a>
                                           </td>
                                           <td className="px-5 py-3 text-slate-500 text-xs font-normal">
@@ -1481,12 +1514,12 @@ export function TaskDetailPage({
                                     </td>
                                     <td className="px-5 py-3">
                                       <a
-                                        href={sub.pullRequestUrl}
+                                        href={sub.pullRequestUrl || sub.designUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-blue-600 hover:text-blue-700 font-medium hover:underline inline-flex items-center gap-1"
                                       >
-                                        View PR
+                                        {sub.pullRequestUrl ? 'View PR' : 'View Design'}
                                       </a>
                                     </td>
                                     <td className="px-5 py-3 text-slate-500 text-xs font-normal">
@@ -1598,17 +1631,21 @@ export function TaskDetailPage({
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Pull Request URL</label>
+              <label className="block text-sm font-medium">
+                {task?.taskType === 'DEVELOPMENT' || !task?.taskType ? 'Pull Request URL' : 'Figma Design URL'}
+              </label>
               <Input
                 type="text"
                 value={prUrl}
                 onChange={(e) => {
                   setPrUrl(e.target.value)
                   if (submitError) {
-                    setSubmitError(validatePullRequestUrl(e.target.value) ?? null)
+                    const isDevelopment = task?.taskType === 'DEVELOPMENT' || !task?.taskType;
+                    const err = isDevelopment ? validatePullRequestUrl(e.target.value) : validateDesignUrl(e.target.value);
+                    setSubmitError(err ?? null)
                   }
                 }}
-                placeholder="https://github.com/..."
+                placeholder={task?.taskType === 'DEVELOPMENT' || !task?.taskType ? "https://github.com/..." : "https://figma.com/..."}
                 disabled={isSubmitting}
                 helperText={submitError || undefined}
                 error={Boolean(submitError)}
@@ -1709,17 +1746,28 @@ export function TaskDetailPage({
                 </span>
               </div>
               <div className="text-sm flex items-center gap-2">
-                <span className="font-semibold text-slate-700">PR Link:</span>{" "}
+                <span className="font-semibold text-slate-700">{selectedSubmission.pullRequestUrl ? 'PR Link:' : 'Design Link:'}</span>{" "}
                 <a
-                  href={selectedSubmission.pullRequestUrl}
+                  href={selectedSubmission.pullRequestUrl || selectedSubmission.designUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="text-blue-600 hover:text-blue-700 font-mono text-xs hover:underline truncate max-w-[400px]"
                 >
-                  {selectedSubmission.pullRequestUrl}
+                  {selectedSubmission.pullRequestUrl || selectedSubmission.designUrl}
                 </a>
               </div>
+              {selectedSubmission.designUrl && selectedSubmission.designUrl.includes('figma.com') && (
+                <div className="mt-4 border rounded overflow-hidden">
+                  <iframe 
+                    style={{ border: 'none' }}
+                    width="100%" 
+                    height="450" 
+                    src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(selectedSubmission.designUrl)}`} 
+                    allowFullScreen 
+                  />
+                </div>
+              )}
               {selectedSubmission.demoUrl && (
                 <div className="text-sm flex items-center gap-2">
                   <span className="font-semibold text-slate-700">Demo URL:</span>{" "}
