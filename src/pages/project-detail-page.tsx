@@ -19,6 +19,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { AppHeader } from "../components/app/app-header";
 import { StatLine } from "../components/app/stat-line";
+import { TaskTypeBadge } from "../components/app/task-type-badge";
 import { readStoredUser } from "../lib/auth-storage";
 import {
   fetchProjectById,
@@ -28,11 +29,13 @@ import {
 } from "../lib/project-storage";
 import { fetchTasksByProject, createTask } from "../lib/task-storage";
 import { isGithubRepositoryUrl } from "../lib/github-url";
+import { isFigmaFileUrl } from "../lib/figma-url";
 import type {
   ProjectResponse,
   ProjectUpdateForm,
   TaskResponse,
   TaskRequest,
+  TaskType,
 } from "../types/app";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -69,7 +72,7 @@ const formatMoney = (amount: number, currency: string) => {
       style: 'currency',
       currency: currency,
     }).format(amount)
-  } catch (e) {
+  } catch {
     return `${amount.toFixed(2)} ${currency}`
   }
 }
@@ -306,7 +309,7 @@ export function ProjectDetailPage({
       });
       setReloadTrigger((prev) => prev + 1);
       setShowCreateModal(false);
-    } catch (error) {
+    } catch {
       setCreateFeedback({ message: "Error creating task", type: "error" });
     } finally {
       setIsSubmittingTask(false);
@@ -379,7 +382,7 @@ export function ProjectDetailPage({
             ),
           );
         }
-      } catch (error) {
+      } catch {
         setProjectTasksPage(
           createEmptyPaginatedResponse<TaskResponse>(
             tasksPageIndex,
@@ -475,7 +478,7 @@ export function ProjectDetailPage({
       if (hasGithub && !isGithubRepositoryUrl(hasGithub)) {
         nextErrors.githubRepo = "Enter a valid GitHub repository URL.";
       }
-      if (hasFigma && !hasFigma.includes("figma.com")) {
+      if (hasFigma && !isFigmaFileUrl(hasFigma)) {
         nextErrors.githubRepo = "Enter a valid Figma URL.";
       }
     }
@@ -893,6 +896,7 @@ export function ProjectDetailPage({
 
                           <div className="flex flex-wrap gap-2">
                             <Badge variant="secondary">{task.status}</Badge>
+                            <TaskTypeBadge taskType={task.taskType} />
                           </div>
 
                           <div className="space-y-2 text-sm">
@@ -1187,6 +1191,26 @@ export function ProjectDetailPage({
                       <option value="HIRING">HIRING</option>
                       <option value="IN_PROGRESS">IN_PROGRESS</option>
                       <option value="COMPLETED">COMPLETED</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="project-create-task-type" className="block text-sm font-medium mb-1 text-slate-700">
+                      Task Type
+                    </label>
+                    <select
+                      id="project-create-task-type"
+                      value={newTaskForm.taskType}
+                      onChange={(event) =>
+                        setNewTaskForm((current) => ({
+                          ...current,
+                          taskType: event.target.value as TaskType,
+                        }))
+                      }
+                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="DEVELOPMENT">Development</option>
+                      <option value="DESIGN">Design</option>
                     </select>
                   </div>
 

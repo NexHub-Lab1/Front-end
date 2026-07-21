@@ -9,8 +9,9 @@ import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import { PaginationControls } from '../components/ui/pagination-controls'
 import { CreateTaskModal } from '../components/app/create-task-modal'
+import { TaskTypeBadge } from '../components/app/task-type-badge'
 import { fetchAllTasks, fetchFeaturedTasks } from '../lib/task-storage'
-import type { FeaturedTaskResponse, PaginatedResponse, TaskResponse } from '../types/app'
+import type { FeaturedTaskResponse, PaginatedResponse, TaskResponse, TaskType } from '../types/app'
 import { GRID_PAGE_SIZE, createEmptyPaginatedResponse } from '../lib/pagination'
 import { readStoredUser } from '../lib/auth-storage'
 import { fundingBadgeClassName, normalizeFundingStatus } from '../lib/payment-utils'
@@ -21,7 +22,7 @@ const formatMoney = (amount: number, currency: string) => {
       style: 'currency',
       currency: currency,
     }).format(amount)
-  } catch (e) {
+  } catch {
     return `${amount.toFixed(2)} ${currency}`
   }
 }
@@ -45,15 +46,12 @@ export function TasksPage({
   const [currentPage, setCurrentPage] = useState(0)
   const [searchKeyword, setSearchKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [taskTypeFilter, setTaskTypeFilter] = useState<'' | TaskType>('')
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const currentUser = readStoredUser()
-
-  useEffect(() => {
-    setCurrentPage(0)
-  }, [isFeaturedMode])
 
   useEffect(() => {
     async function loadTasks() {
@@ -84,6 +82,7 @@ export function TasksPage({
         size: GRID_PAGE_SIZE,
         search: searchKeyword,
         status: statusFilter,
+        taskType: taskTypeFilter || undefined,
       })
 
       if (tasksResponse.status === 'error' || !tasksResponse.data) {
@@ -108,7 +107,7 @@ export function TasksPage({
       }
       setIsLoading(false)
     })
-  }, [currentPage, currentUser?.id, isFeaturedMode, searchKeyword, statusFilter])
+  }, [currentPage, currentUser?.id, isFeaturedMode, searchKeyword, statusFilter, taskTypeFilter])
 
   const taskItems = isFeaturedMode
     ? featuredTasksPage.content.map((featuredTask) => ({
@@ -245,6 +244,18 @@ export function TasksPage({
                   <option value="Completed">Completed</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
+                <select
+                  value={taskTypeFilter}
+                  onChange={(e) => {
+                    setTaskTypeFilter(e.target.value as '' | TaskType)
+                    setCurrentPage(0)
+                  }}
+                  className="min-w-[160px] cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">All Types</option>
+                  <option value="DEVELOPMENT">Development</option>
+                  <option value="DESIGN">Design</option>
+                </select>
               </div>
             )}
 
@@ -288,6 +299,7 @@ export function TasksPage({
                               {normalizeFundingStatus(task.fundingStatus)}
                             </Badge>
                             <Badge variant="outline">{task.projectName}</Badge>
+                            <TaskTypeBadge taskType={task.taskType} />
                             {score !== null ? (
                               <Badge variant="outline" className="border-blue-100 bg-blue-50 text-blue-700">
                                 Score {score}

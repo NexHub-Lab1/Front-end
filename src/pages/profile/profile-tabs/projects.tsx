@@ -18,6 +18,7 @@ import { Input } from "../../../components/ui/input";
 import { PaginationControls } from "../../../components/ui/pagination-controls";
 import { useNavigate } from "react-router-dom";
 import { isGithubRepositoryUrl } from "../../../lib/github-url";
+import { isFigmaFileUrl } from "../../../lib/figma-url";
 import { PROFILE_PAGE_SIZE, createEmptyPaginatedResponse } from "../../../lib/pagination";
 import type { PaginatedResponse } from "../../../types/app";
 import { readStoredProfileDashboard } from "../../../lib/dashboard-storage";
@@ -143,7 +144,7 @@ export function ProjectsTab({
       if (hasGithub && !isGithubRepositoryUrl(hasGithub)) {
         nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
       }
-      if (hasFigma && !hasFigma.includes('figma.com')) {
+      if (hasFigma && !isFigmaFileUrl(hasFigma)) {
         nextErrors.githubRepo = 'Enter a valid Figma URL.'
       }
     }
@@ -223,7 +224,7 @@ export function ProjectsTab({
       resetProjectForm()
       setCurrentPage(0)
       void reloadProjects(0)
-    } catch (error) {
+    } catch {
       setFeedback({message: "Error creating project", type:"error"})
       setIsSubmitting(false)
     }

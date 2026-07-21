@@ -3,7 +3,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AppHeader } from '../components/app/app-header'
-import type { PaymentResponse, TaskResponse, User, TaskAssignmentResponse, TaskSubmissionResponse, TaskRequest, TaskInvitationResponse, GithubPullRequestCommentResponse } from '../types/app'
+import { TaskTypeBadge } from '../components/app/task-type-badge'
+import type { PaymentResponse, TaskResponse, User, TaskAssignmentResponse, TaskSubmissionRequest, TaskSubmissionResponse, TaskRequest, TaskType, TaskInvitationResponse, GithubPullRequestCommentResponse } from '../types/app'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
@@ -22,6 +23,7 @@ import { fetchTaskAssignments } from '../lib/chat-storage'
 import { TaskChatPanel } from '../components/app/task-chat-panel'
 import { readStoredProfileDashboard } from '../lib/dashboard-storage'
 import { fetchGithubTaskActivity } from '../lib/github-activity-storage'
+import { isFigmaFileUrl } from '../lib/figma-url'
 
 export function TaskDetailPage({
   currentUser,
@@ -255,7 +257,7 @@ export function TaskDetailPage({
       setEditFeedback({ message: 'Task updated successfully', type: 'success' })
       setTask(res.data)
       setShowEditModal(false)
-    } catch (error) {
+    } catch {
       setEditFeedback({ message: 'Error updating task', type: 'error' })
     } finally {
       setIsUpdatingTask(false)
@@ -574,7 +576,7 @@ export function TaskDetailPage({
       setSubmitError(null)
       setActionFeedback(null)
 
-      const submissionPayload: any = {
+      const submissionPayload: TaskSubmissionRequest = {
         assignmentId: userAssignment.id,
         description: description.trim() || undefined,
         demoUrl: demoUrl.trim() || undefined,
@@ -750,7 +752,7 @@ export function TaskDetailPage({
       return 'Please enter a valid URL (must start with http:// or https://)'
     }
 
-    if (!value.includes('figma.com')) {
+    if (!isFigmaFileUrl(value)) {
       return 'Please enter a valid Figma URL'
     }
 
@@ -987,6 +989,7 @@ export function TaskDetailPage({
                           {fundingStatus}
                         </Badge>
                         <Badge variant="outline">{task.projectName}</Badge>
+                        <TaskTypeBadge taskType={task.taskType} />
                         {projectOwnerUsername && projectOwnerId && (
                           <Badge
                             variant="outline"
@@ -2027,17 +2030,6 @@ export function TaskDetailPage({
                   {selectedSubmission.pullRequestUrl || selectedSubmission.designUrl}
                 </a>
               </div>
-              {selectedSubmission.designUrl && selectedSubmission.designUrl.includes('figma.com') && (
-                <div className="mt-4 border rounded overflow-hidden">
-                  <iframe
-                    style={{ border: 'none' }}
-                    width="100%"
-                    height="450"
-                    src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(selectedSubmission.designUrl)}`}
-                    allowFullScreen
-                  />
-                </div>
-              )}
               {selectedSubmission.demoUrl && (
                 <div className="text-sm flex items-center gap-2">
                   <span className="font-semibold text-slate-700">Demo URL:</span>{" "}
@@ -2315,6 +2307,26 @@ export function TaskDetailPage({
                 <option value="HIRING">HIRING</option>
                 <option value="IN_PROGRESS">IN_PROGRESS</option>
                 <option value="COMPLETED">COMPLETED</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="edit-task-type" className="block text-sm font-medium mb-1 text-slate-700">
+                Task Type
+              </label>
+              <select
+                id="edit-task-type"
+                value={editTaskForm.taskType}
+                onChange={(event) =>
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    taskType: event.target.value as TaskType,
+                  }))
+                }
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="DEVELOPMENT">Development</option>
+                <option value="DESIGN">Design</option>
               </select>
             </div>
 

@@ -6,9 +6,10 @@ import {
 } from "../../../components/ui/card";
 import { Check, Cross, PlusIcon, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
+import { TaskTypeBadge } from "../../../components/app/task-type-badge";
 import { Button } from "../../../components/ui/button";
 
-import type { TaskRequest, TaskResponse, ProjectLookupDTO, User } from "../../../types/app";
+import type { TaskRequest, TaskResponse, ProjectLookupDTO, TaskType, User } from "../../../types/app";
 
 import { createTask, fetchTasksByOwner, updateTask, deleteTask, cancelTask } from "../../../lib/task-storage";
 import { useEffect, useState, type FormEvent, useCallback } from "react";
@@ -26,7 +27,7 @@ const formatMoney = (amount: number, currency: string) => {
       style: 'currency',
       currency: currency,
     }).format(amount)
-  } catch (e) {
+  } catch {
     return `${amount.toFixed(2)} ${currency}`
   }
 }
@@ -298,7 +299,7 @@ export function TasksTab({
       setEditingTaskId(null)
       setCurrentPage(0)
       void reloadTasks(0)
-    } catch (error) {
+    } catch {
       setFeedback({ message: "Error processing task", type: "error" })
     } finally {
       setIsSubmitting(false)
@@ -327,7 +328,7 @@ export function TasksTab({
       setTaskToRemove(null)
       setCurrentPage(0)
       void reloadTasks(0)
-    } catch (error) {
+    } catch {
       setFeedback({ message: "Error removing task", type: "error" })
     }
   }
@@ -489,7 +490,7 @@ export function TasksTab({
               onChange={(event) =>
                 setTaskForm((current) => ({
                   ...current,
-                  taskType: event.target.value,
+                  taskType: event.target.value as TaskType,
                 }))
               }
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
@@ -748,6 +749,7 @@ export function TasksTab({
 
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">{task.status}</Badge>
+                        <TaskTypeBadge taskType={task.taskType} />
                         <Badge variant="outline" className="truncate max-w-[150px]">{task.projectName}</Badge>
                       </div>
 

@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { fetchProjectsByCurrentUser } from '../../lib/project-storage'
 import { createTask } from '../../lib/task-storage'
 import { LOOKUP_PAGE_SIZE } from '../../lib/pagination'
-import type { ProjectResponse, TaskRequest } from '../../types/app'
+import type { ProjectResponse, TaskRequest, TaskType } from '../../types/app'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import Modal from '../ui/modal'
@@ -265,7 +265,7 @@ export function CreateTaskModal({
             id="sidebar-create-task-type"
             value={taskForm.taskType}
             onChange={(event) => {
-              setTaskForm((current) => ({ ...current, taskType: event.target.value }))
+              setTaskForm((current) => ({ ...current, taskType: event.target.value as TaskType }))
             }}
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
           >

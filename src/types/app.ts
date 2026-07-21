@@ -57,6 +57,7 @@ export type PaginationParams = {
   sort?: string[]
   search?: string
   status?: string
+  taskType?: TaskType
   userId?: number
 }
 
@@ -91,7 +92,7 @@ export type ProjectResponse = {
   githubWebhookConnectedAt?: Date | string | null,
   githubWebhookLastDeliveryAt?: Date | string | null,
   figmaFileUrl?: string | null,
-  figmaFileName?: string | null,
+  figmaFileKey?: string | null,
   figmaThumbnailUrl?: string | null
 }
 
@@ -138,6 +139,8 @@ export type DeveloperCard = {
   rank: string
 }
 
+export type TaskType = 'DEVELOPMENT' | 'DESIGN'
+
 export type TaskRequest = {
   projectId: number,
   title: string,
@@ -151,7 +154,7 @@ export type TaskRequest = {
   minReputation?: number,
   collaborative: boolean,
   recommendedSkills: string[],
-  taskType: string
+  taskType: TaskType
 }
 
 export type TaskResponse = {
@@ -172,7 +175,7 @@ export type TaskResponse = {
   createdAt: Date,
   updatedAt: Date,
   recommendedSkills: string[],
-  taskType: string
+  taskType: TaskType
   githubIssueId?: number | null,
   githubIssueNumber?: number | null,
   githubIssueUrl?: string | null,

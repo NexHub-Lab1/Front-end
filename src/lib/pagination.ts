@@ -32,6 +32,10 @@ export function buildPaginationQuery(params?: PaginationParams) {
     searchParams.set('status', params.status)
   }
 
+  if (params.taskType !== undefined) {
+    searchParams.set('taskType', params.taskType)
+  }
+
   if (params.userId !== undefined) {
     searchParams.set('userId', String(params.userId))
   }

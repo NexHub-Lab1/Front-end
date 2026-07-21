@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Figma, Link2, LoaderCircle } from 'lucide-react'
 
 import { importFigmaProject } from '../../lib/project-storage'
+import { isFigmaFileUrl } from '../../lib/figma-url'
 import { Button } from '../ui/button'
 import { Card, CardBody, CardDescription } from '../ui/card'
 import Modal from '../ui/modal'
@@ -26,8 +27,8 @@ export function ImportFigmaModal({
       return
     }
 
-    if (!figmaUrl.includes('figma.com')) {
-      setError('The URL must be a valid Figma link (containing figma.com).')
+    if (!isFigmaFileUrl(figmaUrl)) {
+      setError('The URL must be a valid Figma file or design link.')
       return
     }
 
@@ -58,7 +59,7 @@ export function ImportFigmaModal({
           <CardBody className="flex flex-row items-center gap-3 p-4">
             <Figma size={18} className="text-slate-700 animate-pulse" />
             <CardDescription>
-              Enter the link of your Figma file or design. We'll automatically fetch its name, thumbnail, and details to create your NexHub project.
+              Enter the link of your Figma file or design. We'll use its name to create your NexHub project.
             </CardDescription>
           </CardBody>
         </Card>

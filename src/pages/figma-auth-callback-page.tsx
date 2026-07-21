@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { LoaderCircle } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { Card, CardBody, CardDescription, CardTitle } from '../components/ui/card'
 import type { AuthUser } from '../types/app'
@@ -11,6 +11,7 @@ export function FigmaAuthCallbackPage({
   onAuthSuccess: (user: AuthUser) => void
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
 
   useEffect(() => {
@@ -20,12 +21,13 @@ export function FigmaAuthCallbackPage({
       return
     }
 
-    const token = searchParams.get('token')
-    const id = searchParams.get('id')
-    const username = searchParams.get('username')
-    const email = searchParams.get('email')
-    const figmaUsername = searchParams.get('figmaUsername')
-    const figmaId = searchParams.get('figmaId')
+    const callbackParams = new URLSearchParams(location.hash.replace(/^#/, ''))
+    const token = callbackParams.get('token')
+    const id = callbackParams.get('id')
+    const username = callbackParams.get('username')
+    const email = callbackParams.get('email')
+    const figmaUsername = callbackParams.get('figmaUsername')
+    const figmaId = callbackParams.get('figmaId')
 
     if (!token || !id || !username || !email) {
       navigate('/auth/login?error=Figma sign in did not complete correctly.', { replace: true })
@@ -40,13 +42,13 @@ export function FigmaAuthCallbackPage({
         email,
         figmaId: figmaId || null,
         figmaUsername: figmaUsername || null,
-        profileImageUrl: searchParams.get('profileImageUrl'),
+        profileImageUrl: callbackParams.get('profileImageUrl'),
         skills: [],
       },
     })
 
     navigate('/projects', { replace: true })
-  }, [navigate, onAuthSuccess, searchParams])
+  }, [location.hash, navigate, onAuthSuccess, searchParams])
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-6 sm:px-6 lg:px-8">

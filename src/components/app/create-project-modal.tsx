@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 
 import { createProject } from '../../lib/project-storage'
+import { isFigmaFileUrl } from '../../lib/figma-url'
 import { isGithubRepositoryUrl } from '../../lib/github-url'
 import type { ProjectForm } from '../../types/app'
 import { Button } from '../ui/button'
@@ -101,7 +102,7 @@ export function CreateProjectModal({
       if (hasGithub && !isGithubRepositoryUrl(hasGithub)) {
         nextErrors.githubRepo = 'Enter a valid GitHub repository URL.'
       }
-      if (hasFigma && !hasFigma.includes('figma.com')) {
+      if (hasFigma && !isFigmaFileUrl(hasFigma)) {
         nextErrors.githubRepo = 'Enter a valid Figma URL.'
       }
     }

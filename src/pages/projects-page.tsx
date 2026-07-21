@@ -222,11 +222,6 @@ export function ProjectsPage({
                   {projectsPage.content.map((project) => (
                     <Card key={project.id} className="h-full shadow-none" hoverShadow={true}>
                       <CardBody className="flex h-full flex-col gap-4 p-5">
-                        {project.figmaThumbnailUrl ? (
-                          <div className="w-full h-40 rounded-lg overflow-hidden bg-slate-100 border border-slate-100 flex items-center justify-center">
-                            <img src={project.figmaThumbnailUrl} alt={project.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-                          </div>
-                        ) : null}
                         <div className="min-w-0 flex-1 space-y-3">
                           <div className="min-h-20 space-y-1">
                             <CardTitle className="text-2xl font-medium">
