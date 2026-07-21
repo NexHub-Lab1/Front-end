@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { MessageSquare, AlertCircle, RefreshCw, Loader2, ArrowRight } from 'lucide-react'
 
 import { Badge } from '../../../components/ui/badge'
@@ -16,6 +16,8 @@ export function ChatsTab({
   user: User 
 }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedAssignmentId = Number(searchParams.get('assignmentId'))
   const [chats, setChats] = useState<TaskAssignmentResponse[]>([])
   const [selectedChat, setSelectedChat] = useState<TaskAssignmentResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -53,6 +55,17 @@ export function ChatsTab({
   useEffect(() => {
     void loadChats()
   }, [loadChats])
+
+  useEffect(() => {
+    if (!Number.isInteger(requestedAssignmentId) || requestedAssignmentId <= 0) {
+      return
+    }
+
+    const requestedChat = chats.find((chat) => chat.id === requestedAssignmentId)
+    if (requestedChat) {
+      setSelectedChat(requestedChat)
+    }
+  }, [chats, requestedAssignmentId])
 
   if (isLoading) {
     return (

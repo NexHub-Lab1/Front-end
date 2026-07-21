@@ -50,6 +50,9 @@ export function NotificationBell() {
     if (notification.message.startsWith("Your submission for '")) {
       return '/profile?tab=submissions'
     }
+    if (notification.message.includes(' sent you a message on ')) {
+      return '/profile?tab=chats'
+    }
 
     return null
   }
