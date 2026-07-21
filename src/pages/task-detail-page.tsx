@@ -894,6 +894,7 @@ export function TaskDetailPage({
   const assignmentButton = getAssignmentButtonContent()
   const submitButton = getSubmitButtonContent()
   const fundingStatus = normalizeFundingStatus(task?.fundingStatus)
+  const isSettledTask = fundingStatus === 'released' || ['completed', 'closed'].includes(task?.status.toLowerCase() || '')
   const githubReviewedSubmissions = submissions
     .filter((submission) => submission.githubReviewState)
     .sort((first, second) => {
@@ -1028,7 +1029,7 @@ export function TaskDetailPage({
                     </div>
 
                     <div className="flex gap-2 lg:flex-col">
-                      {isOwner ? (
+                      {isOwner && !isSettledTask ? (
                         <Button
                           variant="primary"
                           size="lg"
@@ -1037,7 +1038,7 @@ export function TaskDetailPage({
                           <Pencil size={16} className="mr-2" />
                           Edit Task
                         </Button>
-                      ) : (
+                      ) : !isOwner ? (
                         <>
                           {!userAssignment && (
                             <Button
@@ -1062,7 +1063,7 @@ export function TaskDetailPage({
                             Submit
                           </Button>
                         </>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 

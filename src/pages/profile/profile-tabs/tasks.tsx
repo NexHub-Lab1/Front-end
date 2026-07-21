@@ -51,7 +51,11 @@ const shouldCancelInsteadOfDelete = (message?: string) => {
   );
 };
 
-const isVisibleOwnerTask = (task: TaskResponse) => task.status.toLowerCase() !== "cancelled";
+const isVisibleOwnerTask = (task: TaskResponse) => {
+  const status = task.status.toLowerCase();
+  const fundingStatus = task.fundingStatus?.toLowerCase();
+  return !['cancelled', 'completed', 'closed'].includes(status) && fundingStatus !== 'released';
+};
 
 const withVisibleOwnerTasks = (page: PaginatedResponse<TaskResponse>) => {
   const content = page.content.filter(isVisibleOwnerTask);
