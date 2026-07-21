@@ -11,7 +11,12 @@ import { Card, CardBody, CardHeader } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-import { AUTH_LOG_IN_ENDPOINT, AUTH_SIGN_UP_ENDPOINT } from '../lib/auth-storage'
+import {
+  AUTH_LOG_IN_ENDPOINT,
+  AUTH_SIGN_UP_ENDPOINT,
+  FIGMA_AUTH_START_ENDPOINT,
+  GITHUB_AUTH_START_ENDPOINT,
+} from '../lib/auth-storage'
 
 const initialLogin = {
   email: '',
@@ -221,11 +226,11 @@ export function AuthPage({
   }
 
   function handleGithubLogin() {
-    window.location.href = '/api/auth/github/start'
+    window.location.href = GITHUB_AUTH_START_ENDPOINT
   }
 
   function handleFigmaLogin() {
-    window.location.href = '/api/auth/figma/start'
+    window.location.href = FIGMA_AUTH_START_ENDPOINT
   }
 
   return (

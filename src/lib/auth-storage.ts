@@ -2,6 +2,10 @@ import type { ApiResponse, AuthUser, User } from '../types/app'
 
 const AUTH_STORAGE_KEY = 'nexhub-auth-user'
 export const AUTH_ROOT_ENDPOINT = '/api/auth'
+const configuredAuthRoot = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '')
+export const OAUTH_AUTH_ROOT_ENDPOINT = configuredAuthRoot || AUTH_ROOT_ENDPOINT
+export const GITHUB_AUTH_START_ENDPOINT = OAUTH_AUTH_ROOT_ENDPOINT + '/github/start'
+export const FIGMA_AUTH_START_ENDPOINT = OAUTH_AUTH_ROOT_ENDPOINT + '/figma/start'
 export const AUTH_SIGN_UP_ENDPOINT = AUTH_ROOT_ENDPOINT + '/signup'
 export const AUTH_LOG_IN_ENDPOINT = AUTH_ROOT_ENDPOINT + '/login'
 export const AUTH_UPDATE_ENDPOINT = AUTH_ROOT_ENDPOINT + '/updateaccount'
